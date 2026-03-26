@@ -1,0 +1,30 @@
+name: Publish JavaScript
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run"
+        required: false
+        default: "true"
+
+jobs:
+  publish:
+    name: Publish npm package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+      - name: Install napi-cli
+        run: npm install -g @napi-rs/cli
+      - name: Build
+        run: cd crates/markkit-js && napi build --release
+      - name: Publish
+        if: inputs.dry_run != 'true'
+        run: cd crates/markkit-js && npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

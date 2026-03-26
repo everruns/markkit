@@ -1,0 +1,32 @@
+name: Python
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "crates/markkit-python/**"
+      - "crates/markkit/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "crates/markkit-python/**"
+      - "crates/markkit/**"
+
+jobs:
+  build:
+    name: Build Python bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install maturin
+        run: pip install maturin
+      - name: Build
+        run: cd crates/markkit-python && maturin build
+      - name: Test import
+        run: |
+          pip install target/wheels/*.whl
+          python -c "import markkit_python; print('Import OK')"

@@ -1,0 +1,31 @@
+# Benchmark tool for measuring markkit extraction performance
+
+[package]
+name = "markkit-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Benchmark tool for markkit markdown extraction"
+
+[[bin]]
+name = "markkit-bench"
+path = "src/main.rs"
+
+[dependencies]
+markkit = { path = "../markkit", features = ["all_formats", "http_client"] }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+
+# Timing
+instant = "0.1"
+
+# Statistics
+statrs = "0.18"
+
+# Terminal output
+colored = "3"
+tabled = "0.20"
