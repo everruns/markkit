@@ -1,11 +1,19 @@
 use napi_derive::napi;
 
-/// Extract markdown from an HTML string.
+/// Extract markdown from an HTML string (async).
 #[napi]
 pub async fn extract_html(html: String) -> napi::Result<String> {
     let m = markkit::Markkit::builder().build();
     m.extract_html(&html)
         .await
+        .map_err(|e| napi::Error::from_reason(e.to_string()))
+}
+
+/// Extract markdown from an HTML string (synchronous).
+#[napi]
+pub fn extract_html_sync(html: String) -> napi::Result<String> {
+    let m = markkit::Markkit::builder().build();
+    m.extract_html_sync(&html)
         .map_err(|e| napi::Error::from_reason(e.to_string()))
 }
 
