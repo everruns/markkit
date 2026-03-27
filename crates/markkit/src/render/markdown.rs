@@ -112,13 +112,7 @@ impl MarkdownRenderer {
     }
 
     /// Render a list.
-    fn render_list(
-        &mut self,
-        ordered: bool,
-        start: Option<u64>,
-        items: &[ListItem],
-        depth: usize,
-    ) {
+    fn render_list(&mut self, ordered: bool, start: Option<u64>, items: &[ListItem], depth: usize) {
         let indent = "  ".repeat(depth);
         let start_num = start.unwrap_or(1);
 

@@ -146,10 +146,9 @@ fn link_with_inline_formatting() {
 
 #[test]
 fn link_preservation_disabled() {
-    let md = convert_with(
-        r#"<p><a href="https://example.com">Example</a></p>"#,
-        |b| b.preserve_links(false),
-    );
+    let md = convert_with(r#"<p><a href="https://example.com">Example</a></p>"#, |b| {
+        b.preserve_links(false)
+    });
     assert_eq!(md, "Example\n");
 }
 
@@ -198,9 +197,8 @@ fn ordered_list_custom_start() {
 
 #[test]
 fn nested_list() {
-    let md = convert(
-        "<ul><li>Outer<ul><li>Inner A</li><li>Inner B</li></ul></li><li>Other</li></ul>",
-    );
+    let md =
+        convert("<ul><li>Outer<ul><li>Inner A</li><li>Inner B</li></ul></li><li>Other</li></ul>");
     assert!(md.contains("- Outer"));
     assert!(md.contains("  - Inner A"));
     assert!(md.contains("  - Inner B"));
@@ -223,9 +221,7 @@ fn blockquote_simple() {
 
 #[test]
 fn blockquote_nested() {
-    let md = convert(
-        "<blockquote><p>Outer</p><blockquote><p>Inner</p></blockquote></blockquote>",
-    );
+    let md = convert("<blockquote><p>Outer</p><blockquote><p>Inner</p></blockquote></blockquote>");
     assert!(md.contains("> Outer"));
     assert!(md.contains("> > Inner"));
 }
@@ -495,4 +491,203 @@ fn idempotent_double_extract() {
     let md1 = convert(html);
     let md2 = convert(html);
     assert_eq!(md1, md2);
+}
+
+// ─── Tables Edge Cases ──────────────────────────────────────────────
+
+#[test]
+fn table_no_thead() {
+    let html = r#"
+    <table>
+        <tbody>
+            <tr><th>Name</th><th>Value</th></tr>
+            <tr><td>A</td><td>1</td></tr>
+        </tbody>
+    </table>"#;
+    let md = convert(html);
+    assert!(md.contains("| Name | Value |"));
+    assert!(md.contains("| --- | --- |"));
+    assert!(md.contains("| A | 1 |"));
+}
+
+#[test]
+fn table_headers_only() {
+    let html = r#"
+    <table>
+        <thead><tr><th>Col1</th><th>Col2</th></tr></thead>
+    </table>"#;
+    let md = convert(html);
+    assert!(md.contains("| Col1 | Col2 |"));
+    assert!(md.contains("| --- | --- |"));
+}
+
+#[test]
+fn table_mismatched_columns() {
+    let html = r#"
+    <table>
+        <thead><tr><th>A</th><th>B</th><th>C</th></tr></thead>
+        <tbody>
+            <tr><td>1</td><td>2</td></tr>
+        </tbody>
+    </table>"#;
+    let md = convert(html);
+    assert!(md.contains("| A | B | C |"));
+    assert!(md.contains("| --- | --- | --- |"));
+    // Row with fewer cells still renders (padded with empty cells)
+    assert!(md.contains("| 1 | 2 |"));
+}
+
+#[test]
+fn table_empty() {
+    let html = "<table></table>";
+    let md = convert(html);
+    assert_eq!(md, "");
+}
+
+// ─── Lists Edge Cases ───────────────────────────────────────────────
+
+#[test]
+fn nested_list_three_levels() {
+    let html = "<ul><li>L1<ul><li>L2<ul><li>L3</li></ul></li></ul></li></ul>";
+    let md = convert(html);
+    assert!(md.contains("- L1"));
+    assert!(md.contains("  - L2"));
+    assert!(md.contains("    - L3"));
+}
+
+#[test]
+fn ordered_list_default_start() {
+    let html = "<ol><li>Alpha</li><li>Beta</li><li>Gamma</li></ol>";
+    let md = convert(html);
+    assert!(md.contains("1. Alpha"));
+    assert!(md.contains("2. Beta"));
+    assert!(md.contains("3. Gamma"));
+}
+
+// ─── Renderer Edge Cases ────────────────────────────────────────────
+
+#[test]
+fn link_empty_url() {
+    let md = convert(r#"<p><a href="">text</a></p>"#);
+    assert!(md.contains("[text]()"));
+}
+
+#[test]
+fn image_empty_src() {
+    let md = convert(r#"<img src="" alt="x">"#);
+    assert!(md.contains("![x]()"));
+}
+
+#[test]
+fn code_block_with_backticks() {
+    let html = r#"<pre><code>let x = `hello`;</code></pre>"#;
+    let md = convert(html);
+    assert!(md.contains("```"));
+    assert!(md.contains("let x = `hello`;"));
+}
+
+// ─── Config Tests ───────────────────────────────────────────────────
+
+#[test]
+fn config_max_processing_secs() {
+    let m = Markkit::builder().max_processing_secs(30).build();
+    assert_eq!(m.config().max_processing_secs, 30);
+}
+
+#[test]
+fn config_multiple_include_selectors() {
+    let html = r#"<div class="a">AAA</div><div class="b">BBB</div><div class="c">CCC</div>"#;
+    let md = convert_with(html, |b| b.include_selector(".a").include_selector(".b"));
+    assert!(md.contains("AAA"));
+    assert!(md.contains("BBB"));
+    assert!(!md.contains("CCC"));
+}
+
+#[test]
+fn config_include_and_exclude() {
+    let html = r#"<article><p>Keep</p><div class="ad">Remove</div><p>Also keep</p></article>"#;
+    let md = convert_with(html, |b| {
+        b.include_selector("article").exclude_selector(".ad")
+    });
+    assert!(md.contains("Keep"));
+    assert!(md.contains("Also keep"));
+    assert!(!md.contains("Remove"));
+}
+
+// ─── Format Detection ───────────────────────────────────────────────
+
+#[test]
+fn format_content_type_with_params() {
+    use markkit::format::Format;
+    assert_eq!(
+        Format::from_content_type("text/html; charset=utf-8; boundary=foo"),
+        Format::Html
+    );
+}
+
+#[test]
+fn format_empty_extension() {
+    use markkit::format::Format;
+    assert_eq!(Format::from_extension(""), Format::Unknown);
+}
+
+#[test]
+fn format_mixed_case_extension() {
+    use markkit::format::Format;
+    assert_eq!(Format::from_extension("HtMl"), Format::Html);
+}
+
+// ─── Extract Bytes ──────────────────────────────────────────────────
+
+#[tokio::test]
+async fn extract_bytes_html() {
+    let m = Markkit::builder().build();
+    let html = b"<h1>Hello</h1><p>World</p>";
+    let md = m.extract_bytes(html, Some("text/html")).await.unwrap();
+    assert!(md.contains("# Hello"));
+    assert!(md.contains("World"));
+}
+
+#[tokio::test]
+async fn extract_bytes_unknown_format() {
+    let m = Markkit::builder().build();
+    let data = b"some random bytes";
+    let result = m
+        .extract_bytes(data, Some("application/octet-stream"))
+        .await;
+    assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn extract_bytes_no_content_type() {
+    let m = Markkit::builder().build();
+    let data = b"some random bytes";
+    let result = m.extract_bytes(data, None).await;
+    assert!(result.is_err());
+}
+
+// ─── Parser Edge Cases ──────────────────────────────────────────────
+
+#[test]
+fn html_no_body() {
+    let md = convert("<h1>Title</h1><p>Content</p>");
+    assert!(md.contains("# Title"));
+    assert!(md.contains("Content"));
+}
+
+#[test]
+fn empty_list_items_skipped() {
+    let md = convert("<ul><li></li><li>text</li></ul>");
+    assert!(md.contains("- text"));
+    // Empty list item should be skipped
+    let dash_count = md.matches("- ").count();
+    assert_eq!(dash_count, 1, "Expected only one list item, got: {}", md);
+}
+
+#[test]
+fn div_with_multiple_blocks() {
+    let html = "<div><p>First</p><p>Second</p></div>";
+    let md = convert(html);
+    assert!(md.contains("First"));
+    assert!(md.contains("Second"));
 }

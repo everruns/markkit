@@ -28,7 +28,9 @@ fn main() {
         }
     }
     println!("--- Node Counts ---");
-    println!("Headings: {headings}, Paragraphs: {paragraphs}, Quotes: {quotes}, Code blocks: {code_blocks}");
+    println!(
+        "Headings: {headings}, Paragraphs: {paragraphs}, Quotes: {quotes}, Code blocks: {code_blocks}"
+    );
 
     // Serialize to JSON
     let json = serde_json::to_string_pretty(&doc).expect("json failed");

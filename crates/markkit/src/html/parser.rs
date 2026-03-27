@@ -36,11 +36,7 @@ impl<'a> HtmlParser<'a> {
             } else {
                 let body_sel = Selector::parse("body").unwrap();
                 let body: Vec<_> = dom.select(&body_sel).collect();
-                if body.is_empty() {
-                    vec![root]
-                } else {
-                    body
-                }
+                if body.is_empty() { vec![root] } else { body }
             };
 
         let exclude_selectors: Vec<Selector> = self
@@ -95,7 +91,10 @@ impl<'a> HtmlParser<'a> {
                         if self.is_excluded(&el, exclude) {
                             continue;
                         }
-                        if let Some(node) = self.convert_element(el, exclude, depth + 1) {
+                        // Transparent containers: recurse directly into their children
+                        if is_transparent_container(el.value().name()) {
+                            self.convert_children(el, exclude, out, depth + 1);
+                        } else if let Some(node) = self.convert_element(el, exclude, depth + 1) {
                             out.push(node);
                         }
                     }
@@ -167,10 +166,7 @@ impl<'a> HtmlParser<'a> {
             }
 
             "ol" => {
-                let start = el
-                    .value()
-                    .attr("start")
-                    .and_then(|s| s.parse::<u64>().ok());
+                let start = el.value().attr("start").and_then(|s| s.parse::<u64>().ok());
                 let items = self.collect_list_items(el, exclude, depth);
                 if items.is_empty() {
                     return None;
@@ -278,9 +274,9 @@ impl<'a> HtmlParser<'a> {
             "hr" => Some(Node::ThematicBreak),
 
             // Skip non-content elements
-            "script" | "style" | "noscript" | "iframe" | "object" | "embed" | "form"
-            | "input" | "button" | "select" | "textarea" | "svg" | "canvas" | "video"
-            | "audio" | "source" | "track" | "map" | "area" => None,
+            "script" | "style" | "noscript" | "iframe" | "object" | "embed" | "form" | "input"
+            | "button" | "select" | "textarea" | "svg" | "canvas" | "video" | "audio"
+            | "source" | "track" | "map" | "area" => None,
 
             // Unknown element: try to extract inline content
             _ => {
@@ -463,6 +459,14 @@ fn collapse_whitespace(s: &str) -> String {
     }
 
     result
+}
+
+/// Check if a tag is a transparent container (should be unwrapped in block context).
+fn is_transparent_container(tag: &str) -> bool {
+    matches!(
+        tag,
+        "div" | "section" | "article" | "main" | "figure" | "figcaption"
+    )
 }
 
 /// Check if a node is inline content.

@@ -159,3 +159,46 @@ fn null_bytes() {
     assert!(md.contains("before"));
     assert!(md.contains("after"));
 }
+
+// ─── Depth Limits ───────────────────────────────────────────────────
+
+#[test]
+fn depth_limit_200() {
+    // MAX_DEPTH is 200. With 200 nested divs, the inner <p> is at depth 200
+    // (body=0, div1=1, ..., div200=200). At depth >= 200 the parser
+    // falls back to text extraction. The content should still appear.
+    let mut html = String::new();
+    for _ in 0..200 {
+        html.push_str("<div>");
+    }
+    html.push_str("<p>Deep content</p>");
+    for _ in 0..200 {
+        html.push_str("</div>");
+    }
+    let md = convert(&html);
+    assert!(
+        md.contains("Deep content"),
+        "Content at depth 200 should still be extracted as text: {:?}",
+        md
+    );
+}
+
+#[test]
+fn depth_limit_exceeded() {
+    // 250 nested divs — well past MAX_DEPTH (200).
+    // Content should still be extracted (flattened to text), not lost.
+    let mut html = String::new();
+    for _ in 0..250 {
+        html.push_str("<div>");
+    }
+    html.push_str("<p>Very deep content</p>");
+    for _ in 0..250 {
+        html.push_str("</div>");
+    }
+    let md = convert(&html);
+    assert!(
+        md.contains("Very deep content"),
+        "Content past depth limit should be flattened to text: {:?}",
+        md
+    );
+}

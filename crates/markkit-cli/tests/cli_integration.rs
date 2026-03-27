@@ -45,7 +45,11 @@ fn extract_from_stdin_flag() {
         .unwrap();
 
     let output = child.wait_with_output().unwrap();
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Hello World"), "output: {stdout}");
     assert!(stdout.contains("Some text here"), "output: {stdout}");
@@ -69,7 +73,11 @@ fn extract_from_stdin_dash() {
         .unwrap();
 
     let output = child.wait_with_output().unwrap();
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Dash Test"), "output: {stdout}");
 }
@@ -81,15 +89,15 @@ fn extract_from_file() {
     std::fs::write(&file_path, "<h1>File Test</h1><p>Paragraph.</p>").unwrap();
 
     let output = markkit_bin()
-        .args([
-            "extract",
-            "--file",
-            file_path.to_str().unwrap(),
-        ])
+        .args(["extract", "--file", file_path.to_str().unwrap()])
         .output()
         .expect("failed to run markkit");
 
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("File Test"), "output: {stdout}");
     assert!(stdout.contains("Paragraph"), "output: {stdout}");
@@ -113,7 +121,11 @@ fn extract_json_output() {
         .unwrap();
 
     let output = child.wait_with_output().unwrap();
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
     let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("invalid JSON output");
     assert_eq!(parsed["source"], "<stdin>");
@@ -138,7 +150,11 @@ fn extract_with_include_selector() {
         .unwrap();
 
     let output = child.wait_with_output().unwrap();
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Keep this"), "output: {stdout}");
 }
@@ -161,10 +177,17 @@ fn extract_with_exclude_selector() {
         .unwrap();
 
     let output = child.wait_with_output().unwrap();
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Content"), "output: {stdout}");
-    assert!(!stdout.contains("Menu"), "nav should be excluded, output: {stdout}");
+    assert!(
+        !stdout.contains("Menu"),
+        "nav should be excluded, output: {stdout}"
+    );
 }
 
 #[test]

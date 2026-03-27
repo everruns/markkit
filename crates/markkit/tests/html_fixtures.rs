@@ -7,10 +7,8 @@ use std::fs;
 use markkit::Markkit;
 
 fn fixture_test(name: &str) {
-    let html =
-        fs::read_to_string(format!("tests/fixtures/html/{}.html", name)).unwrap();
-    let expected =
-        fs::read_to_string(format!("tests/fixtures/html/{}.md", name)).unwrap();
+    let html = fs::read_to_string(format!("tests/fixtures/html/{}.html", name)).unwrap();
+    let expected = fs::read_to_string(format!("tests/fixtures/html/{}.md", name)).unwrap();
     let m = Markkit::builder().build();
     let actual = m.extract_html_sync(&html).unwrap();
     assert_eq!(

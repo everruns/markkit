@@ -25,14 +25,9 @@ impl Document {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Node {
     /// Heading with level 1–6.
-    Heading {
-        level: u8,
-        children: Vec<Node>,
-    },
+    Heading { level: u8, children: Vec<Node> },
     /// Paragraph containing inline content.
-    Paragraph {
-        children: Vec<Node>,
-    },
+    Paragraph { children: Vec<Node> },
     /// Ordered or unordered list.
     List {
         ordered: bool,
@@ -40,9 +35,7 @@ pub enum Node {
         items: Vec<ListItem>,
     },
     /// Block quotation.
-    BlockQuote {
-        children: Vec<Node>,
-    },
+    BlockQuote { children: Vec<Node> },
     /// Fenced code block.
     CodeBlock {
         language: Option<String>,
@@ -58,17 +51,11 @@ pub enum Node {
     /// Plain text.
     Text(String),
     /// Bold / strong emphasis.
-    Bold {
-        children: Vec<Node>,
-    },
+    Bold { children: Vec<Node> },
     /// Italic / emphasis.
-    Italic {
-        children: Vec<Node>,
-    },
+    Italic { children: Vec<Node> },
     /// Strikethrough.
-    Strikethrough {
-        children: Vec<Node>,
-    },
+    Strikethrough { children: Vec<Node> },
     /// Inline code.
     InlineCode(String),
     /// Hyperlink.
@@ -78,10 +65,7 @@ pub enum Node {
         children: Vec<Node>,
     },
     /// Image.
-    Image {
-        src: String,
-        alt: String,
-    },
+    Image { src: String, alt: String },
     /// Hard line break.
     LineBreak,
 }
