@@ -74,6 +74,22 @@ tempfile.workspace = true
 proptest.workspace = true
 criterion.workspace = true
 
+[[example]]
+name = "basic"
+path = "../../examples/basic.rs"
+
+[[example]]
+name = "custom_selectors"
+path = "../../examples/custom_selectors.rs"
+
+[[example]]
+name = "ir_access"
+path = "../../examples/ir_access.rs"
+
+[[example]]
+name = "configuration"
+path = "../../examples/configuration.rs"
+
 [[bench]]
 name = "extraction"
 harness = false
