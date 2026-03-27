@@ -34,7 +34,11 @@ impl Markkit {
     }
 
     /// Extract markdown from raw bytes, auto-detecting the format.
-    pub async fn extract_bytes(&self, bytes: &[u8], content_type: Option<&str>) -> crate::Result<String> {
+    pub async fn extract_bytes(
+        &self,
+        bytes: &[u8],
+        content_type: Option<&str>,
+    ) -> crate::Result<String> {
         if bytes.len() > self.config.max_input_size {
             return Err(Error::ResourceLimit(format!(
                 "Input size {} exceeds limit {}",

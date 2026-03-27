@@ -75,7 +75,9 @@ async fn main() -> Result<()> {
                 let content_type = match ext {
                     "html" | "htm" => Some("text/html"),
                     "pdf" => Some("application/pdf"),
-                    "docx" => Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+                    "docx" => Some(
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    ),
                     _ => None,
                 };
                 markkit.extract_bytes(&bytes, content_type).await?

@@ -42,9 +42,8 @@ clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 
 # HTML parsing
-scraper = "0.22"
-html5ever = "0.29"
-markup5ever_rcdom = "0.4"
+scraper = "0.26"
+html5ever = "0.39"
 lol_html = "2"
 
 # Text processing
@@ -52,10 +51,10 @@ regex = "1"
 unicode-segmentation = "1"
 
 # PDF
-pdf-extract = "0.7"
+pdf-extract = "0.10"
 
 # Document formats
-calamine = "0.26"       # Excel/spreadsheet
+calamine = "0.34"       # Excel/spreadsheet
 docx-rs = "0.4"         # DOCX
 zip = "2"               # Archive extraction
 
@@ -72,12 +71,12 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Python bindings
-pyo3 = { version = "0.23" }
-pyo3-async-runtimes = { version = "0.23", features = ["tokio-runtime"] }
+pyo3 = { version = "0.28" }
+pyo3-async-runtimes = { version = "0.28", features = ["tokio-runtime"] }
 
 # Node.js bindings
-napi = { version = "2", features = ["async", "serde-json"] }
-napi-derive = "2"
+napi = { version = "3", features = ["async", "serde-json"] }
+napi-derive = "3"
 
 # Testing
 tempfile = "3"

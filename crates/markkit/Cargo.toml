@@ -15,7 +15,7 @@ readme = "../../README.md"
 
 [features]
 default = ["html", "http_client"]
-html = ["dep:scraper", "dep:html5ever", "dep:markup5ever_rcdom", "dep:lol_html"]
+html = ["dep:scraper", "dep:html5ever", "dep:lol_html"]
 pdf = ["dep:pdf-extract"]
 docx = ["dep:docx-rs", "dep:zip"]
 spreadsheet = ["dep:calamine"]
@@ -49,7 +49,6 @@ mime.workspace = true
 # HTML (optional)
 scraper = { workspace = true, optional = true }
 html5ever = { workspace = true, optional = true }
-markup5ever_rcdom = { workspace = true, optional = true }
 lol_html = { workspace = true, optional = true }
 
 # PDF (optional)

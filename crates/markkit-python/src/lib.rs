@@ -24,7 +24,11 @@ fn extract_url(py: Python<'_>, url: String) -> PyResult<Bound<'_, PyAny>> {
 
 /// Extract markdown from bytes with optional content type.
 #[pyfunction]
-fn extract_bytes(py: Python<'_>, data: Vec<u8>, content_type: Option<String>) -> PyResult<Bound<'_, PyAny>> {
+fn extract_bytes(
+    py: Python<'_>,
+    data: Vec<u8>,
+    content_type: Option<String>,
+) -> PyResult<Bound<'_, PyAny>> {
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
         let m = markkit::Markkit::builder().build();
         m.extract_bytes(&data, content_type.as_deref())

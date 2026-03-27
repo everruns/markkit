@@ -57,7 +57,10 @@ mod tests {
 
     #[test]
     fn test_content_type_detection() {
-        assert_eq!(Format::from_content_type("text/html; charset=utf-8"), Format::Html);
+        assert_eq!(
+            Format::from_content_type("text/html; charset=utf-8"),
+            Format::Html
+        );
         assert_eq!(Format::from_content_type("application/pdf"), Format::Pdf);
         assert_eq!(Format::from_content_type("text/plain"), Format::PlainText);
     }

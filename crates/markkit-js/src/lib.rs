@@ -20,7 +20,10 @@ pub async fn extract_url(url: String) -> napi::Result<String> {
 
 /// Extract markdown from a buffer with optional content type.
 #[napi]
-pub async fn extract_bytes(data: napi::bindgen_prelude::Buffer, content_type: Option<String>) -> napi::Result<String> {
+pub async fn extract_bytes(
+    data: napi::bindgen_prelude::Buffer,
+    content_type: Option<String>,
+) -> napi::Result<String> {
     let m = markkit::Markkit::builder().build();
     m.extract_bytes(&data, content_type.as_deref())
         .await
