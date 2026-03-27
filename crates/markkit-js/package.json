@@ -1,0 +1,25 @@
+{
+  "name": "@everruns/markkit",
+  "version": "0.1.0",
+  "description": "Extract clean markdown from any format – Node.js bindings",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "napi": {
+    "name": "markkit",
+    "triples": {
+      "defaults": true
+    }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/everruns/markkit"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts"
+  ],
+  "devDependencies": {
+    "@napi-rs/cli": "^3"
+  }
+}

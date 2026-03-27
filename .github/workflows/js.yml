@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Install napi-cli
-        run: npm install -g @napi-rs/cli
+      - name: Install dependencies
+        run: cd crates/markkit-js && npm install
       - name: Build
-        run: cd crates/markkit-js && napi build --release
+        run: cd crates/markkit-js && npx napi build --release

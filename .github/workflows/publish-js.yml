@@ -19,10 +19,10 @@ jobs:
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
-      - name: Install napi-cli
-        run: npm install -g @napi-rs/cli
+      - name: Install dependencies
+        run: cd crates/markkit-js && npm install
       - name: Build
-        run: cd crates/markkit-js && napi build --release
+        run: cd crates/markkit-js && npx napi build --release
       - name: Publish
         if: inputs.dry_run != 'true'
         run: cd crates/markkit-js && npm publish
