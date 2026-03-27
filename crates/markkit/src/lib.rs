@@ -35,10 +35,16 @@ pub mod config;
 pub mod error;
 pub mod extract;
 pub mod format;
+#[cfg(feature = "html")]
+pub mod html;
+pub mod ir;
+pub mod render;
 
 pub use config::MarkkitBuilder;
 pub use error::Error;
 pub use extract::Markkit;
+pub use ir::Document;
+pub use render::MarkdownRenderer;
 
 /// Result type alias for markkit operations.
 pub type Result<T> = std::result::Result<T, Error>;

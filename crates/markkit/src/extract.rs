@@ -21,6 +21,11 @@ impl Markkit {
 
     /// Extract markdown from an HTML string.
     pub async fn extract_html(&self, html: &str) -> crate::Result<String> {
+        self.extract_html_sync(html)
+    }
+
+    /// Synchronous HTML extraction (no async needed for parsing).
+    pub fn extract_html_sync(&self, html: &str) -> crate::Result<String> {
         if html.len() > self.config.max_input_size {
             return Err(Error::ResourceLimit(format!(
                 "Input size {} exceeds limit {}",
@@ -29,8 +34,31 @@ impl Markkit {
             )));
         }
 
-        // TODO: Implement HTML-to-markdown conversion
-        Ok(String::new())
+        #[cfg(feature = "html")]
+        {
+            let parser = crate::html::HtmlParser::new(&self.config);
+            let doc = parser.parse(html)?;
+            let mut renderer = crate::render::MarkdownRenderer::new();
+            Ok(renderer.render(&doc))
+        }
+        #[cfg(not(feature = "html"))]
+        Err(Error::UnsupportedFormat(
+            "HTML support requires the 'html' feature".to_string(),
+        ))
+    }
+
+    /// Parse HTML into the IR without rendering.
+    #[cfg(feature = "html")]
+    pub fn parse_html(&self, html: &str) -> crate::Result<crate::ir::Document> {
+        if html.len() > self.config.max_input_size {
+            return Err(Error::ResourceLimit(format!(
+                "Input size {} exceeds limit {}",
+                html.len(),
+                self.config.max_input_size
+            )));
+        }
+        let parser = crate::html::HtmlParser::new(&self.config);
+        parser.parse(html)
     }
 
     /// Extract markdown from raw bytes, auto-detecting the format.
