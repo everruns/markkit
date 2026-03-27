@@ -1,0 +1,21 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    name: Nightly checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Build on nightly
+        run: cargo build --workspace
+      - name: Test on nightly
+        run: cargo test --workspace

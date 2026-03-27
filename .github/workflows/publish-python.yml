@@ -1,0 +1,30 @@
+name: Publish Python
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run"
+        required: false
+        default: "true"
+
+jobs:
+  publish:
+    name: Publish Python package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install maturin
+        run: pip install maturin twine
+      - name: Build wheels
+        run: cd crates/markkit-python && maturin build --release
+      - name: Publish
+        if: inputs.dry_run != 'true'
+        run: twine upload target/wheels/*.whl
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}

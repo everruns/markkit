@@ -1,0 +1,28 @@
+name: JavaScript
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "crates/markkit-js/**"
+      - "crates/markkit/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "crates/markkit-js/**"
+      - "crates/markkit/**"
+
+jobs:
+  build:
+    name: Build Node.js bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: cd crates/markkit-js && npm install
+      - name: Build
+        run: cd crates/markkit-js && npx napi build --release

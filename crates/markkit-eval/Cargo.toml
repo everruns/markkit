@@ -1,0 +1,25 @@
+# LLM evaluation harness for markkit extraction quality
+# See specs/012-eval.md for design
+
+[package]
+name = "markkit-eval"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "LLM evaluation harness for markkit extraction quality"
+
+[[bin]]
+name = "markkit-eval"
+path = "src/main.rs"
+
+[dependencies]
+markkit = { path = "../markkit", features = ["all_formats", "http_client"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+reqwest.workspace = true
+regex.workspace = true
+async-trait.workspace = true

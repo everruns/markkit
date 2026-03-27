@@ -1,0 +1,22 @@
+# Markkit Python bindings via PyO3
+# Expose markkit as a Python module
+
+[package]
+name = "markkit-python"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Python bindings for Markkit markdown extraction via PyO3"
+
+[lib]
+name = "markkit_python"
+crate-type = ["cdylib"]
+doc = false
+
+[dependencies]
+markkit = { path = "../markkit", features = ["all_formats", "http_client"] }
+pyo3.workspace = true
+pyo3-async-runtimes.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+serde_json.workspace = true

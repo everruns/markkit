@@ -1,0 +1,16 @@
+# cargo-vet configuration
+
+[cargo-vet]
+version = "0.10"
+
+[policy.markkit]
+criteria = "safe-to-deploy"
+
+[policy.markkit-cli]
+criteria = "safe-to-deploy"
+
+[policy.markkit-python]
+criteria = "safe-to-deploy"
+
+[policy.markkit-js]
+criteria = "safe-to-deploy"
