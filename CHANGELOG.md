@@ -51,6 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `docx` feature now uses `zip` + `quick-xml` directly; `docx-rs` dependency removed
 - `calamine` upgraded to 0.36 (pulls quick-xml 0.41, clearing RUSTSEC-2026-0194/0195); `zip` upgraded to 8 (deflate only), shared with calamine
 - PDF extraction returns `Error::UnsupportedFormat` instead of an empty string
+- `pdf` feature is now a placeholder with no dependencies: unused `pdf-extract` removed
+  (cleared RUSTSEC-2026-0187 in lopdf and unmaintained `ttf-parser`)
+- `pyo3`/`pyo3-async-runtimes` upgraded to 0.29 (RUSTSEC-2026-0176/0177); bench `tabled`
+  upgraded to 0.22 (drops unmaintained `proc-macro-error2`)
 - CLI `--file` detects the format from the extension and file contents
 - HTML-only tests and examples are gated on the `html` feature so non-default feature
   sets (e.g. `--no-default-features --features docx,spreadsheet`) build and test cleanly

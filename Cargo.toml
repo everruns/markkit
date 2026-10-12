@@ -50,9 +50,6 @@ lol_html = "2"
 regex = "1"
 unicode-segmentation = "1"
 
-# PDF
-pdf-extract = "0.10"
-
 # Document formats
 calamine = "0.36"       # Excel/spreadsheet (XLSX/XLS/ODS)
 zip = { version = "8", default-features = false, features = ["deflate"] }  # OOXML/ODF containers; matches calamine's zip
@@ -72,8 +69,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Python bindings
-pyo3 = { version = "0.28" }
-pyo3-async-runtimes = { version = "0.28", features = ["tokio-runtime"] }
+pyo3 = { version = "0.29" }
+pyo3-async-runtimes = { version = "0.29", features = ["tokio-runtime"] }
 
 # Node.js bindings
 napi = { version = "3", features = ["async", "serde-json"] }

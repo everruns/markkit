@@ -16,7 +16,7 @@ readme = "../../README.md"
 [features]
 default = ["html", "http_client"]
 html = ["dep:scraper", "dep:html5ever", "dep:lol_html"]
-pdf = ["dep:pdf-extract"]
+pdf = []
 docx = ["dep:zip", "dep:quick-xml"]
 spreadsheet = ["dep:calamine", "dep:zip", "dep:quick-xml", "dep:cfb"]
 http_client = ["dep:reqwest"]
@@ -51,8 +51,6 @@ scraper = { workspace = true, optional = true }
 html5ever = { workspace = true, optional = true }
 lol_html = { workspace = true, optional = true }
 
-# PDF (optional)
-pdf-extract = { workspace = true, optional = true }
 
 # Office documents (optional): DOCX + spreadsheets share the ZIP/XML stack
 zip = { workspace = true, optional = true }
