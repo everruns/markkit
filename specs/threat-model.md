@@ -7,6 +7,7 @@
 | HTML string input | `extract_html()`, `extract_html_sync()` | Untrusted |
 | URL fetching | `extract_url()` (http_client feature) | Untrusted remote |
 | Byte input | `extract_bytes()` with content-type | Untrusted |
+| Document input | `extract_document()`, `extract_document_sync()` | Untrusted (bytes and `DocumentHint`) |
 | Configuration | `MarkkitBuilder` methods | Trusted (caller-controlled) |
 | CSS selectors | `include_selector()`, `exclude_selector()` | Semi-trusted (caller-provided) |
 
@@ -108,6 +109,73 @@
 - `html_security::very_long_text_node` (100KB text node)
 - `html_proptest::no_panic_on_arbitrary_input`
 
+### T6: Malicious Office Documents (DOCX / XLSX / XLS / ODS)
+
+**Description**: Crafted containers aimed at exhausting memory/CPU, crashing the
+process, or smuggling content past a human reviewer.
+
+**Impact**: High -- OOM abort (allocation failure aborts, it cannot be caught), crash.
+
+**Likelihood**: Medium -- office files are fetched from arbitrary URLs by embedders.
+
+**Sub-threats and mitigations**:
+
+#### T6a: Zip bombs
+- Limits apply to bytes actually produced by the decompressor (`Read::take`), never to
+  attacker-controlled header sizes.
+- `max_archive_entries` (10 000), `max_archive_entry_size` (64 MiB),
+  `max_archive_total_size` (256 MiB) → `Error::ResourceLimit`.
+- DOCX reads only the parts it needs, each through the bounded reader.
+- Spreadsheets: every entry is decompressed into a sink first, because calamine reads
+  entries unbounded and may follow arbitrary relationship targets.
+
+#### T6b: Dense-grid amplification
+- calamine sizes `Range`s by the bounding box of used cells; two cells at `A1` and
+  `XFD1048576` would allocate ~17 billion cells.
+- XLSX: streamed through calamine's cell reader into a capped sparse grid (no dense
+  allocation).
+- XLS: BIFF records pre-scanned (DIMENSIONS reservations, cell positions, BOUNDSHEET
+  offsets) and rejected when the summed grid exceeds `max_spreadsheet_cells` (4M).
+- ODS: `content.xml` pre-scanned honouring row/column repeats; same cap.
+- Output caps: `max_sheet_rows` (10 000), `max_sheet_cols` (256) with
+  `truncated_sheet` warnings.
+
+#### T6c: Parser crashes on malformed input
+- XLS pre-scan rejects records that trip calamine's unchecked arithmetic (inverted
+  DIMENSIONS, inverted MULRK column ranges, out-of-range sheet offsets).
+- XML: depth capped at 256, tree built iteratively, unclosed elements tolerated.
+- Parsers run under `catch_unwind` (defence in depth; only effective with
+  `panic = "unwind"` -- the workspace release profile uses `abort`).
+
+#### T6d: XML entity attacks (billion laughs, XXE)
+- quick-xml never expands DTD-declared or external entities; such references are dropped.
+  Only the five predefined entities and character references are resolved.
+- quick-xml >= 0.41 (via calamine 0.36) fixes RUSTSEC-2026-0194 (quadratic duplicate-attribute
+  check); markkit's own XML walkers iterate attributes with `with_checks(false)` and never
+  use `NsReader` (RUSTSEC-2026-0195).
+
+#### T6e: Macros and hidden content
+- No code execution: VBA projects and XLM macro sheets are never read or rendered;
+  formulas are not evaluated (cached values only).
+- Hidden / very hidden sheets skipped by default (`hidden_sheet_skipped` warning) since
+  invisible content is a prompt-injection vector. DOCX deleted revisions and field
+  instructions are dropped.
+
+**Test Coverage** (`tests/document_security.rs`):
+- `docx_zip_bomb_entry_rejected`, `docx_total_decompressed_size_capped`,
+  `archive_entry_count_capped`, `xlsx_zip_bomb_sheet_rejected`,
+  `xlsx_bomb_in_unreferenced_entry_rejected`, `max_input_size_honoured_for_office_documents`
+- `xls_huge_dimensions_rejected`, `xls_far_apart_cells_rejected`,
+  `xls_inverted_dimensions_rejected_not_panicking`, `xls_bad_sheet_offset_rejected`,
+  `ods_repeated_rows_and_columns_rejected`,
+  `spreadsheet_integration::xlsx_sparse_far_cell_does_not_allocate_grid`
+- `docx_billion_laughs_not_expanded`, `docx_external_entity_not_resolved`,
+  `docx_deep_nesting_does_not_overflow_stack`
+- `truncated_fixtures_never_panic`, `random_bytes_never_panic`,
+  `random_container_bytes_never_panic`, `mutated_fixtures_never_panic`
+- `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
+  `spreadsheet_integration::xlsm_with_vba_project_extracts_values_only`
+
 ### T5: Information Disclosure
 
 **Description**: Error messages or output leak sensitive information.
@@ -128,6 +196,12 @@
 | Input size | 50 MB | `max_input_size(usize)` | Before parsing |
 | Processing time | 60 s | `max_processing_secs(u64)` | Config field (enforcement TBD) |
 | Nesting depth | 200 | Hardcoded `MAX_DEPTH` | During HTML tree walk |
+| XML nesting depth (DOCX) | 256 | Hardcoded `MAX_XML_DEPTH` | While building the XML tree |
+| ZIP entries | 10 000 | `max_archive_entries(usize)` | On archive open |
+| ZIP entry size (decompressed) | 64 MiB | `max_archive_entry_size(u64)` | While decompressing |
+| ZIP total size (decompressed) | 256 MiB | `max_archive_total_size(u64)` | While decompressing |
+| Spreadsheet grid (XLS/ODS) | 4 000 000 cells | `max_spreadsheet_cells(u64)` | Pre-scan before calamine |
+| Rows / columns per sheet | 10 000 / 256 | `max_sheet_rows`, `max_sheet_cols` | While collecting cells (truncate + warn) |
 | Output size | Unbounded | N/A | Proportional to input size |
 
 ## Malicious Input Categories
@@ -162,3 +236,7 @@
 | S5 | Output is deterministic for identical input | `html_proptest::deterministic_output` |
 | S6 | Deep nesting does not cause stack overflow | `html_security::deeply_nested_elements` |
 | S7 | Non-content elements produce no output | `html_integration::script_stripped`, `style_stripped`, `form_elements_stripped` |
+| S8 | Archive decompression is bounded by measured output, not headers | `document_security::*zip_bomb*`, `archive_entry_count_capped` |
+| S9 | Malformed office documents produce errors, never panics | `document_security::truncated_fixtures_never_panic`, `*_never_panic` proptests |
+| S10 | Spreadsheet parsing never allocates a grid beyond `max_spreadsheet_cells` | `document_security::xls_*_rejected`, `ods_repeated_rows_and_columns_rejected` |
+| S11 | Unsupported formats fail explicitly (no empty success) | `document_detection::pdf_is_explicitly_unsupported_not_empty` |
