@@ -1,5 +1,7 @@
 //! Property-based tests for HTML extraction.
 
+#![cfg(feature = "html")]
+
 use markkit::Markkit;
 use proptest::prelude::*;
 

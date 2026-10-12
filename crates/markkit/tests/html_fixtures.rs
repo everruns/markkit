@@ -2,6 +2,8 @@
 //!
 //! Each fixture is a pair of files: `{name}.html` (input) and `{name}.md` (expected output).
 
+#![cfg(feature = "html")]
+
 use std::fs;
 
 use markkit::Markkit;

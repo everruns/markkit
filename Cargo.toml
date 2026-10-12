@@ -54,9 +54,10 @@ unicode-segmentation = "1"
 pdf-extract = "0.10"
 
 # Document formats
-calamine = "0.34"       # Excel/spreadsheet
-docx-rs = "0.4"         # DOCX
-zip = "2"               # Archive extraction
+calamine = "0.36"       # Excel/spreadsheet (XLSX/XLS/ODS)
+zip = { version = "8", default-features = false, features = ["deflate"] }  # OOXML/ODF containers; matches calamine's zip
+quick-xml = "0.41"      # DOCX/ODS XML parsing; matches calamine's quick-xml
+cfb = "0.15"            # XLS (OLE2) container pre-scan
 
 # Image / OCR (optional)
 image = "0.25"

@@ -88,19 +88,10 @@ async fn main() -> Result<()> {
             } else if file {
                 let src = source.as_deref().unwrap();
                 let bytes = tokio::fs::read(src).await?;
-                let ext = std::path::Path::new(src)
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("");
-                let content_type = match ext {
-                    "html" | "htm" => Some("text/html"),
-                    "pdf" => Some("application/pdf"),
-                    "docx" => Some(
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    ),
-                    _ => None,
-                };
-                markkit.extract_bytes(&bytes, content_type).await?
+                // Format detected from the extension, then magic bytes.
+                markkit
+                    .extract_document_sync(&bytes, markkit::DocumentHint::file_name(src))?
+                    .markdown
             } else {
                 let src = source.as_deref().unwrap();
                 markkit.extract_url(src).await?
