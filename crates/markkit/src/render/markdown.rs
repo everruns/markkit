@@ -310,6 +310,20 @@ fn trim_trailing_inline(buf: &mut String, start: usize) {
     }
 }
 
+/// Escape text for a GFM table cell: pipes escaped, line breaks flattened.
+#[cfg(any(feature = "docx", feature = "spreadsheet"))]
+pub(crate) fn escape_table_cell(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '|' => out.push_str("\\|"),
+            '\r' | '\n' => out.push(' '),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
 /// Check if a node is block-level.
 fn is_block(node: &Node) -> bool {
     matches!(
@@ -378,5 +392,11 @@ mod tests {
         assert_eq!(normalize_output("  \n  \n"), "");
         // Hard break preserved
         assert_eq!(normalize_output("a  \nb\n"), "a  \nb\n");
+    }
+
+    #[cfg(any(feature = "docx", feature = "spreadsheet"))]
+    #[test]
+    fn test_escape_table_cell() {
+        assert_eq!(escape_table_cell("a|b\r\nc"), "a\\|b  c");
     }
 }

@@ -31,3 +31,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Specs**: IR specification, threat model, comprehensive HTML extraction spec, examples spec
 - **Examples**: `basic.rs`, `custom_selectors.rs`, `ir_access.rs`, `configuration.rs`
 - **Test fixtures**: 9 paired input/output HTML→Markdown fixture files
+- **Bytes-in document API**: `Markkit::extract_document` / `extract_document_sync` taking a
+  `DocumentHint { content_type, file_name }` and returning `Extraction { markdown, title,
+  format, warnings, stats }`; `extract_bytes` now delegates to it
+- **Format detection**: `Format::detect` (content type → extension → magic bytes),
+  `Format::sniff` (ZIP part names, OLE2 streams, `%PDF`, HTML), `Format::from_file_name`;
+  new `Format::Doc`, `Xls`, `Ods`, `Pptx` variants (`Format` is now `#[non_exhaustive]`)
+- **DOCX → Markdown** (`docx` feature): headings (Title/HeadingN/outline level), emphasis,
+  hyperlinks, bulleted/numbered lists via numbering.xml, tables, line breaks, title from
+  core properties
+- **Spreadsheets → Markdown** (`spreadsheet` feature): XLSX/XLSM, XLS, ODS via calamine; one
+  `## Sheet` section + table per non-empty sheet, row/column caps with `truncated_sheet`
+  warnings, hidden sheets skipped by default
+- **Office-document safety limits**: ZIP entry count, per-entry and total decompressed size,
+  spreadsheet grid pre-scan (`max_spreadsheet_cells`), XML depth cap; fuzz-style tests
+
+### Changed
+
+- `docx` feature now uses `zip` + `quick-xml` directly; `docx-rs` dependency removed
+- `calamine` upgraded to 0.36 (pulls quick-xml 0.41, clearing RUSTSEC-2026-0194/0195); `zip` upgraded to 8 (deflate only), shared with calamine
+- PDF extraction returns `Error::UnsupportedFormat` instead of an empty string
+- `pdf` feature is now a placeholder with no dependencies: unused `pdf-extract` removed
+  (cleared RUSTSEC-2026-0187 in lopdf and unmaintained `ttf-parser`)
+- `pyo3`/`pyo3-async-runtimes` upgraded to 0.29 (RUSTSEC-2026-0176/0177); bench `tabled`
+  upgraded to 0.22 (drops unmaintained `proc-macro-error2`)
+- CLI `--file` detects the format from the extension and file contents
+- HTML-only tests and examples are gated on the `html` feature so non-default feature
+  sets (e.g. `--no-default-features --features docx,spreadsheet`) build and test cleanly
