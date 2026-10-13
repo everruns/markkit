@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Release automation: merging `chore(release): prepare vX.Y.Z` to main tags, creates the
+  GitHub Release and publishes to crates.io (idempotent); manual dispatch from main also works
+
 ## [0.1.0] - 2026-10-12
 
 ### Added
