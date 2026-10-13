@@ -1,21 +1,118 @@
 name: Release
 
+# Decisions:
+# - Agent-driven release, same shape as everruns/bashkit: merging a
+#   "chore(release): prepare vX.Y.Z" commit to main (or a manual dispatch from main)
+#   creates the tag in CI, so nobody has to push tags from a local clone.
+# - Releases created with GITHUB_TOKEN do not trigger other workflows, so the
+#   crates.io publish is dispatched explicitly against the verified tag.
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   release:
-    name: Create GitHub Release
+    name: Create Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
+    if: "${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'chore(release): prepare v') }}"
     steps:
+      # Credentials persist so `git push origin "$TAG"` works; this job only runs
+      # from main and executes no pull-request code.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Create release
+
+      - name: Extract version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+              echo "Error: manual releases must be dispatched from refs/heads/main"
+              exit 1
+            fi
+            VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          else
+            FIRST_LINE=$(echo "$COMMIT_MSG" | head -1)
+            VERSION=$(echo "$FIRST_LINE" | sed -n 's/.*prepare v\([0-9]*\.[0-9]*\.[0-9]*\).*/\1/p')
+          fi
+          if [ -z "$VERSION" ]; then
+            echo "Error: could not determine version"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version matches Cargo.toml
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          CARGO_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$VERSION" != "$CARGO_VERSION" ]; then
+            echo "Error: release version ($VERSION) does not match Cargo.toml ($CARGO_VERSION)"
+            exit 1
+          fi
+
+      - name: Verify release source is on main
+        run: |
+          git fetch --force origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Error: release source $GITHUB_SHA is not reachable from origin/main"
+            exit 1
+          fi
+
+      - name: Extract release notes from CHANGELOG
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {found=1; next} /^## \[/ {if (found) exit} found {print}' CHANGELOG.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "Error: no CHANGELOG.md section for [$VERSION]"
+            exit 1
+          fi
+
+      # An existing tag (e.g. a release whose crates were already published) must
+      # point at this commit; otherwise the tag is created here.
+      - name: Create or verify release tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          REMOTE_TAG_SHA=$(git ls-remote origin "refs/tags/$TAG^{}" | awk '{print $1}')
+          [ -n "$REMOTE_TAG_SHA" ] || REMOTE_TAG_SHA=$(git ls-remote origin "refs/tags/$TAG" | awk '{print $1}')
+          if [ -n "$REMOTE_TAG_SHA" ]; then
+            if [ "$REMOTE_TAG_SHA" != "$GITHUB_SHA" ]; then
+              echo "Error: existing tag $TAG points to $REMOTE_TAG_SHA, expected $GITHUB_SHA"
+              exit 1
+            fi
+            echo "Existing tag $TAG verified at $GITHUB_SHA"
+          else
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "$TAG"
+            echo "Created tag $TAG at $GITHUB_SHA"
+          fi
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+
+      - name: Trigger crates.io publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh workflow run publish.yml --ref "$TAG"
