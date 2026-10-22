@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- Upgrade the HTTP, spreadsheet and ZIP dependency graph to patched TLS and archive releases.
+- Track the workspace lockfile so CI audits the same resolution used by CLI and binding builds.
+- Run JavaScript build and packaging workflows on Node.js 24.22.1.
+
 ### Changed
 
 - Release automation: merging `chore(release): prepare vX.Y.Z` to main tags, creates the

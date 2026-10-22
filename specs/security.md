@@ -23,6 +23,7 @@ Markkit processes untrusted input from the internet. Key threats:
 - **Mitigation**: Bounded ZIP decompression (entry count, per-entry and total size)
 - **Mitigation**: Spreadsheet grid pre-scan / streaming (no dense-grid amplification)
 - **Mitigation**: No macro execution, no formula evaluation, hidden sheets skipped by default
+- **Compatibility**: ZIP entry-name decoding errors propagate; Unicode and legacy CP437 part names preserve bounded case-insensitive lookup
 - See `specs/threat-model.md` T6
 
 ### TM-MEM: Memory exhaustion
