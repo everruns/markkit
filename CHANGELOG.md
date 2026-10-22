@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-22
+
 ### Security
 
 - Upgrade the HTTP, spreadsheet and ZIP dependency graph to patched TLS and archive releases.
 - Track the workspace lockfile so CI audits the same resolution used by CLI and binding builds.
+  Library consumers must refresh their application lockfiles to receive transitive TLS fixes;
+  a dependency library's lockfile is not inherited.
 - Run JavaScript build and packaging workflows on Node.js 24.22.1.
+- Include the generated JavaScript loader and native binary in npm packages and verify installed package loading.
+- Scope npm native artifacts explicitly to Linux x64/glibc; other platforms are not included in this release.
+- Verify Python wheel metadata and native extraction before upload; the wheel publisher targets Linux x64/CPython 3.12.
 
 ### Changed
 

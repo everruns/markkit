@@ -18,10 +18,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Require PyPI publisher credential
+        if: inputs.dry_run != 'true'
+        env:
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          if [ -z "$TWINE_PASSWORD" ]; then
+            echo "::error::PYPI_API_TOKEN is unavailable for this publisher"
+            exit 1
+          fi
       - name: Install maturin
         run: pip install maturin twine
       - name: Build wheels
         run: cd crates/markkit-python && maturin build --release
+      - name: Verify build preserved the patched lockfile
+        run: git diff --exit-code -- Cargo.lock
+      - name: Verify wheel metadata and native import
+        run: |
+          twine check target/wheels/*.whl
+          python -m venv "$RUNNER_TEMP/markkit-wheel-smoke"
+          "$RUNNER_TEMP/markkit-wheel-smoke/bin/python" -m pip install --no-deps target/wheels/*.whl
+          "$RUNNER_TEMP/markkit-wheel-smoke/bin/python" -c 'import markkit_python; assert markkit_python.extract_html_sync("<h1>Smoke</h1>").strip() == "# Smoke"'
       - name: Publish
         if: inputs.dry_run != 'true'
         run: twine upload target/wheels/*.whl
