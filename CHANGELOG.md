@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-22
+
 ### Security
 
 - Upgrade the HTTP, spreadsheet and ZIP dependency graph to patched TLS and archive releases.

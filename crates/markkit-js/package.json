@@ -1,6 +1,6 @@
 {
   "name": "@everruns/markkit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Extract clean markdown from any format – Node.js bindings",
   "main": "index.js",
   "types": "index.d.ts",
