@@ -7,9 +7,9 @@ Markkit is a Rust library and CLI tool for converting HTML, PDF, DOCX, spreadshe
 ## Features
 
 - **HTML** – Convert web pages and HTML documents to markdown
-- **PDF** – Extract text from PDF documents
-- **DOCX** – Convert Word documents
-- **Spreadsheets** – Convert Excel/ODS files to markdown tables
+- **DOCX** – Convert Word documents (headings, lists, tables, links, emphasis)
+- **Spreadsheets** – Convert XLSX/XLSM, XLS and ODS workbooks to markdown tables
+- **PDF** – Planned (currently reported as unsupported)
 - **URL fetching** – Fetch and extract from URLs directly
 - **Configurable** – CSS selectors for include/exclude, resource limits
 - **Safe** – Input sanitization, resource limits, no code execution
@@ -24,6 +24,24 @@ use markkit::Markkit;
 let markkit = Markkit::builder().build();
 let md = markkit.extract_html("<h1>Hello</h1><p>World</p>").await?;
 ```
+
+### Documents from bytes
+
+```rust
+use markkit::{DocumentHint, Markkit};
+
+let markkit = Markkit::builder().build();
+// Detection order: content type, then file extension, then magic bytes.
+let hint = DocumentHint { content_type: Some("application/octet-stream"), file_name: Some("report.docx") };
+// CPU-bound: call the sync variant from `tokio::task::spawn_blocking` in async code.
+let doc = markkit.extract_document_sync(&bytes, hint)?;
+println!("{:?} {:?} {:?}", doc.format, doc.title, doc.warnings);
+println!("{}", doc.markdown);
+```
+
+`Extraction` carries `markdown`, `title`, `format`, `warnings` (e.g. `truncated_sheet: …`)
+and `stats` (sheets/rows/paragraphs/tables). `extract_bytes` remains as a Markdown-only
+shortcut.
 
 ### CLI
 
@@ -105,12 +123,25 @@ let markkit = Markkit::builder()
 | Feature | Default | Description |
 |---------|---------|-------------|
 | `html` | Yes | HTML parsing and conversion |
-| `http_client` | Yes | URL fetching via reqwest |
-| `pdf` | No | PDF text extraction |
-| `docx` | No | DOCX conversion |
-| `spreadsheet` | No | Excel/ODS conversion |
-| `all_formats` | No | Enable all format support |
+| `http_client` | Yes | URL fetching via reqwest (`extract_url`) |
+| `docx` | No | DOCX conversion (zip + quick-xml) |
+| `spreadsheet` | No | XLSX/XLSM, XLS, ODS conversion (calamine) |
+| `pdf` | No | Placeholder; PDF currently returns `UnsupportedFormat` |
+| `all_formats` | No | `html`, `pdf`, `docx`, `spreadsheet` |
 | `logging` | No | Structured tracing output |
+
+`http_client` is optional. Embedders that fetch content themselves can build without
+reqwest (no HTTP/TLS stack in the dependency tree):
+
+```toml
+[dependencies]
+markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }
+# add "html" if you also convert HTML
+```
+
+Office-document limits are configurable on the builder: `max_archive_entries`,
+`max_archive_entry_size`, `max_archive_total_size`, `max_spreadsheet_cells`,
+`max_sheet_rows`, `max_sheet_cols`, `include_hidden_sheets`.
 
 ## Development
 

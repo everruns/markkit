@@ -1,5 +1,7 @@
 //! Security-focused tests for HTML parsing.
 
+#![cfg(feature = "html")]
+
 use markkit::Markkit;
 
 fn convert(html: &str) -> String {

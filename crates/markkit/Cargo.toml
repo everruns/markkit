@@ -16,9 +16,9 @@ readme = "../../README.md"
 [features]
 default = ["html", "http_client"]
 html = ["dep:scraper", "dep:html5ever", "dep:lol_html"]
-pdf = ["dep:pdf-extract"]
-docx = ["dep:docx-rs", "dep:zip"]
-spreadsheet = ["dep:calamine"]
+pdf = []
+docx = ["dep:zip", "dep:quick-xml"]
+spreadsheet = ["dep:calamine", "dep:zip", "dep:quick-xml", "dep:cfb"]
 http_client = ["dep:reqwest"]
 logging = ["dep:tracing", "dep:tracing-subscriber"]
 all_formats = ["html", "pdf", "docx", "spreadsheet"]
@@ -51,15 +51,14 @@ scraper = { workspace = true, optional = true }
 html5ever = { workspace = true, optional = true }
 lol_html = { workspace = true, optional = true }
 
-# PDF (optional)
-pdf-extract = { workspace = true, optional = true }
 
-# DOCX (optional)
-docx-rs = { workspace = true, optional = true }
+# Office documents (optional): DOCX + spreadsheets share the ZIP/XML stack
 zip = { workspace = true, optional = true }
+quick-xml = { workspace = true, optional = true }
 
 # Spreadsheet (optional)
 calamine = { workspace = true, optional = true }
+cfb = { workspace = true, optional = true }
 
 # HTTP client (optional)
 reqwest = { workspace = true, optional = true }
@@ -73,22 +72,28 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tempfile.workspace = true
 proptest.workspace = true
 criterion.workspace = true
+zip = { workspace = true }
+cfb = { workspace = true }
 
 [[example]]
 name = "basic"
 path = "../../examples/basic.rs"
+required-features = ["html"]
 
 [[example]]
 name = "custom_selectors"
 path = "../../examples/custom_selectors.rs"
+required-features = ["html"]
 
 [[example]]
 name = "ir_access"
 path = "../../examples/ir_access.rs"
+required-features = ["html"]
 
 [[example]]
 name = "configuration"
 path = "../../examples/configuration.rs"
+required-features = ["html"]
 
 [[bench]]
 name = "extraction"

@@ -8,16 +8,22 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use markkit::Markkit;
+//! use markkit::{DocumentHint, Markkit};
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! let markkit = Markkit::builder().build();
 //!
 //! // Extract markdown from HTML
 //! let md = markkit.extract_html("<h1>Hello</h1><p>World</p>").await?;
-//! assert!(md.contains("# Hello"));
 //!
-//! // Extract from a URL
+//! // Convert any supported document from bytes (format detected from the
+//! // content type, then the file extension, then magic bytes).
+//! let bytes = std::fs::read("report.docx")?;
+//! let doc = markkit.extract_document_sync(&bytes, DocumentHint::file_name("report.docx"))?;
+//! println!("{} ({}): {}", doc.title.unwrap_or_default(), doc.format, doc.markdown);
+//!
+//! // Extract from a URL (requires the `http_client` feature)
+//! #[cfg(feature = "http_client")]
 //! let md = markkit.extract_url("https://example.com").await?;
 //! # Ok(())
 //! # }
@@ -25,13 +31,20 @@
 //!
 //! ## Features
 //!
-//! - **HTML**: Convert HTML to markdown with configurable rules
-//! - **PDF**: Extract text from PDF documents (requires `pdf` feature)
-//! - **DOCX**: Convert Word documents (requires `docx` feature)
-//! - **Spreadsheet**: Convert Excel/ODS files (requires `spreadsheet` feature)
-//! - **URL fetching**: Fetch and extract from URLs (requires `http_client` feature)
+//! - **HTML** (`html`, default): Convert HTML to markdown with configurable rules
+//! - **DOCX** (`docx`): Convert Word documents
+//! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLS and ODS workbooks to tables
+//! - **PDF** (`pdf`): Planned; currently returns [`Error::UnsupportedFormat`]
+//! - **URL fetching** (`http_client`, default): Fetch and extract from URLs via reqwest
+//!
+//! Embedders that do their own fetching can drop reqwest entirely:
+//! `markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }`.
 
+#[cfg(any(feature = "docx", feature = "spreadsheet"))]
+mod archive;
 pub mod config;
+#[cfg(feature = "docx")]
+mod docx;
 pub mod error;
 pub mod extract;
 pub mod format;
@@ -39,10 +52,15 @@ pub mod format;
 pub mod html;
 pub mod ir;
 pub mod render;
+#[cfg(feature = "spreadsheet")]
+mod spreadsheet;
+#[cfg(feature = "docx")]
+mod xml;
 
 pub use config::MarkkitBuilder;
 pub use error::Error;
-pub use extract::Markkit;
+pub use extract::{Extraction, ExtractionStats, Markkit};
+pub use format::{DocumentHint, Format};
 pub use ir::Document;
 pub use render::MarkdownRenderer;
 

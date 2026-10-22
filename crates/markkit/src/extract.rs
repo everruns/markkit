@@ -1,5 +1,68 @@
+use serde::Serialize;
+
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
+use crate::format::{DocumentHint, Format};
+
+/// Result of [`Markkit::extract_document`]: Markdown plus metadata.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[non_exhaustive]
+pub struct Extraction {
+    /// Rendered Markdown.
+    pub markdown: String,
+    /// Document title when known (DOCX core properties or `Title` style).
+    pub title: Option<String>,
+    /// Format the document was parsed as.
+    pub format: Format,
+    /// Non-fatal issues, each prefixed with a stable code
+    /// (`truncated_sheet:`, `hidden_sheet_skipped:`, `sheet_error:`).
+    pub warnings: Vec<String>,
+    /// Format-specific counters.
+    pub stats: ExtractionStats,
+}
+
+/// Counters describing the extracted content; `None` when not applicable.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub struct ExtractionStats {
+    /// Pages (paged formats).
+    pub pages: Option<usize>,
+    /// Sheets rendered (spreadsheets; empty and skipped sheets excluded).
+    pub sheets: Option<usize>,
+    /// Data rows rendered across all sheets (header rows excluded).
+    pub rows: Option<usize>,
+    /// Non-empty paragraphs, headings and list items (DOCX).
+    pub paragraphs: Option<usize>,
+    /// Tables (DOCX).
+    pub tables: Option<usize>,
+}
+
+impl Extraction {
+    fn new(markdown: String, format: Format) -> Self {
+        Self {
+            markdown,
+            title: None,
+            format,
+            warnings: Vec::new(),
+            stats: ExtractionStats::default(),
+        }
+    }
+}
+
+/// Run a parser, converting a panic into an error (defence in depth for
+/// third-party parsers; only effective when built with `panic = "unwind"`).
+#[cfg(any(feature = "docx", feature = "spreadsheet"))]
+fn guarded<T>(
+    what: &str,
+    make_err: fn(String) -> Error,
+    f: impl FnOnce() -> crate::Result<T>,
+) -> crate::Result<T> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or_else(|_| {
+        Err(make_err(format!(
+            "{what} parser panicked on malformed input"
+        )))
+    })
+}
 
 /// Core extraction engine.
 ///
@@ -62,11 +125,46 @@ impl Markkit {
     }
 
     /// Extract markdown from raw bytes, auto-detecting the format.
+    ///
+    /// Thin wrapper over [`Markkit::extract_document`] that returns only the Markdown.
     pub async fn extract_bytes(
         &self,
         bytes: &[u8],
         content_type: Option<&str>,
     ) -> crate::Result<String> {
+        self.extract_document_sync(
+            bytes,
+            DocumentHint {
+                content_type,
+                file_name: None,
+            },
+        )
+        .map(|e| e.markdown)
+    }
+
+    /// Convert a document (HTML, DOCX, XLSX/XLS/ODS) to Markdown with metadata.
+    ///
+    /// The format is detected from `hint.content_type`, then the extension of
+    /// `hint.file_name`, then magic bytes. Parsing is CPU-bound and runs inline;
+    /// see [`Markkit::extract_document_sync`] for use with `spawn_blocking`.
+    pub async fn extract_document(
+        &self,
+        bytes: &[u8],
+        hint: DocumentHint<'_>,
+    ) -> crate::Result<Extraction> {
+        self.extract_document_sync(bytes, hint)
+    }
+
+    /// Synchronous [`Markkit::extract_document`].
+    ///
+    /// Errors: [`Error::ResourceLimit`] when input/archive/grid limits are
+    /// exceeded, [`Error::UnsupportedFormat`] for unknown formats or formats whose
+    /// feature is disabled, and a format-specific variant for malformed input.
+    pub fn extract_document_sync(
+        &self,
+        bytes: &[u8],
+        hint: DocumentHint<'_>,
+    ) -> crate::Result<Extraction> {
         if bytes.len() > self.config.max_input_size {
             return Err(Error::ResourceLimit(format!(
                 "Input size {} exceeds limit {}",
@@ -75,16 +173,66 @@ impl Markkit {
             )));
         }
 
-        let mime = content_type.unwrap_or("application/octet-stream");
-
-        match mime {
-            m if m.contains("html") => {
+        match Format::detect(bytes, hint) {
+            Format::Html => {
                 let text = String::from_utf8_lossy(bytes);
-                self.extract_html(&text).await
+                let md = self.extract_html_sync(&text)?;
+                Ok(Extraction::new(md, Format::Html))
             }
-            m if m.contains("pdf") => self.extract_pdf(bytes).await,
-            _ => Err(Error::UnsupportedFormat(mime.to_string())),
+            Format::Pdf => self.extract_pdf_sync(bytes),
+            Format::Docx => self.extract_docx(bytes),
+            Format::Xlsx | Format::Xls | Format::Ods => self.extract_spreadsheet(bytes),
+            Format::Doc => Err(Error::UnsupportedFormat(
+                "legacy Word 97-2003 (.doc) documents are not supported".into(),
+            )),
+            Format::Pptx => Err(Error::UnsupportedFormat(
+                "presentations (.pptx) are not supported".into(),
+            )),
+            other => Err(Error::UnsupportedFormat(match hint.content_type {
+                Some(ct) => format!("{ct} ({other})"),
+                None => other.to_string(),
+            })),
         }
+    }
+
+    #[cfg(feature = "docx")]
+    fn extract_docx(&self, bytes: &[u8]) -> crate::Result<Extraction> {
+        let out = guarded("DOCX", Error::DocxExtract, || {
+            crate::docx::parse(bytes, &self.config)
+        })?;
+        let mut renderer = crate::render::MarkdownRenderer::new();
+        let mut e = Extraction::new(renderer.render(&out.doc), Format::Docx);
+        e.title = out.title;
+        e.stats.paragraphs = Some(out.paragraphs);
+        e.stats.tables = Some(out.tables);
+        Ok(e)
+    }
+
+    #[cfg(not(feature = "docx"))]
+    fn extract_docx(&self, _bytes: &[u8]) -> crate::Result<Extraction> {
+        Err(Error::UnsupportedFormat(
+            "DOCX support requires the 'docx' feature".to_string(),
+        ))
+    }
+
+    #[cfg(feature = "spreadsheet")]
+    fn extract_spreadsheet(&self, bytes: &[u8]) -> crate::Result<Extraction> {
+        let out = guarded("spreadsheet", Error::SpreadsheetExtract, || {
+            crate::spreadsheet::parse(bytes, &self.config)
+        })?;
+        let mut renderer = crate::render::MarkdownRenderer::new();
+        let mut e = Extraction::new(renderer.render(&out.doc), out.format);
+        e.warnings = out.warnings;
+        e.stats.sheets = Some(out.sheets);
+        e.stats.rows = Some(out.rows);
+        Ok(e)
+    }
+
+    #[cfg(not(feature = "spreadsheet"))]
+    fn extract_spreadsheet(&self, _bytes: &[u8]) -> crate::Result<Extraction> {
+        Err(Error::UnsupportedFormat(
+            "spreadsheet support requires the 'spreadsheet' feature".to_string(),
+        ))
     }
 
     /// Extract markdown from a URL by fetching and converting.
@@ -108,17 +256,14 @@ impl Markkit {
         self.extract_bytes(&bytes, content_type.as_deref()).await
     }
 
-    /// Extract markdown from PDF bytes.
-    async fn extract_pdf(&self, _bytes: &[u8]) -> crate::Result<String> {
+    /// PDF extraction is not implemented yet; report it explicitly rather than
+    /// returning an empty (misleading) success.
+    fn extract_pdf_sync(&self, _bytes: &[u8]) -> crate::Result<Extraction> {
         #[cfg(feature = "pdf")]
-        {
-            // TODO: Implement PDF extraction
-            Ok(String::new())
-        }
+        let msg = "PDF extraction is not implemented yet";
         #[cfg(not(feature = "pdf"))]
-        Err(Error::UnsupportedFormat(
-            "PDF support requires the 'pdf' feature".to_string(),
-        ))
+        let msg = "PDF support requires the 'pdf' feature";
+        Err(Error::UnsupportedFormat(msg.to_string()))
     }
 
     /// Access the current configuration.

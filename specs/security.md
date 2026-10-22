@@ -19,6 +19,12 @@ Markkit processes untrusted input from the internet. Key threats:
 - **Mitigation**: Private IP range blocking
 - **Mitigation**: Redirect limit
 
+### TM-DOC: Malicious office documents
+- **Mitigation**: Bounded ZIP decompression (entry count, per-entry and total size)
+- **Mitigation**: Spreadsheet grid pre-scan / streaming (no dense-grid amplification)
+- **Mitigation**: No macro execution, no formula evaluation, hidden sheets skipped by default
+- See `specs/threat-model.md` T6
+
 ### TM-MEM: Memory exhaustion
 - **Mitigation**: Streaming processing where possible
 - **Mitigation**: Memory budgets for large documents

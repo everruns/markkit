@@ -1,5 +1,7 @@
 //! Integration tests for HTML → Markdown conversion.
 
+#![cfg(feature = "html")]
+
 use markkit::Markkit;
 
 fn convert(html: &str) -> String {
