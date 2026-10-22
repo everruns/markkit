@@ -39,7 +39,7 @@ serde_json = "1"
 clap = { version = "4", features = ["derive"] }
 
 # HTTP
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
 
 # HTML parsing
 scraper = "0.26"
@@ -51,9 +51,9 @@ regex = "1"
 unicode-segmentation = "1"
 
 # Document formats
-calamine = "0.36"       # Excel/spreadsheet (XLSX/XLS/ODS)
-zip = { version = "8", default-features = false, features = ["deflate"] }  # OOXML/ODF containers; matches calamine's zip
-quick-xml = "0.41"      # DOCX/ODS XML parsing; matches calamine's quick-xml
+calamine = "0.37"       # Excel/spreadsheet (XLSX/XLS/ODS)
+zip = { version = "9", default-features = false, features = ["deflate"] }  # OOXML/ODF containers; matches calamine's zip
+quick-xml = "0.41"      # DOCX/ODS XML parsing
 cfb = "0.15"            # XLS (OLE2) container pre-scan
 
 # Image / OCR (optional)
