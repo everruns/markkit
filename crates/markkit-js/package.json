@@ -17,9 +17,22 @@
   },
   "files": [
     "index.js",
-    "index.d.ts"
+    "index.d.ts",
+    "*.node"
   ],
   "devDependencies": {
     "@napi-rs/cli": "^3"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "glibc"
+  ]
 }

@@ -19,12 +19,31 @@ jobs:
         with:
           node-version: "24.22.1"
           registry-url: "https://registry.npmjs.org"
+      - name: Require npm publisher credential
+        if: inputs.dry_run != 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN is unavailable for this publisher"
+            exit 1
+          fi
       - name: Install dependencies
-        run: cd crates/markkit-js && npm install
+        run: cd crates/markkit-js && npm install --ignore-scripts --audit=false --fund=false
       - name: Build
-        run: cd crates/markkit-js && npx napi build --release
+        run: cd crates/markkit-js && npx --no-install napi build --release --platform
+      - name: Verify build preserved the patched lockfile
+        run: git diff --exit-code -- Cargo.lock
+      - name: Verify installed npm package
+        run: |
+          cd crates/markkit-js
+          npm pack --ignore-scripts --json > "$RUNNER_TEMP/markkit-pack.json"
+          node -e 'const p=require(process.argv[1])[0]; const files=p.files.map(f=>f.path); if(!files.includes("index.js") || !files.some(f=>f.endsWith(".node"))) throw Error("npm package must contain its loader and native binary")' "$RUNNER_TEMP/markkit-pack.json"
+          TARBALL=$(node -e 'console.log(require(process.argv[1])[0].filename)' "$RUNNER_TEMP/markkit-pack.json")
+          npm install --prefix "$RUNNER_TEMP/markkit-npm-smoke" --ignore-scripts --audit=false --fund=false "$PWD/$TARBALL"
+          node -e 'const m=require(process.argv[1]); if(m.extractHtmlSync("<h1>Smoke</h1>").trim()!=="# Smoke") throw Error("native extraction smoke failed")' "$RUNNER_TEMP/markkit-npm-smoke/node_modules/@everruns/markkit"
       - name: Publish
         if: inputs.dry_run != 'true'
-        run: cd crates/markkit-js && npm publish
+        run: cd crates/markkit-js && npm publish --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

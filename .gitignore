@@ -36,3 +36,10 @@ node_modules/
 
 # WASM build artifacts
 *.wasm
+
+# Generated NAPI package artifacts
+crates/markkit-js/*.node
+crates/markkit-js/index.js
+crates/markkit-js/index.d.ts
+crates/markkit-js/package-lock.json
+crates/markkit-js/*.tgz

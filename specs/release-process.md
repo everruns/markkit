@@ -35,3 +35,17 @@ version from `Cargo.toml`. Python and npm packages are published separately with
 | Rust crate | `cargo publish` | crates.io |
 | Python wheel | `maturin build` | PyPI |
 | npm package | `napi build` | npm |
+
+## Native package scope and verification
+
+Run the Python and npm publishers from the same verified release tag as Rust.
+The initial npm artifact supports Linux x64/glibc only, and the current Python
+wheel publisher targets Linux x64/CPython 3.12 only. Other platforms and interpreters
+are not claimed as available; a future native release can expand coverage.
+
+Both publishers default to a credential-free dry run. Actual publication requires
+an existing publisher credential before building; missing credentials fail without
+printing values. Do not create credentials or alter permissions to complete a release.
+Before upload, npm installs and loads its packed tarball (loader plus native binary),
+and Python checks metadata and imports the built wheel in a clean virtual environment.
+Both builds must preserve the patched Cargo.lock.
