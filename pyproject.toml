@@ -1,0 +1,16 @@
+[build-system]
+requires = ["maturin>=1,<2"]
+build-backend = "maturin"
+
+[project]
+name = "markkit"
+dynamic = ["version", "description", "authors", "license"]
+readme = "crates/markkit-python/README.md"
+
+[tool.maturin]
+manifest-path = "crates/markkit-python/Cargo.toml"
+module-name = "markkit"
+# Preserve all workspace members so the security lockfile stays valid in sdists.
+sdist-generator = "git"
+locked = true
+exclude = [{ path = ".claude/skills", format = "sdist" }]
