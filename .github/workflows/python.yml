@@ -25,8 +25,8 @@ jobs:
       - name: Install maturin
         run: pip install maturin
       - name: Build
-        run: cd crates/markkit-python && maturin build
+        run: maturin build
       - name: Test import
         run: |
           pip install target/wheels/*.whl
-          python -c "import markkit_python; print('Import OK')"
+          python -c 'from importlib.metadata import metadata; import markkit; assert metadata("markkit")["Name"] == "markkit"; assert markkit.extract_html_sync("<h1>Smoke</h1>").strip() == "# Smoke"; print("Distribution and import OK")'

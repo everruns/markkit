@@ -4,44 +4,125 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Dry run"
+        description: "Build and verify without publishing"
         required: false
         default: "true"
 
+permissions:
+  contents: read
+
 jobs:
-  publish:
-    name: Publish Python package
+  build:
+    name: Build and verify Python distributions
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Require PyPI publisher credential
-        if: inputs.dry_run != 'true'
-        env:
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          if [ -z "$TWINE_PASSWORD" ]; then
-            echo "::error::PYPI_API_TOKEN is unavailable for this publisher"
-            exit 1
-          fi
-      - name: Install maturin
-        run: pip install maturin twine
-      - name: Build wheels
-        run: cd crates/markkit-python && maturin build --release
+      - name: Install packaging tools
+        run: python -m pip install maturin==1.15.0 twine==7.0.0
+      - name: Build from source distribution
+        run: maturin build --release --locked --sdist
       - name: Verify build preserved the patched lockfile
         run: git diff --exit-code -- Cargo.lock
-      - name: Verify wheel metadata and native import
+      - name: Inspect distribution identity
+        id: metadata
         run: |
-          twine check target/wheels/*.whl
+          python <<'PYTHON'
+          import email.parser
+          import os
+          import pathlib
+          import zipfile
+          wheels = list(pathlib.Path("target/wheels").glob("*.whl"))
+          assert len(wheels) == 1
+          with zipfile.ZipFile(wheels[0]) as wheel:
+              metadata = email.parser.BytesParser().parsebytes(wheel.read(next(name for name in wheel.namelist() if name.endswith(".dist-info/METADATA"))))
+          assert metadata["Name"] == "markkit"
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              print(f"version={metadata['Version']}", file=output)
+          print(f"markkit {metadata['Version']} from {os.environ['GITHUB_SHA']}")
+          PYTHON
+      - name: Verify distributions and native import
+        run: |
+          python -m twine check --strict target/wheels/*.whl target/wheels/*.tar.gz
           python -m venv "$RUNNER_TEMP/markkit-wheel-smoke"
           "$RUNNER_TEMP/markkit-wheel-smoke/bin/python" -m pip install --no-deps target/wheels/*.whl
-          "$RUNNER_TEMP/markkit-wheel-smoke/bin/python" -c 'import markkit_python; assert markkit_python.extract_html_sync("<h1>Smoke</h1>").strip() == "# Smoke"'
-      - name: Publish
-        if: inputs.dry_run != 'true'
-        run: twine upload target/wheels/*.whl
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          "$RUNNER_TEMP/markkit-wheel-smoke/bin/python" -c 'import importlib.metadata, importlib.util, markkit; assert importlib.metadata.metadata("markkit")["Name"] == "markkit"; assert importlib.util.find_spec("markkit_python") is None; assert markkit.extract_html_sync("<h1>Smoke</h1>").strip() == "# Smoke"'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-distributions
+          path: |
+            target/wheels/*.whl
+            target/wheels/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish Python package with OIDC
+    needs: build
+    if: inputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: python-distributions
+          path: dist
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+        with:
+          packages-dir: dist/
+
+  verify:
+    name: Verify public PyPI installation
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    env:
+      MARKKIT_VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: python-distributions
+          path: dist
+      - name: Download the published wheel
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if python -m pip download --no-cache-dir --only-binary=:all: --no-deps --dest registry "markkit==$MARKKIT_VERSION"; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then exit 1; fi
+            sleep 10
+          done
+      - name: Verify public files match the build
+        run: |
+          python <<'PYTHON'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import urllib.request
+          version = os.environ["MARKKIT_VERSION"]
+          with urllib.request.urlopen(f"https://pypi.org/pypi/markkit/{version}/json") as response:
+              published = json.load(response)
+          assert published["info"]["name"] == "markkit"
+          assert published["info"]["version"] == version
+          digests = {entry["filename"]: entry["digests"]["sha256"] for entry in published["urls"]}
+          for artifact in pathlib.Path("dist").iterdir():
+              assert digests[artifact.name] == hashlib.sha256(artifact.read_bytes()).hexdigest()
+          for wheel in pathlib.Path("registry").glob("*.whl"):
+              assert digests[wheel.name] == hashlib.sha256(wheel.read_bytes()).hexdigest()
+          print(f"Public markkit {version} distributions match the build")
+          PYTHON
+      - name: Install and smoke-test the public wheel
+        run: |
+          python -m venv "$RUNNER_TEMP/markkit-public-smoke"
+          "$RUNNER_TEMP/markkit-public-smoke/bin/python" -m pip install --no-index --no-deps registry/*.whl
+          "$RUNNER_TEMP/markkit-public-smoke/bin/python" -c 'import importlib.metadata, importlib.util, markkit; assert importlib.metadata.version("markkit") == __import__("os").environ["MARKKIT_VERSION"]; assert importlib.util.find_spec("markkit_python") is None; assert markkit.extract_html_sync("<h1>Published smoke</h1>").strip() == "# Published smoke"; print("Public markkit import and native extraction PASS")'

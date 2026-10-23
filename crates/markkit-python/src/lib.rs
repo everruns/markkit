@@ -79,7 +79,8 @@ fn extract_bytes(
 }
 
 #[pymodule]
-fn markkit_python(m: &Bound<'_, PyModule>) -> PyResult<()> {
+#[pyo3(name = "markkit")]
+fn markkit_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_html, m)?)?;
     m.add_function(wrap_pyfunction!(extract_html_sync, m)?)?;
     m.add_function(wrap_pyfunction!(extract_html_sync_with_options, m)?)?;

@@ -62,10 +62,10 @@ markkit extract https://example.com --json
 ### Python
 
 ```python
-import markkit_python
+import markkit
 
-markdown = await markkit_python.extract_html("<h1>Hello</h1>")
-markdown = await markkit_python.extract_url("https://example.com")
+markdown = await markkit.extract_html("<h1>Hello</h1>")
+markdown = await markkit.extract_url("https://example.com")
 ```
 
 ### Node.js
