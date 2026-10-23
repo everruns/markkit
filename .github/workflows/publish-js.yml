@@ -1,49 +1,44 @@
-name: Publish JavaScript
+name: Verify published JavaScript
 
 on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Dry run"
+        description: "Verification only; never publishes"
         required: false
         default: "true"
 
+permissions:
+  contents: read
+
 jobs:
-  publish:
-    name: Publish npm package
+  verify:
+    name: Verify public npm installation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v4
         with:
           node-version: "24.22.1"
-          registry-url: "https://registry.npmjs.org"
-      - name: Require npm publisher credential
-        if: inputs.dry_run != 'true'
+      - name: Inspect exact published version
+        run: npm view @everruns/markkit@0.1.1 --json
+      - name: Install from public npm without lifecycle scripts
+        run: npm install --prefix "$RUNNER_TEMP/markkit-registry-smoke" --ignore-scripts --audit=false --fund=false @everruns/markkit@0.1.1
+      - name: Verify actual installed native module
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PACKAGE_PATH: ${{ runner.temp }}/markkit-registry-smoke/node_modules/@everruns/markkit
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::error::NPM_TOKEN is unavailable for this publisher"
-            exit 1
-          fi
-      - name: Install dependencies
-        run: cd crates/markkit-js && npm install --ignore-scripts --audit=false --fund=false
-      - name: Build
-        run: cd crates/markkit-js && npx --no-install napi build --release --platform
-      - name: Verify build preserved the patched lockfile
-        run: git diff --exit-code -- Cargo.lock
-      - name: Verify installed npm package
-        run: |
-          cd crates/markkit-js
-          npm pack --ignore-scripts --json > "$RUNNER_TEMP/markkit-pack.json"
-          node -e 'const p=require(process.argv[1])[0]; const files=p.files.map(f=>f.path); if(!files.includes("index.js") || !files.some(f=>f.endsWith(".node"))) throw Error("npm package must contain its loader and native binary")' "$RUNNER_TEMP/markkit-pack.json"
-          TARBALL=$(node -e 'console.log(require(process.argv[1])[0].filename)' "$RUNNER_TEMP/markkit-pack.json")
-          npm install --prefix "$RUNNER_TEMP/markkit-npm-smoke" --ignore-scripts --audit=false --fund=false "$PWD/$TARBALL"
-          node -e 'const m=require(process.argv[1]); if(m.extractHtmlSync("<h1>Smoke</h1>").trim()!=="# Smoke") throw Error("native extraction smoke failed")' "$RUNNER_TEMP/markkit-npm-smoke/node_modules/@everruns/markkit"
-      - name: Publish
-        if: inputs.dry_run != 'true'
-        run: cd crates/markkit-js && npm publish --ignore-scripts
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          node <<'JS'
+          const assert = require("node:assert/strict");
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const crypto = require("node:crypto");
+          const root = process.env.PACKAGE_PATH;
+          const manifest = require(path.join(root, "package.json"));
+          assert.equal(manifest.name, "@everruns/markkit");
+          assert.equal(manifest.version, "0.1.1");
+          const native = fs.readdirSync(root).filter(name => name.endsWith(".node"));
+          assert.ok(native.length > 0, "Published package must include native binary");
+          const markkit = require(root);
+          assert.equal(markkit.extractHtmlSync("<h1>Published smoke</h1>").trim(), "# Published smoke");
+          console.log(JSON.stringify({package: manifest.name, version: manifest.version, platform: process.platform, arch: process.arch, node: process.version, native: native.map(name => ({name, sha256: crypto.createHash("sha256").update(fs.readFileSync(path.join(root, name))).digest("hex")})), extraction: "PASS"}));
+          JS
