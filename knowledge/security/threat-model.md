@@ -82,11 +82,17 @@ All limits live in one `Limits` struct (`crates/markkit/src/limits.rs`,
   deadline is checked right after them
 - `max_nodes` (default 5 000 000) caps HTML DOM nodes and DOCX XML nodes (summed over parts)
 
-#### T2e: Output Amplification
+#### T2f: Output Amplification
 - GFM tables pad every row to the widest row, so output can be rows x columns of input
 - `max_output_size` (default 128 MiB) checked per block, list item and table row,
   including nested renderers (blockquotes, list items), so no buffer grows past the
   limit by more than one row
+
+#### T2e: Table Span Amplification
+- `colspan`/`rowspan` clamped by the HTML parser (1000 / 65534) and again at layout
+- Renderer lays spans out on a grid capped at 1 000 000 slots, checked incrementally
+  before allocating; a table over budget is laid out ignoring spans (one slot per cell)
+- Tested with 5 000 rows of `colspan=999999999 rowspan=0`
 
 #### T2d: Billion Laughs / Entity Expansion
 - html5ever handles entity expansion internally
@@ -99,6 +105,8 @@ All limits live in one `Limits` struct (`crates/markkit/src/limits.rs`,
 - `html_security::many_elements`
 - `html_security::resource_limit_bytes`
 - `html_integration::resource_limit_enforced`
+- `html_security::hostile_colspan_rowspan_bounded`
+- `html_security::deep_definition_lists_bounded`
 - `html_proptest::resource_limit_enforced`
 - `limits::*` (every `Limits` field: output cap incl. table amplification, timeout,
   node cap, configurable depth, hard depth ceiling on a small stack, for HTML, DOCX and
@@ -261,6 +269,7 @@ process, or smuggling content past a human reviewer.
 | Nesting depth | 256 (hard max 1024) | `max_nesting_depth(usize)` | HTML walk (flatten); DOCX XML build (reject) |
 | Redirects (`extract_url`) | 5 | `max_redirects(usize)` | Every redirect hop |
 | Fetched body (`extract_url`) | = input size | `max_input_size(usize)` | `Content-Length` and while streaming |
+| Table span grid | 1 000 000 slots | Hardcoded `MAX_TABLE_GRID_CELLS` | Renderer table layout (spans dropped past it) |
 | ZIP entries | 10 000 | `max_archive_entries(usize)` | On archive open |
 | ZIP entry size (decompressed) | 64 MiB | `max_archive_entry_size(u64)` | While decompressing |
 | ZIP total size (decompressed) | 256 MiB | `max_archive_total_size(u64)` | While decompressing |
@@ -304,9 +313,10 @@ process, or smuggling content past a human reviewer.
 | S10 | Spreadsheet parsing never allocates a grid beyond `max_spreadsheet_cells` | `document_security::xls_*_rejected`, `ods_repeated_rows_and_columns_rejected` |
 | S11 | Unsupported formats fail explicitly (no empty success) | `document_detection::pdf_is_explicitly_unsupported_not_empty` |
 | S12 | Default `extract_url` never connects to a non-public address | `url_security::*_blocked*`, `fetch::tests::non_public_addresses_forbidden` |
-| S13 | Returned Markdown never exceeds `max_output_size` | `limits::*output_cap*` |
-| S14 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
-| S15 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
+| S13 | Table spans never grow the render grid past `MAX_TABLE_GRID_CELLS`; footnote labels cannot leave `[^...]` | `html_security::hostile_colspan_rowspan_bounded`, `html_integration::footnote_label_cannot_break_out` |
+| S14 | Returned Markdown never exceeds `max_output_size` | `limits::*output_cap*` |
+| S15 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
+| S16 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
 
 ## See also
 

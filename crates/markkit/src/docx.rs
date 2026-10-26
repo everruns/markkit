@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
-use crate::ir::{Document, ListItem, Node};
+use crate::ir::{Document, ListItem, Node, TableCell};
 use crate::limits::Budget;
 use crate::render::escape_table_cell;
 use crate::xml::{self, Element, XmlError};
@@ -819,7 +819,7 @@ impl Ctx<'_> {
     }
 
     fn table(&self, tbl: &Element) -> Option<Node> {
-        let mut rows: Vec<Vec<Vec<Node>>> = Vec::new();
+        let mut rows: Vec<Vec<TableCell>> = Vec::new();
         for tr in tbl.elements().filter(|e| e.name == "tr") {
             let mut tcs = Vec::new();
             self.row_cells(tr, &mut tcs);
@@ -827,23 +827,24 @@ impl Ctx<'_> {
             for tc in tcs {
                 let mut content = Vec::new();
                 self.cell_content(tc, &mut content);
-                row.push(table_cell(content));
-                let span: usize = tc
+                let span: u32 = tc
                     .child("tcPr")
                     .and_then(|p| p.child_val("gridSpan"))
                     .and_then(|v| v.parse().ok())
                     .unwrap_or(1);
-                for _ in 1..span.min(64) {
-                    row.push(Vec::new());
-                }
+                row.push(TableCell::new(table_cell(content)).with_span(span.min(64), 1));
             }
             rows.push(row);
         }
-        if rows.iter().all(|r| r.iter().all(|c| is_blank(c))) {
+        if rows.iter().all(|r| r.iter().all(|c| is_blank(&c.children))) {
             return None;
         }
         let headers = rows.remove(0);
-        Some(Node::Table { headers, rows })
+        Some(Node::Table {
+            alignments: Vec::new(),
+            headers,
+            rows,
+        })
     }
 }
 
