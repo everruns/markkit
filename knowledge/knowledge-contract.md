@@ -43,6 +43,7 @@ The bundle declares `okf_version: "0.2"` in the bundle-root [`index.md`](index.m
 |---|---|
 | [`foundations/`](foundations/) | Pipeline architecture, IR |
 | [`formats/`](formats/) | HTML extraction, format detection, office mappings |
+| [`integrations/`](integrations/) | LLM tool contract |
 | [`security/`](security/) | Security model, threat model |
 | [`runtimes/`](runtimes/) | Python and Node.js packages |
 | [`operations/`](operations/) | Testing, docs, examples, maintenance, release, eval |

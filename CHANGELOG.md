@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `<figure>`/`<figcaption>` and table spans/alignment. Row-header `<th>` cells in table bodies are
   no longer dropped.
 - `Document.ir_version` (`markkit::ir::IR_VERSION = 2`) is serialized with the IR JSON.
+- `tool` feature: `markkit::tool::MarkkitTool`, an LLM agent tool following the Everruns
+  toolkit-library contract (builder, OpenAI tool definition, input/output schemas, `tower::Service`,
+  single-use `ToolExecution`, `en-US`/`uk-UA` text). One call converts a `url`, `html` or base64
+  document to Markdown, with output capped by `max_output_chars`. Example: `examples/agent_tool.rs`.
+- `Markkit::extract_url_document`: `extract_url` with format, title, warnings and stats.
 
 ### Security
 
