@@ -1,7 +1,7 @@
 ---
 type: Threat Model
 title: Threat Model
-description: Attack surface, threats T1-T7 with mitigations and test coverage, resource limits, and security invariants.
+description: Attack surface, threats T1-T9 with mitigations and test coverage, resource limits, and security invariants.
 tags:
   - markkit
   - security
@@ -397,6 +397,31 @@ decompression or content amplification, crashing the parser, or hiding text.
 - No file system paths in errors
 - No internal state exposed
 
+### T9: Hidden-Content Prompt Injection
+
+**Description**: Text a human reviewer never sees (CSS-hidden HTML, `aria-hidden`
+blocks, zero-size or transparent text, Word hidden runs) carries instructions aimed
+at an LLM that consumes the extracted Markdown.
+
+**Impact**: Medium-High -- downstream agents act on attacker instructions.
+
+**Likelihood**: High for web content fed to agents.
+
+**Mitigations** (skipped unless `include_hidden_content(true)`):
+- HTML: elements with `hidden` (not `until-found`), `aria-hidden="true"`, or an
+  inline `style` declaring `display:none`, `visibility:hidden|collapse`,
+  `opacity:0` or `font-size:0`; `<template>` always. Applies to list items, table
+  rows and cells too (a hidden cell stays empty to keep column alignment).
+- DOCX: runs with direct `w:vanish`; `hidden_content_skipped` warning with a count.
+- Spreadsheets: hidden sheets already skipped (T6e).
+
+**Residual**: hiding through stylesheets or classes (`.sr-only`, off-screen
+positioning, white-on-white via CSS), and `w:vanish` inherited from a character
+style, is not detected.
+
+**Test Coverage**: `hidden_content::*`,
+`html_integration::exclude_selector_applies_to_list_items_and_table_parts`
+
 ## Resource Limits
 
 | Resource | Default | Configurable | Enforcement Point |
@@ -466,6 +491,7 @@ decompression or content amplification, crashing the parser, or hiding text.
 | S17 | Rendered markdown has no raw HTML, no non-allowlisted link/image scheme, and document text cannot create Markdown structure | `output_safety::*` (pulldown-cmark oracle + proptests) |
 | S18 | Text and Markdown output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*` |
 | S19 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
+| S20 | Hidden content is not rendered by default | `hidden_content::*` |
 
 ## See also
 

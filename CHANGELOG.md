@@ -106,6 +106,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The JSON IR of DOCX and spreadsheet tables now holds raw text (pipes were pre-escaped before).
 - Math TeX (taken from page markup) renders as code, GitHub's `` $`tex`$ `` and ` ```math `
   forms, instead of `$tex$` / `$$`, so it can no longer emit raw HTML or links in plain GFM.
+- Hidden content is skipped by default as a prompt-injection defence: HTML elements with `hidden`,
+  `aria-hidden="true"` or inline `display:none` / `visibility:hidden` / `opacity:0` / `font-size:0`,
+  `<template>`, and DOCX hidden (`w:vanish`) runs (warning `hidden_content_skipped`). Opt back in
+  with `include_hidden_content(true)`.
 
 ### Added
 
@@ -154,6 +158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - XLSX packages missing `_rels/.rels` no longer fail inside calamine.
 - Release builds use `panic = "unwind"`, so a parser panic becomes an error instead of aborting the
   CLI or the host Python/Node process.
+- Exclude selectors now apply to `<li>`, `<tr>`, `<th>` and `<td>`; they were ignored there.
 - Indented HTML (most real web pages) now keeps blank lines between blocks; previously
   headings, paragraphs, lists and tables after the first ran together with a leading space
   (`# A\n B` instead of `# A\n\nB`), which also broke headings and tables as markdown.

@@ -21,6 +21,10 @@ pub struct MarkkitBuilder {
     pub exclude_selectors: Vec<String>,
     /// Render hidden / very hidden sheets. Default: false (skipped with a warning).
     pub include_hidden_sheets: bool,
+    /// Render content a reader never sees: HTML `hidden`, `aria-hidden="true"`,
+    /// inline `display:none` / `visibility:hidden` / `opacity:0` / `font-size:0`,
+    /// and DOCX `w:vanish` runs. Default: false (prompt-injection vector, T9).
+    pub include_hidden_content: bool,
     /// Let `extract_url` reach loopback, private, link-local and other
     /// non-public addresses. Default: false (SSRF protection).
     pub allow_private_networks: bool,
@@ -63,6 +67,7 @@ impl Default for MarkkitBuilder {
                 "noscript".into(),
             ],
             include_hidden_sheets: false,
+            include_hidden_content: false,
             allow_private_networks: false,
             allowed_hosts: Vec::new(),
             base_url: None,
@@ -189,6 +194,14 @@ impl MarkkitBuilder {
 
     pub fn include_hidden_sheets(mut self, yes: bool) -> Self {
         self.include_hidden_sheets = yes;
+        self
+    }
+
+    /// Render hidden content (HTML hidden elements, DOCX hidden runs) instead of
+    /// skipping it. Hidden text is a prompt-injection vector; keep the default
+    /// (`false`) for content fed to LLMs.
+    pub fn include_hidden_content(mut self, yes: bool) -> Self {
+        self.include_hidden_content = yes;
         self
     }
 
