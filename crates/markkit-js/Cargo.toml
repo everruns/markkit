@@ -17,9 +17,6 @@ doc = false
 markkit = { path = "../markkit", features = ["all_formats", "http_client"] }
 napi.workspace = true
 napi-derive.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
 napi-build = "2"

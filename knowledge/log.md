@@ -2,6 +2,7 @@
 
 ## 2026-10-26
 
+* **Dependency trim**: unused dependencies removed (lockfile shrinks by ~460 lines; the `instant`/`paste` unmaintained advisories and their `deny.toml` ignores are gone with the stub bench deps). quick-xml moves to 0.42, one version shared with calamine; markkit's XML walkers now read `&str` names and values. See [Threat Model](security/threat-model.md) T6d and [Maintenance](operations/maintenance.md).
 * **Inter-block whitespace**: indented HTML lost blank lines between blocks and leaked a leading space into every following line, because whitespace-only text between blocks stayed in the block list as `Text(" ")`. The parser now normalizes block-context lists; golden fixtures, which had recorded the broken output, are regenerated. See [HTML Extraction](formats/html-extraction.md) and [IR Specification](foundations/ir.md).
 * **OKF migration**: `specs/` became this OKF v0.2 bundle, grouped into `foundations/`, `formats/`, `security/`, `runtimes/`, `operations/`. Every concept gained frontmatter and a See also section; `just check-okf` and CI enforce conformance. See [Knowledge Maintenance Contract](knowledge-contract.md).
 * **Accuracy pass**: [Python Package](runtimes/python-package.md) now names the shipped `markkit` module; [Examples](operations/examples.md) lists the four real examples; [Evaluation Harness](operations/eval.md) is marked as a stub; [Threat Model](security/threat-model.md) T3 records that `http_client` is a default feature and SSRF mitigations are still open.

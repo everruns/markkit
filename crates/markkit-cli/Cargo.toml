@@ -30,7 +30,6 @@ markkit = { path = "../markkit", version = "0.1.1", features = ["http_client"] }
 tokio = { workspace = true, features = ["macros", "net", "rt", "rt-multi-thread", "time", "fs"] }
 clap.workspace = true
 anyhow.workspace = true
-serde.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]

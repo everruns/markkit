@@ -28,8 +28,7 @@ Markkit relies on several permissively licensed crates:
 
 * scraper (MIT) – HTML parsing and CSS selector matching
 * html5ever (MIT/Apache-2.0) – HTML5 parsing
-* lol_html (BSD-3-Clause) – Low-latency HTML rewriting
-* pdf-extract (MIT) – PDF text extraction
+* zip (MIT), quick-xml (MIT), calamine (MIT), cfb (MIT) – Office document containers and XML
 * reqwest (MIT/Apache-2.0) – HTTP client
 * tokio (MIT) – Async runtime
 * serde / serde_json (MIT/Apache-2.0) – Serialization
