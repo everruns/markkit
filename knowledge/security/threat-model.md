@@ -168,7 +168,7 @@ process, or smuggling content past a human reviewer.
 #### T6d: XML entity attacks (billion laughs, XXE)
 - quick-xml never expands DTD-declared or external entities; such references are dropped.
   Only the five predefined entities and character references are resolved.
-- quick-xml >= 0.41 (via calamine 0.36) fixes RUSTSEC-2026-0194 (quadratic duplicate-attribute
+- quick-xml 0.42 (one version shared with calamine 0.37) includes the RUSTSEC-2026-0194 fix (quadratic duplicate-attribute
   check); markkit's own XML walkers iterate attributes with `with_checks(false)` and never
   use `NsReader` (RUSTSEC-2026-0195).
 

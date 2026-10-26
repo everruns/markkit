@@ -7,7 +7,6 @@
 //! billion-laughs / XXE payloads surface as unresolved references, which we drop.
 //! Tree depth is capped and the tree is built iteratively (no recursion on input).
 
-use quick_xml::encoding::Decoder;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::{Reader, XmlVersion};
 
@@ -92,21 +91,20 @@ impl Element {
     }
 }
 
-fn local(name: &[u8]) -> String {
-    let local = match name.iter().rposition(|&b| b == b':') {
-        Some(i) => &name[i + 1..],
-        None => name,
-    };
-    String::from_utf8_lossy(local).into_owned()
+fn local(name: &str) -> String {
+    match name.rsplit_once(':') {
+        Some((_, local)) => local.to_string(),
+        None => name.to_string(),
+    }
 }
 
-fn element_from(start: &BytesStart<'_>, decoder: Decoder) -> Element {
+fn element_from(start: &BytesStart<'_>) -> Element {
     let mut attrs = Vec::new();
     for attr in start.attributes().with_checks(false).flatten() {
         let key = local(attr.key.as_ref());
-        let value = match attr.decoded_and_normalized_value(XmlVersion::Implicit1_0, decoder) {
+        let value = match attr.normalized_value(XmlVersion::Implicit1_0) {
             Ok(v) => v.into_owned(),
-            Err(_) => String::from_utf8_lossy(&attr.value).into_owned(),
+            Err(_) => attr.value.into_owned(),
         };
         attrs.push((key, value));
     }
@@ -146,10 +144,10 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Element, XmlError> {
                         "XML nesting deeper than {MAX_XML_DEPTH}"
                     )));
                 }
-                stack.push(element_from(&s, reader.decoder()));
+                stack.push(element_from(&s));
             }
             Event::Empty(s) => {
-                let el = element_from(&s, reader.decoder());
+                let el = element_from(&s);
                 if let Some(top) = stack.last_mut() {
                     top.children.push(XNode::Element(el));
                 }
@@ -163,25 +161,21 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Element, XmlError> {
                 }
             }
             Event::Text(t) => {
-                let text = t
-                    .xml_content(XmlVersion::Implicit1_0)
-                    .map_err(|e| XmlError::Invalid(format!("bad text encoding: {e}")))?;
+                let text = t.xml_content(XmlVersion::Implicit1_0);
                 if let Some(top) = stack.last_mut() {
                     push_text(top, &text);
                 }
             }
             Event::CData(t) => {
-                let text = String::from_utf8_lossy(&t);
                 if let Some(top) = stack.last_mut() {
-                    push_text(top, &text);
+                    push_text(top, &t);
                 }
             }
             Event::GeneralRef(r) => {
                 let resolved: Option<String> = match r.resolve_char_ref() {
                     Ok(Some(c)) => Some(c.to_string()),
                     Ok(None) => {
-                        let name = String::from_utf8_lossy(&r);
-                        quick_xml::escape::resolve_predefined_entity(&name).map(str::to_string)
+                        quick_xml::escape::resolve_predefined_entity(&r).map(str::to_string)
                     }
                     Err(_) => None,
                 };

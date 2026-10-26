@@ -155,7 +155,7 @@ let markkit = Markkit::builder()
 | `spreadsheet` | No | XLSX/XLSM, XLS, ODS conversion (calamine) |
 | `pdf` | No | Placeholder; PDF currently returns `UnsupportedFormat` |
 | `all_formats` | No | `html`, `pdf`, `docx`, `spreadsheet` |
-| `logging` | No | Structured tracing output |
+| `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
 
 `http_client` is optional. Embedders that fetch content themselves can build without
 reqwest (no HTTP/TLS stack in the dependency tree):

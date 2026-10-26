@@ -550,15 +550,15 @@ fn scan_biff_sheet(sheet: &[u8]) -> Result<u64, Error> {
 
 // ─── ODS pre-scan (row / column repeats) ────────────────────────────
 
-fn attr_u64(e: &BytesStart<'_>, local: &[u8]) -> Option<u64> {
+fn attr_u64(e: &BytesStart<'_>, local: &str) -> Option<u64> {
     e.attributes().with_checks(false).flatten().find_map(|a| {
         (a.key.local_name().as_ref() == local)
-            .then(|| std::str::from_utf8(&a.value).ok()?.trim().parse().ok())
+            .then(|| a.value.trim().parse().ok())
             .flatten()
     })
 }
 
-fn has_attr(e: &BytesStart<'_>, local: &[u8]) -> bool {
+fn has_attr(e: &BytesStart<'_>, local: &str) -> bool {
     e.attributes()
         .with_checks(false)
         .flatten()
@@ -587,14 +587,14 @@ impl OdsTable {
     }
 
     fn start_row(&mut self, e: &BytesStart<'_>) {
-        let rep = attr_u64(e, b"number-rows-repeated").unwrap_or(1).max(1);
+        let rep = attr_u64(e, "number-rows-repeated").unwrap_or(1).max(1);
         self.row_repeat = rep.min(ODS_MAX_ROWS.saturating_sub(self.next_row)).max(1);
         self.col = 0;
         self.width = 0;
     }
 
     fn cell(&mut self, e: &BytesStart<'_>, non_empty: bool) {
-        let rep = attr_u64(e, b"number-columns-repeated").unwrap_or(1).max(1);
+        let rep = attr_u64(e, "number-columns-repeated").unwrap_or(1).max(1);
         self.col = self.col.saturating_add(rep).min(ODS_MAX_COLS);
         if non_empty {
             self.width = self.col;
@@ -636,8 +636,8 @@ fn prescan_ods(content: &[u8], max_cells: u64) -> Result<(), Error> {
             Event::Start(ref e) | Event::Empty(ref e) => {
                 let is_empty_el = matches!(ev, Event::Empty(_));
                 match e.local_name().as_ref() {
-                    b"table" if !is_empty_el => table = Some(OdsTable::default()),
-                    b"table-row" => {
+                    "table" if !is_empty_el => table = Some(OdsTable::default()),
+                    "table-row" => {
                         if let Some(t) = table.as_mut() {
                             t.start_row(e);
                             if is_empty_el {
@@ -645,9 +645,9 @@ fn prescan_ods(content: &[u8], max_cells: u64) -> Result<(), Error> {
                             }
                         }
                     }
-                    b"table-cell" | b"covered-table-cell" => {
+                    "table-cell" | "covered-table-cell" => {
                         if let Some(t) = table.as_mut() {
-                            let non_empty = !is_empty_el || has_attr(e, b"value-type");
+                            let non_empty = !is_empty_el || has_attr(e, "value-type");
                             t.cell(e, non_empty);
                         }
                     }
@@ -655,13 +655,13 @@ fn prescan_ods(content: &[u8], max_cells: u64) -> Result<(), Error> {
                 }
             }
             Event::End(ref e) => match e.local_name().as_ref() {
-                b"table-row" => {
+                "table-row" => {
                     if let Some(t) = table.as_mut() {
                         t.end_row();
                         check(total.saturating_add(t.area()))?;
                     }
                 }
-                b"table" => {
+                "table" => {
                     if let Some(t) = table.take() {
                         total = total.saturating_add(t.area());
                         check(total)?;

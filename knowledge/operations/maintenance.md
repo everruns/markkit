@@ -132,6 +132,10 @@ Findings shipped as separate PRs in the same pass: unused dependencies (core
 `async-trait`, `futures`, `regex`, `unicode-segmentation`, `encoding_rs`, `base64`,
 `mime`, `lol_html`; most stub-crate deps) and pending major upgrades; indented HTML
 losing paragraph breaks between blocks (smoke test of `examples/basic.rs`).
+Dependency PR: 18 unused deps removed, quick-xml/scraper/html5ever/pyo3/criterion
+majors applied, `deny.toml` ignores and unused license allowances dropped;
+`cargo audit` reports nothing, `cargo deny` one duplicate (`syn` 1/2, proc-macro
+ecosystem split).
 
 ## See also
 

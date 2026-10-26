@@ -7,18 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Fixed
-
-- Indented HTML (most real web pages) now keeps blank lines between blocks; previously
-  headings, paragraphs, lists and tables after the first ran together with a leading space
-  (`# A\n B` instead of `# A\n\nB`), which also broke headings and tables as markdown.
-
 ### Changed
 
 - Design docs moved from `specs/` to an OKF v0.2 knowledge bundle in `knowledge/`, validated in CI.
 - CI workflows declare read-only default permissions and do not persist checkout credentials.
 - CI runs every example; `just bench` now runs the criterion benchmarks.
 - README, SECURITY and binding docs corrected: Python module is `markkit`, URL fetching has no private-network blocking yet.
+- Dependencies: drop unused `async-trait`, `futures`, `regex`, `unicode-segmentation`, `encoding_rs`,
+  `base64`, `mime`, `lol_html` (core) and `tracing-subscriber`, plus unused deps of the CLI, bindings
+  and stub crates. Upgrade scraper 0.29, html5ever 0.40, quick-xml 0.42 (now a single version shared
+  with calamine), pyo3 0.30, criterion 0.8. The `logging` feature is reserved and enables only `tracing`.
+
+### Fixed
+
+- Indented HTML (most real web pages) now keeps blank lines between blocks; previously
+  headings, paragraphs, lists and tables after the first ran together with a leading space
+  (`# A\n B` instead of `# A\n\nB`), which also broke headings and tables as markdown.
 
 ## [0.1.1] - 2026-10-22
 

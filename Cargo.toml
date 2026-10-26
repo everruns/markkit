@@ -24,8 +24,6 @@ categories = ["text-processing", "command-line-utilities", "parser-implementatio
 [workspace.dependencies]
 # Async
 tokio = { version = "1", default-features = false }
-async-trait = "0.1"
-futures = "0.3"
 
 # Error handling
 thiserror = "2"
@@ -42,35 +40,21 @@ clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
 
 # HTML parsing
-scraper = "0.26"
-html5ever = "0.39"
-lol_html = "2"
-
-# Text processing
-regex = "1"
-unicode-segmentation = "1"
+scraper = "0.29"
+html5ever = "0.40"
 
 # Document formats
 calamine = "0.37"       # Excel/spreadsheet (XLSX/XLS/ODS)
 zip = { version = "9", default-features = false, features = ["deflate"] }  # OOXML/ODF containers; matches calamine's zip
-quick-xml = "0.41"      # DOCX/ODS XML parsing
+quick-xml = "0.42"      # DOCX/ODS XML parsing
 cfb = "0.15"            # XLS (OLE2) container pre-scan
-
-# Image / OCR (optional)
-image = "0.25"
-
-# Encoding
-encoding_rs = "0.8"
-base64 = "0.22"
-mime = "0.3"
 
 # Logging
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Python bindings
-pyo3 = { version = "0.29" }
-pyo3-async-runtimes = { version = "0.29", features = ["tokio-runtime"] }
+pyo3 = { version = "0.30" }
+pyo3-async-runtimes = { version = "0.30", features = ["tokio-runtime"] }
 
 # Node.js bindings
 napi = { version = "3", features = ["async", "serde-json"] }
@@ -78,7 +62,7 @@ napi-derive = "3"
 
 # Testing
 tempfile = "3"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 proptest = "1"
 
 [profile.release]
