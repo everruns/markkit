@@ -64,3 +64,12 @@ fn fixture_full_article() {
 fn fixture_malformed() {
     fixture_test("malformed");
 }
+
+#[test]
+fn fixture_news_page_main_content() {
+    let html = fs::read_to_string("tests/fixtures/html/news_page.html").unwrap();
+    let expected = fs::read_to_string("tests/fixtures/html/news_page.main.md").unwrap();
+    let m = Markkit::builder().main_content(true).build();
+    let actual = m.extract_html_sync(&html).unwrap();
+    assert_eq!(actual, expected, "\n--- Actual ---\n{actual}");
+}

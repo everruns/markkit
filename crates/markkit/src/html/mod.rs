@@ -4,6 +4,7 @@
 
 mod metadata;
 mod parser;
+mod readability;
 mod urls;
 
 pub use parser::HtmlParser;

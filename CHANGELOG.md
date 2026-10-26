@@ -44,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `extractDocument` / `extractDocumentSync` return Markdown with title, format, warnings, stats and
   page metadata.
 - `Markkit::extract_url_document`: `extract_url` with format, title, warnings and stats.
+- Main-content detection: `MarkkitBuilder::main_content(true)` (CLI `--main-content`) keeps only
+  the article body of a web page, Readability-style, dropping navigation, sidebars, comments, share
+  bars and related-link blocks. Off by default; include selectors take precedence; falls back to the
+  full page when no article-like block is found.
 
 ### Security
 

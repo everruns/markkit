@@ -69,6 +69,7 @@ Via `MarkkitBuilder`:
 - URL fetch policy (`allow_private_networks`, `allow_host`, `max_redirects`)
 - Base URL for relative links, images and metadata URLs (`base_url`)
 - Provenance (`track_sources`): per-block `Source` in the IR (off by default)
+- Main-content detection for HTML (`main_content`)
 
 ## Public entry points
 
