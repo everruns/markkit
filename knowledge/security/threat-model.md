@@ -233,6 +233,10 @@ raw HTML (`<script>`, event handlers) or pathological nesting.
   go through the HTML parser (T1 stripping) or are dropped; inline tags are dropped
 - Explicit-stack IR builder, nesting capped at 200 (deeper content flattened)
 
+**Residual**: literal text that merely looks like markup (a `<script>` line in a `.txt`, a
+`*` in a CSV cell) is emitted as `Node::Text`; escaping it is the renderer's job, tracked as
+the output-safety initiative, and applies to every format at once.
+
 **Test Coverage** (`text_integration`):
 - `security_control_chars_stripped`, `security_arbitrary_bytes_never_panic`
 - `security_invalid_utf8_lossy_with_warning`, `security_utf16_malformed_no_panic`
@@ -307,7 +311,7 @@ raw HTML (`<script>`, event handlers) or pathological nesting.
 | S10 | Spreadsheet parsing never allocates a grid beyond `max_spreadsheet_cells` | `document_security::xls_*_rejected`, `ods_repeated_rows_and_columns_rejected` |
 | S11 | Unsupported formats fail explicitly (no empty success) | `document_detection::pdf_is_explicitly_unsupported_not_empty` |
 | S12 | Default `extract_url` never connects to a non-public address | `url_security::*_blocked*`, `fetch::tests::non_public_addresses_forbidden` |
-| S13 | Text and Markdown output never contains C0 controls (except tab/newline) or raw HTML from the input | `text_integration::security_*` |
+| S13 | Text and Markdown output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*` |
 
 ## See also
 
