@@ -2,18 +2,47 @@
 //!
 //! All parsers convert their input into this IR, and all renderers
 //! consume it. This decouples input formats from output formats.
+//!
+//! Decisions (IR v2, see `knowledge/foundations/ir.md`):
+//! - [`Document::ir_version`] is serialized so JSON consumers can detect shape
+//!   changes; bump [`IR_VERSION`] on any breaking change to serialized form.
+//! - [`Node`] is `#[non_exhaustive]`: new node kinds are additive, so matches
+//!   outside this crate need a wildcard arm. Helper structs are
+//!   `#[non_exhaustive]` too and built through constructors.
+//! - Serde keeps the default externally tagged enum form; optional/default
+//!   fields are omitted when unset so simple documents stay compact.
+//! - Table spans are stored as authored (clamped by parsers) and laid out by
+//!   the renderer, which owns the grid-size budget.
 
 use serde::{Deserialize, Serialize};
 
+/// Current IR schema version written by this crate.
+///
+/// v1: initial IR (implicit, no version field). v2: footnotes, definition
+/// lists, task lists, figures, table cells with alignment and spans.
+pub const IR_VERSION: u32 = 2;
+
 /// A parsed document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Document {
+    /// IR schema version ([`IR_VERSION`] for documents built by this crate;
+    /// `1` when missing from deserialized JSON).
+    #[serde(default = "v1")]
+    pub ir_version: u32,
     pub nodes: Vec<Node>,
+}
+
+fn v1() -> u32 {
+    1
 }
 
 impl Document {
     pub fn new(nodes: Vec<Node>) -> Self {
-        Self { nodes }
+        Self {
+            ir_version: IR_VERSION,
+            nodes,
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -23,6 +52,7 @@ impl Document {
 
 /// A block-level or inline node in the document tree.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum Node {
     /// Heading with level 1–6.
     Heading { level: u8, children: Vec<Node> },
@@ -43,11 +73,24 @@ pub enum Node {
     },
     /// Table with optional header row.
     Table {
-        headers: Vec<Vec<Node>>,
-        rows: Vec<Vec<Vec<Node>>>,
+        /// Per-column alignment; missing entries mean [`Alignment::None`].
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        alignments: Vec<Alignment>,
+        headers: Vec<TableCell>,
+        rows: Vec<Vec<TableCell>>,
     },
     /// Horizontal rule / thematic break.
     ThematicBreak,
+    /// Definition list (`<dl>`): terms with one or more definitions.
+    DefinitionList { items: Vec<DefinitionItem> },
+    /// Figure: block content with an optional inline caption.
+    Figure {
+        children: Vec<Node>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        caption: Option<Vec<Node>>,
+    },
+    /// Footnote body, referenced by [`Node::FootnoteReference`] with the same label.
+    FootnoteDefinition { label: String, children: Vec<Node> },
     /// Plain text.
     Text(String),
     /// Bold / strong emphasis.
@@ -68,17 +111,127 @@ pub enum Node {
     Image { src: String, alt: String },
     /// Hard line break.
     LineBreak,
+    /// Footnote marker pointing at a [`Node::FootnoteDefinition`].
+    FootnoteReference { label: String },
+}
+
+impl Node {
+    /// True for block-level nodes (headings, paragraphs, lists, tables, ...).
+    pub fn is_block(&self) -> bool {
+        matches!(
+            self,
+            Node::Heading { .. }
+                | Node::Paragraph { .. }
+                | Node::List { .. }
+                | Node::BlockQuote { .. }
+                | Node::CodeBlock { .. }
+                | Node::Table { .. }
+                | Node::ThematicBreak
+                | Node::DefinitionList { .. }
+                | Node::Figure { .. }
+                | Node::FootnoteDefinition { .. }
+        )
+    }
+
+    /// True for inline nodes (text, emphasis, links, ...).
+    pub fn is_inline(&self) -> bool {
+        !self.is_block()
+    }
 }
 
 /// A single item in a list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ListItem {
     pub children: Vec<Node>,
+    /// Task-list state: `Some(true)` checked, `Some(false)` unchecked, `None` plain item.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked: Option<bool>,
 }
 
 impl ListItem {
     pub fn new(children: Vec<Node>) -> Self {
-        Self { children }
+        Self {
+            children,
+            checked: None,
+        }
+    }
+
+    /// Task-list item with a checkbox.
+    pub fn task(children: Vec<Node>, checked: bool) -> Self {
+        Self {
+            children,
+            checked: Some(checked),
+        }
+    }
+}
+
+/// Horizontal alignment of a table column.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum Alignment {
+    #[default]
+    None,
+    Left,
+    Center,
+    Right,
+}
+
+/// A table cell: inline content plus its span (both ≥ 1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct TableCell {
+    pub children: Vec<Node>,
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub colspan: u32,
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub rowspan: u32,
+}
+
+fn one() -> u32 {
+    1
+}
+
+fn is_one(n: &u32) -> bool {
+    *n == 1
+}
+
+impl TableCell {
+    pub fn new(children: Vec<Node>) -> Self {
+        Self {
+            children,
+            colspan: 1,
+            rowspan: 1,
+        }
+    }
+
+    /// Set the span; zero is treated as one.
+    pub fn with_span(mut self, colspan: u32, rowspan: u32) -> Self {
+        self.colspan = colspan.max(1);
+        self.rowspan = rowspan.max(1);
+        self
+    }
+}
+
+impl From<Vec<Node>> for TableCell {
+    fn from(children: Vec<Node>) -> Self {
+        Self::new(children)
+    }
+}
+
+/// One term of a [`Node::DefinitionList`] with its definitions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct DefinitionItem {
+    /// Inline content of the term.
+    pub term: Vec<Node>,
+    /// Each definition is a list of block (or inline) nodes.
+    pub definitions: Vec<Vec<Node>>,
+}
+
+impl DefinitionItem {
+    pub fn new(term: Vec<Node>, definitions: Vec<Vec<Node>>) -> Self {
+        Self { term, definitions }
     }
 }
 
@@ -106,11 +259,70 @@ mod tests {
                         children: vec![Node::Text("bold".into())],
                     },
                     Node::Text(" text".into()),
+                    Node::FootnoteReference { label: "1".into() },
                 ],
+            },
+            Node::List {
+                ordered: false,
+                start: None,
+                items: vec![
+                    ListItem::task(vec![Node::Text("done".into())], true),
+                    ListItem::new(vec![Node::Text("plain".into())]),
+                ],
+            },
+            Node::Table {
+                alignments: vec![Alignment::Left, Alignment::Right],
+                headers: vec![TableCell::new(vec![Node::Text("a".into())]).with_span(2, 1)],
+                rows: vec![vec![TableCell::new(vec![]), TableCell::new(vec![])]],
+            },
+            Node::DefinitionList {
+                items: vec![DefinitionItem::new(
+                    vec![Node::Text("term".into())],
+                    vec![vec![Node::Text("def".into())]],
+                )],
+            },
+            Node::Figure {
+                children: vec![Node::Image {
+                    src: "a.png".into(),
+                    alt: "A".into(),
+                }],
+                caption: Some(vec![Node::Text("cap".into())]),
+            },
+            Node::FootnoteDefinition {
+                label: "1".into(),
+                children: vec![Node::Paragraph {
+                    children: vec![Node::Text("note".into())],
+                }],
             },
         ]);
         let json = serde_json::to_string(&doc).unwrap();
         let parsed: Document = serde_json::from_str(&json).unwrap();
         assert_eq!(doc, parsed);
+        assert_eq!(parsed.ir_version, IR_VERSION);
+    }
+
+    #[test]
+    fn json_omits_defaults() {
+        let doc = Document::new(vec![Node::Table {
+            alignments: vec![],
+            headers: vec![TableCell::new(vec![Node::Text("h".into())])],
+            rows: vec![],
+        }]);
+        let json = serde_json::to_string(&doc).unwrap();
+        assert!(json.starts_with(r#"{"ir_version":2,"#), "{json}");
+        assert!(!json.contains("colspan"), "{json}");
+        assert!(!json.contains("alignments"), "{json}");
+    }
+
+    #[test]
+    fn missing_version_reads_as_v1() {
+        let doc: Document = serde_json::from_str(r#"{"nodes":[{"Text":"x"}]}"#).unwrap();
+        assert_eq!(doc.ir_version, 1);
+    }
+
+    #[test]
+    fn zero_span_clamped() {
+        let c = TableCell::new(vec![]).with_span(0, 0);
+        assert_eq!((c.colspan, c.rowspan), (1, 1));
     }
 }
