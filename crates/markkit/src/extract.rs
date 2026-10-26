@@ -235,25 +235,20 @@ impl Markkit {
         ))
     }
 
-    /// Extract markdown from a URL by fetching and converting.
+    /// Fetch a URL and extract markdown from the response.
+    ///
+    /// Treats the URL as untrusted (threat model T3): only `http`/`https`;
+    /// loopback, private, link-local and other non-public addresses are
+    /// refused with [`Error::UrlBlocked`] on every hop (including after DNS
+    /// resolution) unless [`MarkkitBuilder::allow_private_networks`] is set;
+    /// [`MarkkitBuilder::allow_host`] restricts hosts; redirects capped by
+    /// `max_redirects`; body capped by `max_input_size`; whole fetch capped
+    /// by `max_processing_secs` ([`Error::ResourceLimit`]).
     #[cfg(feature = "http_client")]
     pub async fn extract_url(&self, url: &str) -> crate::Result<String> {
-        let response = reqwest::get(url)
+        let fetched = crate::fetch::fetch(url, &self.config).await?;
+        self.extract_bytes(&fetched.bytes, fetched.content_type.as_deref())
             .await
-            .map_err(|e| Error::Http(e.to_string()))?;
-
-        let content_type = response
-            .headers()
-            .get("content-type")
-            .and_then(|v| v.to_str().ok())
-            .map(|s| s.to_string());
-
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|e| Error::Http(e.to_string()))?;
-
-        self.extract_bytes(&bytes, content_type.as_deref()).await
     }
 
     /// PDF extraction is not implemented yet; report it explicitly rather than

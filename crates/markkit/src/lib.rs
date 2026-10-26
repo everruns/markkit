@@ -47,6 +47,8 @@ pub mod config;
 mod docx;
 pub mod error;
 pub mod extract;
+#[cfg(feature = "http_client")]
+mod fetch;
 pub mod format;
 #[cfg(feature = "html")]
 pub mod html;

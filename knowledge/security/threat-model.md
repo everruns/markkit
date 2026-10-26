@@ -95,20 +95,44 @@ tags:
 **Likelihood**: Medium -- `extract_url()` exists whenever `http_client` is enabled,
 and `http_client` is a **default** feature.
 
-**Status**: Open. `extract_url()` calls `reqwest::get` directly: reqwest's default
-redirect policy (10 hops) applies, nothing else does.
+**Status**: Mitigated (`crates/markkit/src/fetch.rs`).
 
 **Mitigations**:
-- URL allowlist support (planned)
-- Private IP range blocking (planned)
-- Response body bounded by `max_input_size` before download completes (planned;
-  today `max_input_size` is checked only after the full body is buffered, see T4)
-- Request timeout from `max_processing_secs` (planned)
+- Scheme allowlist: `http`/`https` only, initial URL and every redirect hop
+- Non-public destinations refused by default (`Error::UrlBlocked`): loopback,
+  RFC 1918, link-local / cloud metadata (169.254.0.0/16), CGNAT, `0.0.0.0/8`,
+  reserved, multicast, documentation, benchmarking; IPv6 loopback, ULA,
+  link-local, site-local, multicast; IPv4 embedded in IPv6 (mapped,
+  compatible, NAT64, 6to4) judged by the IPv4. `localhost` / `*.localhost`
+  refused by name. Non-canonical IPv4 (`2130706433`, `0x7f.0.0.1`) is
+  normalized by the URL parser before the check
+- DNS rebinding: a custom resolver drops non-public addresses, and reqwest
+  connects only to what it returns (no check-then-resolve gap)
+- Opt-in `allow_private_networks(true)` for trusted URLs (CLI / bindings use
+  the default, so they block too)
+- Host allowlist `allow_host(..)`: exact, case-insensitive, trailing dot
+  ignored, checked on every hop (no subdomain wildcard)
+- Redirects capped by `max_redirects` (default 5)
+- Response body bounded by `max_input_size`: declared `Content-Length` rejected
+  before reading, undeclared bodies stopped while streaming (`ResourceLimit`)
+- Whole fetch (connect, headers, body) bounded by `max_processing_secs`
 - Opt-out: embedders that fetch content themselves build with
   `default-features = false` and never link reqwest (CI asserts this for
   `docx,spreadsheet`)
 
-**Test Coverage**: None yet.
+**Residual risk**: with an `HTTP(S)_PROXY` in the environment the proxy
+resolves names, so the resolver filter does not apply to proxied requests;
+scheme, allowlist, IP-literal and redirect checks still do. Restrict egress at
+the proxy, or use `allow_host`.
+
+**Test Coverage**:
+- `url_security::loopback_ip_blocked_by_default_without_connecting`, `localhost_name_blocked_by_default_without_connecting` (no TCP hit)
+- `url_security::forbidden_ip_literals_blocked` (metadata, RFC 1918, CGNAT, IPv6, mapped, decimal / hex IPv4)
+- `url_security::non_http_schemes_blocked`, `redirect_to_non_http_scheme_blocked`, `invalid_url_is_error_not_panic`
+- `url_security::host_outside_allowlist_blocked`, `redirect_to_host_outside_allowlist_blocked`, `allowlisted_host_matches_case_insensitively`
+- `url_security::redirect_loop_stops_at_limit`, `private_networks_reachable_when_allowed`
+- `url_security::declared_oversized_body_rejected`, `undeclared_oversized_body_rejected_while_streaming`, `stalled_server_times_out`
+- `fetch::tests::*` (address classification and URL check units)
 
 ### T4: Memory Exhaustion
 
@@ -212,7 +236,9 @@ process, or smuggling content past a human reviewer.
 | Resource | Default | Configurable | Enforcement Point |
 |----------|---------|--------------|-------------------|
 | Input size | 50 MB | `max_input_size(usize)` | Before parsing |
-| Processing time | 60 s | `max_processing_secs(u64)` | Config field (enforcement TBD) |
+| Processing time | 60 s | `max_processing_secs(u64)` | Whole `extract_url` fetch (parsing itself TBD) |
+| Redirects (`extract_url`) | 5 | `max_redirects(usize)` | Every redirect hop |
+| Fetched body (`extract_url`) | = input size | `max_input_size(usize)` | `Content-Length` and while streaming |
 | Nesting depth | 200 | Hardcoded `MAX_DEPTH` | During HTML tree walk |
 | XML nesting depth (DOCX) | 256 | Hardcoded `MAX_XML_DEPTH` | While building the XML tree |
 | ZIP entries | 10 000 | `max_archive_entries(usize)` | On archive open |
@@ -258,6 +284,7 @@ process, or smuggling content past a human reviewer.
 | S9 | Malformed office documents produce errors, never panics | `document_security::truncated_fixtures_never_panic`, `*_never_panic` proptests |
 | S10 | Spreadsheet parsing never allocates a grid beyond `max_spreadsheet_cells` | `document_security::xls_*_rejected`, `ods_repeated_rows_and_columns_rejected` |
 | S11 | Unsupported formats fail explicitly (no empty success) | `document_detection::pdf_is_explicitly_unsupported_not_empty` |
+| S12 | Default `extract_url` never connects to a non-public address | `url_security::*_blocked*`, `fetch::tests::non_public_addresses_forbidden` |
 
 ## See also
 

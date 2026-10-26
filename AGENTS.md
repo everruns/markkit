@@ -29,7 +29,7 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 | formats/html-extraction | HTML element mapping, stripping, whitespace, depth limits |
 | formats/format-support | Formats, bytes-in API, detection order, DOCX + spreadsheet mapping |
 | security/security-model | One-page threat/invariant summary |
-| security/threat-model | Threats T1-T6, mitigations, test map, resource limits, invariants S1-S11 |
+| security/threat-model | Threats T1-T6, mitigations, test map, resource limits, invariants S1-S12 |
 | runtimes/python-package | PyO3 `markkit` module, maturin, PyPI |
 | runtimes/node-package | NAPI-RS `@everruns/markkit`, npm, binding parity table |
 | operations/testing | Test layout, categories, CI jobs |

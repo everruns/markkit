@@ -53,6 +53,7 @@ Via `MarkkitBuilder`:
 - CSS selectors for include/exclude
 - Link and image preservation
 - Office-document limits (archive entries/sizes, sheet rows/cols, grid cells, hidden sheets)
+- URL fetch policy (`allow_private_networks`, `allow_host`, `max_redirects`)
 
 ## See also
 
