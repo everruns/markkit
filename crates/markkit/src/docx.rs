@@ -24,6 +24,7 @@ use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::ir::{Document, ListItem, Node};
+use crate::limits::Budget;
 use crate::render::escape_table_cell;
 use crate::xml::{self, Element, XmlError};
 
@@ -51,10 +52,21 @@ fn xml_err(part: &str, e: XmlError) -> Error {
     }
 }
 
-fn read_xml(zip: &mut ZipGuard<'_>, path: &str) -> Result<Option<Element>, Error> {
-    match zip.read(path).map_err(archive_err)? {
-        Some(bytes) => xml::parse(&bytes).map(Some).map_err(|e| xml_err(path, e)),
-        None => Ok(None),
+/// Bounded XML reader: archive limits, nesting depth, node count and deadline.
+struct Parts<'z, 'b> {
+    zip: ZipGuard<'z>,
+    max_depth: usize,
+    budget: &'b Budget,
+}
+
+impl Parts<'_, '_> {
+    fn read_xml(&mut self, path: &str) -> Result<Option<Element>, Error> {
+        match self.zip.read(path).map_err(archive_err)? {
+            Some(bytes) => xml::parse(&bytes, self.max_depth, self.budget)
+                .map(Some)
+                .map_err(|e| xml_err(path, e)),
+            None => Ok(None),
+        }
     }
 }
 
@@ -365,6 +377,7 @@ struct Ctx<'a> {
     rels: &'a HashMap<String, Relationship>,
     styles: &'a Styles,
     numbering: &'a Numbering,
+    budget: &'a Budget,
 }
 
 impl Ctx<'_> {
@@ -665,6 +678,9 @@ fn build_list(entries: &[ListEntry], pos: &mut usize, level: u32) -> Node {
 impl Ctx<'_> {
     fn blocks(&self, container: &Element, body: &mut Body) {
         for child in container.elements() {
+            if self.budget.expired() {
+                return;
+            }
             match child.name.as_str() {
                 "p" => self.paragraph(child, body),
                 "tbl" => {
@@ -863,10 +879,18 @@ fn table_cell(nodes: Vec<Node>) -> Vec<Node> {
 
 // ─── Entry point ────────────────────────────────────────────────────
 
-pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<DocxOutput, Error> {
-    let mut zip = ZipGuard::open(bytes, config).map_err(archive_err)?;
+pub(crate) fn parse(
+    bytes: &[u8],
+    config: &MarkkitBuilder,
+    budget: &Budget,
+) -> Result<DocxOutput, Error> {
+    let mut zip = Parts {
+        zip: ZipGuard::open(bytes, config).map_err(archive_err)?,
+        max_depth: config.limits.nesting_depth(),
+        budget,
+    };
 
-    let root_rels = parse_rels(read_xml(&mut zip, "_rels/.rels")?);
+    let root_rels = parse_rels(zip.read_xml("_rels/.rels")?);
     let main_path = rel_target_by_type(&root_rels, "/officeDocument")
         .map(|t| resolve_target("", t))
         .unwrap_or_else(|| "word/document.xml".to_string());
@@ -874,10 +898,11 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<DocxOutput,
         .map(|t| resolve_target("", t))
         .unwrap_or_else(|| "docProps/core.xml".to_string());
 
-    let main = read_xml(&mut zip, &main_path)?
+    let main = zip
+        .read_xml(&main_path)?
         .ok_or_else(|| Error::DocxExtract("missing main document part".into()))?;
     let (dir, file) = split_dir(&main_path);
-    let rels = parse_rels(read_xml(&mut zip, &format!("{dir}/_rels/{file}.rels"))?);
+    let rels = parse_rels(zip.read_xml(&format!("{dir}/_rels/{file}.rels"))?);
 
     let part = |suffix: &str, default: &str| {
         rel_target_by_type(&rels, suffix)
@@ -887,9 +912,10 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<DocxOutput,
     let styles_path = part("/styles", "word/styles.xml");
     let numbering_path = part("/numbering", "word/numbering.xml");
 
-    let styles = Styles::parse(read_xml(&mut zip, &styles_path)?);
-    let numbering = Numbering::parse(read_xml(&mut zip, &numbering_path)?);
-    let core_title = read_xml(&mut zip, &core_path)?
+    let styles = Styles::parse(zip.read_xml(&styles_path)?);
+    let numbering = Numbering::parse(zip.read_xml(&numbering_path)?);
+    let core_title = zip
+        .read_xml(&core_path)?
         .and_then(|c| c.find("title").map(|t| t.text().trim().to_string()))
         .filter(|t| !t.is_empty());
 
@@ -905,9 +931,11 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<DocxOutput,
         rels: &rels,
         styles: &styles,
         numbering: &numbering,
+        budget,
     };
     let mut body = Body::default();
     ctx.blocks(body_el, &mut body);
+    budget.check_time()?;
     body.flush_list();
 
     Ok(DocxOutput {

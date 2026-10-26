@@ -29,6 +29,7 @@ use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::format::Format;
 use crate::ir::{Document, Node};
+use crate::limits::Budget;
 use crate::render::escape_table_cell;
 
 pub(crate) struct SheetOutput {
@@ -62,7 +63,11 @@ enum Container {
     Xls,
 }
 
-pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput, Error> {
+pub(crate) fn parse(
+    bytes: &[u8],
+    config: &MarkkitBuilder,
+    budget: &Budget,
+) -> Result<SheetOutput, Error> {
     let container = if bytes.starts_with(b"PK") {
         let mut zip = ZipGuard::open(bytes, config).map_err(archive_err)?;
         let has =
@@ -84,7 +89,7 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput
                 .read("content.xml")
                 .map_err(archive_err)?
                 .ok_or_else(|| err("ODS is missing content.xml"))?;
-            prescan_ods(&content, config.max_spreadsheet_cells)?;
+            prescan_ods(&content, config.limits.max_spreadsheet_cells)?;
         }
         container
     } else if bytes.starts_with(OLE2_MAGIC) {
@@ -93,6 +98,7 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput
     } else {
         return Err(err("not a spreadsheet (expected XLSX, XLS or ODS)"));
     };
+    budget.check_time()?;
 
     let mut out = Collector::new(config);
     match container {
@@ -106,11 +112,15 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput
                 let res = (|| -> Result<(), calamine::XlsxError> {
                     let mut reader = wb.worksheet_cells_reader(&name)?;
                     while let Some(cell) = reader.next_cell()? {
+                        if budget.expired() {
+                            break;
+                        }
                         let (r, c) = cell.get_position();
                         grid.add(r, c, fmt_ref(cell.get_value()));
                     }
                     Ok(())
                 })();
+                budget.check_time()?;
                 match res {
                     Ok(()) => out.push_sheet(&name, grid),
                     Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
@@ -121,13 +131,13 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput
         Container::Ods => {
             let mut wb: Ods<_> = Ods::new(Cursor::new(bytes)).map_err(err)?;
             let sel = out.select(wb.sheets_metadata());
-            read_ranges(&mut wb, sel, &mut out, config);
+            read_ranges(&mut wb, sel, &mut out, config, budget)?;
             out.finish(Format::Ods)
         }
         Container::Xls => {
             let mut wb: Xls<_> = Xls::new(Cursor::new(bytes)).map_err(err)?;
             let sel = out.select(wb.sheets_metadata());
-            read_ranges(&mut wb, sel, &mut out, config);
+            read_ranges(&mut wb, sel, &mut out, config, budget)?;
             out.finish(Format::Xls)
         }
     }
@@ -138,7 +148,9 @@ fn read_ranges<RS, R>(
     sel: Vec<(String, bool)>,
     out: &mut Collector,
     config: &MarkkitBuilder,
-) where
+    budget: &Budget,
+) -> Result<(), Error>
+where
     RS: Read + Seek,
     R: Reader<RS>,
     R::Error: std::fmt::Display,
@@ -147,17 +159,25 @@ fn read_ranges<RS, R>(
         if !include {
             continue;
         }
-        match wb.worksheet_range(&name) {
+        let range = wb.worksheet_range(&name);
+        // calamine decodes the whole sheet before returning: check after it.
+        budget.check_time()?;
+        match range {
             Ok(range) => {
                 let mut grid = Grid::new(config);
                 for (r, c, v) in range.used_cells() {
+                    if budget.expired() {
+                        break;
+                    }
                     grid.add(r as u32, c as u32, fmt_data(v));
                 }
+                budget.check_time()?;
                 out.push_sheet(&name, grid);
             }
             Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
         }
     }
+    Ok(())
 }
 
 // ─── Cell formatting ────────────────────────────────────────────────
@@ -238,8 +258,8 @@ impl Grid {
     fn new(config: &MarkkitBuilder) -> Self {
         Self {
             rows: BTreeMap::new(),
-            max_rows: config.max_sheet_rows,
-            max_cols: config.max_sheet_cols.max(1),
+            max_rows: config.limits.max_sheet_rows,
+            max_cols: config.limits.max_sheet_cols.max(1),
             truncated_rows: false,
             truncated_cols: false,
         }
@@ -437,7 +457,7 @@ fn prescan_xls(bytes: &[u8], config: &MarkkitBuilder) -> Result<(), Error> {
         .find(|n| comp.is_stream(n))
         .ok_or_else(|| err("XLS has no Workbook stream"))?;
     let mut stream = Vec::new();
-    let cap = config.max_archive_entry_size;
+    let cap = config.limits.max_archive_entry_size;
     comp.open_stream(name)
         .map_err(|e| err(format!("cannot open Workbook stream: {e}")))?
         .take(cap.saturating_add(1))
@@ -448,7 +468,7 @@ fn prescan_xls(bytes: &[u8], config: &MarkkitBuilder) -> Result<(), Error> {
             "XLS Workbook stream exceeds {cap} bytes"
         )));
     }
-    scan_biff(&stream, config.max_spreadsheet_cells)
+    scan_biff(&stream, config.limits.max_spreadsheet_cells)
 }
 
 /// Estimate the cells calamine will allocate and reject inputs that would

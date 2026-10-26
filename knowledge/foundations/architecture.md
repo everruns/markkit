@@ -48,8 +48,10 @@ Input (bytes/URL/file)
 ## Configuration
 
 Via `MarkkitBuilder`:
-- Input size limits
-- Processing time limits
+- Resource limits: one `Limits` struct (`limits.rs`, set whole via `.limits(..)` or per
+  field via builder setters): input/output size, timeout, nesting depth (hard max 1024),
+  node count, archive, spreadsheet and redirect caps. Violations are
+  `Error::ResourceLimit`; see [Threat Model](../security/threat-model.md) Resource Limits
 - CSS selectors for include/exclude
 - Link and image preservation
 - Office-document limits (archive entries/sizes, sheet rows/cols, grid cells, hidden sheets)

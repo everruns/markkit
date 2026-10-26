@@ -121,7 +121,7 @@ Trimming at render time:
 
 ## Depth Limiting
 
-Constant: `MAX_DEPTH = 200`
+Limit: `limits.max_nesting_depth` (default 256, clamped to `HARD_MAX_NESTING_DEPTH` = 1024)
 
 Behavior at depth limit:
 - `convert_children`: extracts all descendant text via `.text().collect()`, trims, emits as single `Text` node

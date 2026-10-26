@@ -53,6 +53,7 @@ pub mod format;
 #[cfg(feature = "html")]
 pub mod html;
 pub mod ir;
+pub mod limits;
 pub mod render;
 #[cfg(feature = "spreadsheet")]
 mod spreadsheet;
@@ -64,6 +65,7 @@ pub use error::Error;
 pub use extract::{Extraction, ExtractionStats, Markkit};
 pub use format::{DocumentHint, Format};
 pub use ir::Document;
+pub use limits::Limits;
 pub use render::MarkdownRenderer;
 
 /// Result type alias for markkit operations.

@@ -166,10 +166,36 @@ markkit = { version = "0.1", default-features = false, features = ["docx", "spre
 # add "html" if you also convert HTML
 ```
 
-Office-document limits are configurable on the builder: `max_archive_entries`,
-`max_archive_entry_size`, `max_archive_total_size`, `max_spreadsheet_cells`,
-`max_sheet_rows`, `max_sheet_cols`, `include_hidden_sheets`. URL fetching:
-`allow_private_networks`, `allow_host`, `max_redirects`.
+### Resource limits
+
+Every resource an input can drive is bounded by `markkit::Limits`. Defaults are
+generous; violations return `Error::ResourceLimit` naming the limit.
+
+| Limit | Default | Bounds |
+|-------|---------|--------|
+| `max_input_size` | 50 MiB | Input bytes, fetched URL body |
+| `max_output_size` | 128 MiB | Markdown output |
+| `timeout` | 60 s | Fetch + parse + render, per call |
+| `max_nesting_depth` | 256 (hard max 1024) | HTML flattens deeper content; deeper DOCX XML is rejected |
+| `max_nodes` | 5 000 000 | HTML DOM nodes, DOCX XML nodes |
+| `max_archive_entries` | 10 000 | ZIP entries (DOCX/XLSX/ODS) |
+| `max_archive_entry_size` | 64 MiB | Decompressed bytes per ZIP entry |
+| `max_archive_total_size` | 256 MiB | Decompressed bytes per ZIP |
+| `max_spreadsheet_cells` | 4 000 000 | XLS/ODS grid before parsing |
+| `max_sheet_rows` / `max_sheet_cols` | 10 000 / 256 | Rendered per sheet (truncated with a warning) |
+| `max_redirects` | 5 | `extract_url` redirects |
+
+```rust
+use markkit::{Limits, Markkit};
+use std::time::Duration;
+
+let markkit = Markkit::builder()
+    .limits(Limits::default().timeout(Duration::from_secs(10)).max_output_size(8 << 20))
+    .build();
+```
+
+Each limit also has a builder setter (`.max_nodes(..)`, `.timeout(..)`, ...).
+Other options: `include_hidden_sheets`, `allow_private_networks`, `allow_host`.
 
 ## Security
 
@@ -180,7 +206,7 @@ XML entities are never expanded; macros and formulas are never executed; hidden
 sheets are skipped by default. `extract_url` accepts only http/https, refuses
 loopback, private, link-local and cloud-metadata addresses (also after DNS
 resolution and on every redirect), caps redirects, and bounds the body by
-`max_input_size` and the fetch by `max_processing_secs`. Opt in to internal
+`max_input_size` and the fetch by `timeout`. Opt in to internal
 hosts with `allow_private_networks(true)`; restrict hosts with `allow_host(..)`.
 
 See the [threat model](knowledge/security/threat-model.md) and the
