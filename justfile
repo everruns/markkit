@@ -62,6 +62,8 @@ examples:
         echo "── example: $ex"
         cargo run -q -p markkit --example "$ex"
     done
+    echo "── example: agent_tool"
+    cargo run -q -p markkit --features tool --example agent_tool
 
 # ─── Run ─────────────────────────────────────────────────────
 

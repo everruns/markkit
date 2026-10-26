@@ -295,7 +295,10 @@ impl Markkit {
         self.extract_url_document(url).await.map(|e| e.markdown)
     }
 
-    /// [`Markkit::extract_url`] returning the full [`Extraction`] (title, metadata, ...).
+    /// [`Markkit::extract_url`] with metadata (format, title, warnings, stats).
+    ///
+    /// The response `Content-Type` is the format hint; same URL policy and limits.
+    /// Relative HTML URLs resolve against the final URL after redirects.
     #[cfg(feature = "http_client")]
     pub async fn extract_url_document(&self, url: &str) -> crate::Result<Extraction> {
         let fetched = crate::fetch::fetch(url, &self.config).await?;

@@ -1,0 +1,46 @@
+{
+  "name": "@everruns/markkit-wasm",
+  "version": "0.1.1",
+  "description": "Extract clean Markdown from HTML, DOCX and spreadsheets in the browser and edge runtimes (WebAssembly). Includes an LLM agent tool.",
+  "type": "module",
+  "main": "index.js",
+  "module": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./markkit_wasm_bg.wasm": "./markkit_wasm_bg.wasm"
+  },
+  "sideEffects": false,
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "markkit_wasm.js",
+    "markkit_wasm.d.ts",
+    "markkit_wasm_bg.wasm",
+    "markkit_wasm_bg.wasm.d.ts",
+    "README.md"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/everruns/markkit"
+  },
+  "keywords": [
+    "markdown",
+    "html",
+    "docx",
+    "xlsx",
+    "wasm",
+    "webassembly",
+    "browser",
+    "ai",
+    "agent",
+    "tool"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

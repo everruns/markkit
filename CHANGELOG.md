@@ -22,7 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Relative URL resolution: links, images and metadata URLs resolve against the new
   `MarkkitBuilder::base_url` (CLI `--base-url`) and the page's `<base href>`; `extract_url` uses
   the final URL after redirects. Absolute and fragment-only URLs are left unchanged.
-- `Markkit::extract_url_document` returns the full `Extraction` for a URL.
+- `tool` feature: `markkit::tool::MarkkitTool`, an LLM agent tool following the Everruns
+  toolkit-library contract (builder, OpenAI tool definition, input/output schemas, `tower::Service`,
+  single-use `ToolExecution`, `en-US`/`uk-UA` text). One call converts a `url`, `html` or base64
+  document to Markdown, with output capped by `max_output_chars`. Example: `examples/agent_tool.rs`.
+- `Markkit::extract_url_document`: `extract_url` with format, title, warnings and stats.
 
 ### Security
 
