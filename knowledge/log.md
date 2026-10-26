@@ -2,6 +2,8 @@
 
 ## 2026-10-26
 
+* **Node options parity**: [Node.js Package](runtimes/node-package.md) functions take a trailing options object (all builder fields plus URL policy) and gain `extractDocument`/`extractDocumentSync`; the parity table now covers Python, Node and WASM.
+
 * **WASM package**: new [WASM Package](runtimes/wasm-package.md) concept for `@everruns/markkit-wasm` (wasm-bindgen, single-threaded, no URL fetching), CI job `wasm` gating `Check`, and `publish-wasm.yml`. [Release Process](operations/release-process.md) bumps both npm `package.json` versions.
 * **Ship contract**: "ship" now ends with the merge commit's `main` CI green, not at merge; the `ship` skill gains existing-PR, auto-merge, and post-merge verification steps aligned with bashkit. See [Maintenance](operations/maintenance.md).
 * **IR provenance**: optional per-block `Source` (HTML XPath, DOCX body index, sheet + A1 range, page) behind `track_sources`; `parse_document` / `ParsedDocument` expose the IR for every format. XPath sibling indexes are cached per parent (`html_security::source_tracking_many_siblings_is_linear`). See [IR Specification](foundations/ir.md) and [Markkit Architecture](foundations/architecture.md).
