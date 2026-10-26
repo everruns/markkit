@@ -82,7 +82,11 @@ Input format -> `Document`. Each parser (HTML, future PDF/DOCX) produces the sam
 
 ### 2. Normalize
 
-Implicit during rendering. The `normalize_output` function:
+In the parser, block-context node lists go through `normalize_blocks`: no
+whitespace-only inline nodes between blocks, and loose inline runs next to blocks
+become `Paragraph`s (see [HTML Extraction](../formats/html-extraction.md)).
+
+At render time, the `normalize_output` function:
 
 - Collapses multiple consecutive blank lines to one
 - Trims leading/trailing blank lines
@@ -105,6 +109,7 @@ Implicit during rendering. The `normalize_output` function:
 |-----------|-------------|
 | Heading level is 1-6 | Parser clamps via `tag[1..].parse::<u8>()` |
 | No empty Text nodes after whitespace collapse | `collapse_whitespace` returns empty string for whitespace-only; parser skips empty |
+| Block lists hold no bare inline runs | `normalize_blocks` drops whitespace-only runs, wraps others in `Paragraph` |
 | Empty containers are elided | Parser returns `None` for headings, paragraphs, lists, etc. with no children |
 | Depth bounded at 200 | `MAX_DEPTH` constant; at limit, subtree flattened to text |
 | No executable content in IR | Script, style, iframe, etc. stripped by parser |

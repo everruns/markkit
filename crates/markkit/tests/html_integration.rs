@@ -693,3 +693,49 @@ fn div_with_multiple_blocks() {
     assert!(md.contains("First"));
     assert!(md.contains("Second"));
 }
+
+// ─── Indented source (inter-block whitespace) ────────────────────────
+
+#[test]
+fn indented_blocks_keep_blank_line_separation() {
+    let html = "<body>\n  <h1>A</h1>\n  <p>B</p>\n</body>";
+    assert_eq!(convert(html), "# A\n\nB\n");
+}
+
+#[test]
+fn indented_blocks_never_start_with_space() {
+    let html =
+        "<body>\n    <h1>Title</h1>\n    <p>One</p>\n    <h2>Sub</h2>\n    <p>Two</p>\n</body>";
+    let md = convert(html);
+    assert_eq!(md, "# Title\n\nOne\n\n## Sub\n\nTwo\n");
+    assert!(md.lines().all(|l| !l.starts_with(' ')), "{md:?}");
+}
+
+#[test]
+fn adjacent_lists_separated_by_blank_line() {
+    let html = "<ul>\n  <li>a</li>\n</ul>\n<ol>\n  <li>b</li>\n</ol>";
+    assert_eq!(convert(html), "- a\n\n1. b\n");
+}
+
+#[test]
+fn indented_blocks_inside_transparent_containers() {
+    let html = "<div>\n  <section>\n    <h2>S</h2>\n    <p>P</p>\n  </section>\n</div>";
+    assert_eq!(convert(html), "## S\n\nP\n");
+}
+
+#[test]
+fn indented_blockquote_with_paragraphs() {
+    let html = "<blockquote>\n  <p>One</p>\n  <p>Two</p>\n</blockquote>";
+    assert_eq!(convert(html), "> One\n>\n> Two\n");
+}
+
+#[test]
+fn loose_text_between_blocks_becomes_paragraph() {
+    let html = "<div>\n  <h1>T</h1>\n  loose <b>text</b>\n  <p>P</p>\n</div>";
+    assert_eq!(convert(html), "# T\n\nloose **text**\n\nP\n");
+}
+
+#[test]
+fn inline_only_document_unchanged() {
+    assert_eq!(convert("Hello <b>world</b>"), "Hello **world**\n");
+}

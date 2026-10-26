@@ -1,12 +1,15 @@
 - Apple
 - Banana
 - Cherry
- 1. First
+
+1. First
 2. Second
 3. Third
- - Outer A
+
+- Outer A
   - Inner A1
   - Inner A2
 - Outer B
- - **Bold item** with text
+
+- **Bold item** with text
 - *Italic item*

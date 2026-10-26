@@ -11,6 +11,27 @@ fn convert(html: &str) -> String {
 }
 
 proptest! {
+    /// Source indentation between blocks never changes the output: an indented
+    /// document renders exactly like its compact form.
+    #[test]
+    fn inter_block_whitespace_is_insignificant(
+        blocks in prop::collection::vec(
+            (prop::sample::select(vec!["h1", "h2", "p", "blockquote"]), "[a-z]{1,8}"),
+            1..8,
+        ),
+        indent in "[ \t\n]{1,6}",
+    ) {
+        let compact: String = blocks.iter().map(|(t, s)| format!("<{t}>{s}</{t}>")).collect();
+        let indented: String = blocks
+            .iter()
+            .map(|(t, s)| format!("{indent}<{t}>{s}</{t}>"))
+            .collect::<String>()
+            + &indent;
+        let md = convert(&indented);
+        prop_assert_eq!(&md, &convert(&compact));
+        prop_assert!(md.lines().all(|l| !l.starts_with(' ')), "{:?}", md);
+    }
+
     /// Arbitrary HTML input should never panic.
     #[test]
     fn no_panic_on_arbitrary_input(s in "\\PC{0,500}") {

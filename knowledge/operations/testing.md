@@ -33,7 +33,8 @@ each security test states exactly which bytes it feeds the parser.
 - **Unit**: detection, element conversion, builder, error paths
 - **Integration**: HTML and office pipelines end to end, CLI
 - **Property** (`proptest`): arbitrary input never panics, output never contains
-  `<script>`/`<style>`, extraction is deterministic, limits hold
+  `<script>`/`<style>`, extraction is deterministic, limits hold, source
+  indentation between blocks never changes output
 - **Security**: one or more tests per mitigated threat; the
   [Threat Model](../security/threat-model.md) maps threats to test names
 - **Benchmarks**: `just bench` (criterion); `markkit-bench` harness is a stub
