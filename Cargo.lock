@@ -1187,6 +1187,7 @@ dependencies = [
  "calamine",
  "cfb",
  "criterion",
+ "ego-tree",
  "futures-core",
  "html5ever",
  "proptest",

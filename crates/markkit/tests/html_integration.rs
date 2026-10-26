@@ -869,3 +869,54 @@ fn ir_v2_json_has_version() {
     assert_eq!(json["ir_version"], markkit::ir::IR_VERSION);
     assert_eq!(json["nodes"][0]["List"]["items"][0]["checked"], true);
 }
+
+// ─── Provenance ──────────────────────────────────────────────────────
+
+#[test]
+fn sources_are_xpaths() {
+    let m = Markkit::builder().track_sources(true).build();
+    let doc = m
+        .parse_html(
+            "<body><h1>T</h1><div><p>a</p><p>b</p></div>\
+             <ul><li><p>x</p><blockquote><p>q</p></blockquote></li></ul></body>",
+        )
+        .unwrap();
+    let paths: Vec<&str> = doc
+        .nodes
+        .iter()
+        .map(|n| n.source().and_then(|s| s.path.as_deref()).unwrap())
+        .collect();
+    assert_eq!(
+        paths,
+        vec![
+            "/html[1]/body[1]/h1[1]",
+            "/html[1]/body[1]/div[1]/p[1]",
+            "/html[1]/body[1]/div[1]/p[2]",
+            "/html[1]/body[1]/ul[1]",
+        ]
+    );
+    let markkit::ir::Node::List { items, .. } = &doc.nodes[3] else {
+        panic!("list expected");
+    };
+    let quote = items[0].children[1].source().unwrap();
+    assert_eq!(
+        quote.path.as_deref(),
+        Some("/html[1]/body[1]/ul[1]/li[1]/blockquote[1]")
+    );
+}
+
+#[test]
+fn sources_off_by_default_and_not_in_json() {
+    let m = Markkit::builder().build();
+    let doc = m.parse_html("<p>a</p>").unwrap();
+    assert!(doc.nodes[0].source().is_none());
+    assert!(!serde_json::to_string(&doc).unwrap().contains("source"));
+}
+
+#[test]
+fn sources_do_not_change_markdown() {
+    let html = "<h1>A</h1><p>b <b>c</b></p><table><tr><th>x</th></tr><tr><td>1</td></tr></table>";
+    let a = convert(html);
+    let b = convert_with(html, |b| b.track_sources(true));
+    assert_eq!(a, b);
+}
