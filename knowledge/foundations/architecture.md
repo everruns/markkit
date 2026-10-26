@@ -41,7 +41,7 @@ Input (bytes/URL/file)
 | `markkit` | Core library – parsing, conversion, API |
 | `markkit-cli` | Command-line tool |
 | `markkit-bench` | Performance benchmarks |
-| `markkit-eval` | LLM-based quality evaluation |
+| `markkit-eval` | Extraction-quality eval study (mira) |
 | `markkit-python` | Python bindings (PyO3) |
 | `markkit-js` | Node.js bindings (NAPI-RS) |
 

@@ -89,9 +89,18 @@ bench-harness *args:
 
 # ─── Eval ────────────────────────────────────────────────────
 
-# Run the LLM evaluation harness (stub, not yet implemented)
+# Evals run through the mira host CLI (cargo install mira-cli); markkit-eval is
+# the study binary. Saved runs: crates/markkit-eval/results (mira.toml).
+# See knowledge/operations/eval.md.
+
+# List advertised evals, samples, scorers, and targets
+eval-list:
+    mira list --study-bin markkit-eval
+
+# Run the extraction-quality eval. Extra mira flags pass through, e.g.
+#   just eval --tag docs --format html --out report.html
 eval *args:
-    cargo run -p markkit-eval --release -- {{args}}
+    mira run --study-bin markkit-eval markkit_extract {{args}}
 
 # ─── Security & Audit ───────────────────────────────────────
 

@@ -24,6 +24,7 @@ tags:
 | `crates/markkit/tests/common/` | In-memory DOCX/XLSX/XLS/ODS fixture builders |
 | `crates/markkit-cli/tests/cli_integration.rs` | CLI flags and output |
 | `crates/markkit/benches/extraction.rs` | Criterion throughput benchmarks |
+| `crates/markkit-eval/src/**` `#[cfg(test)]` | Eval dataset validity, check semantics, scorers, subject |
 
 Office fixtures are generated in code (`tests/common`), not committed binaries, so
 each security test states exactly which bytes it feeds the parser.
@@ -38,6 +39,8 @@ each security test states exactly which bytes it feeds the parser.
 - **Security**: one or more tests per mitigated threat; the
   [Threat Model](../security/threat-model.md) maps threats to test names
 - **Benchmarks**: `just bench` (criterion); `markkit-bench` harness is a stub
+- **Eval**: `just eval` scores extraction quality (mira study, not a gate); its
+  unit tests run in `cargo test`. See [Evaluation Harness](eval.md)
 
 ## Rules
 
