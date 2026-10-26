@@ -30,13 +30,19 @@ Design and metric definitions: `knowledge/operations/performance-results.md`.
 ## Latest baseline (vm, linux x86_64, 4 CPUs, 2026-10-26)
 
 20 iterations, 3 warmup, release. Full report:
-[`bench-vm-linux-x86_64-1793057755.md`](results/bench-vm-linux-x86_64-1793057755.md).
+[`bench-vm-linux-x86_64-1793058767.md`](results/bench-vm-linux-x86_64-1793058767.md).
 
-| Case | Input | Mean | Ops/s | Allocs/op | Peak heap |
-|------|------:|-----:|------:|----------:|----------:|
-| html_fixture_article | 881 B | 45.6 µs | 21,948 | 204 | 27.3 KiB |
-| html_docs_page | 299.6 KiB | 12.0 ms | 83 | 42,778 | 7.23 MiB |
-| html_tables | 256.6 KiB | 13.5 ms | 74 | 44,149 | 8.23 MiB |
-| docx_report | 9.1 KiB (262 KiB out) | 36.6 ms | 27 | 265,311 | 18.26 MiB |
-| xlsx_large (150k cells) | 765.8 KiB | 180.7 ms | 6 | 722,794 | 22.65 MiB |
-| ods_medium | 69.8 KiB | 26.1 ms | 38 | 86,513 | 2.76 MiB |
+| Case | Input | Mean | Ops/s | Throughput | Allocs/op | Peak heap |
+|------|------:|-----:|------:|-----------:|----------:|----------:|
+| HTML article (fixture) | 881 B | 49 µs | 20,365 | 17 MiB/s | 213 | 28 KiB |
+| HTML blog post with nav/scripts | 15 KiB | 641 µs | 1,561 | 23 MiB/s | 2,427 | 304 KiB |
+| HTML long docs page | 300 KiB | 13.0 ms | 77 | 22 MiB/s | 47,578 | 7.5 MiB |
+| HTML 50 tables | 257 KiB | 15.0 ms | 67 | 17 MiB/s | 50,349 | 8.6 MiB |
+| HTML mostly boilerplate | 45 KiB | 706 µs | 1,417 | 63 MiB/s | 81 | 305 KiB |
+| HTML 1000 nested divs | 11 KiB | 3.6 ms | 282 | 3 MiB/s | 442 | 147 KiB |
+| DOCX memo | 1.4 KiB | 87 µs | 11,508 | 16 MiB/s | 733 | 93 KiB |
+| DOCX 400-section report | 9 KiB (262 KiB out) | 35.7 ms | 28 | 0.2 MiB/s | 265,791 | 18.5 MiB |
+| XLSX 50×5 | 2.8 KiB | 291 µs | 3,435 | 9 MiB/s | 1,668 | 129 KiB |
+| XLSX 3 sheets, 150k cells | 766 KiB | 172 ms | 6 | 4 MiB/s | 782,800 | 24.9 MiB |
+| ODS 2000×8 | 70 KiB | 23.2 ms | 43 | 3 MiB/s | 92,515 | 3.0 MiB |
+| Format sniffing (DOCX) | 9 KiB | 0.9 µs | 1,141,227 | n/a | 0 | 0 B |
