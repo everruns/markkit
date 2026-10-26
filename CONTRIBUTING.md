@@ -51,7 +51,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 - Write failing tests before fixing bugs
 - Cover positive and negative scenarios
 - Security tests for input parsing changes
-- Run `just bench` for performance-sensitive changes
+- Run `just bench` for performance-sensitive changes and commit the saved results
 - Run `just examples` when the public API changes
 
 ## Knowledge

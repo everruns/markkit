@@ -201,7 +201,7 @@ just test       # Run all tests
 just lint       # Run clippy
 just check      # fmt, clippy, tests, knowledge, examples
 just pre-pr     # Full pre-PR validation
-just bench      # Criterion benchmarks
+just bench      # Benchmarks, results saved to crates/markkit-bench/results
 ```
 
 Coding agents: start with [AGENTS.md](AGENTS.md).
