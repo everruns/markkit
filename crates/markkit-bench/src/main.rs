@@ -59,7 +59,7 @@ struct Cli {
     #[arg(long, default_value = concat!(env!("CARGO_MANIFEST_DIR"), "/results"))]
     output_dir: PathBuf,
 
-    /// Machine label used in file names (default: <hostname>-<os>-<arch>)
+    /// Machine label used in file names (default: HOSTNAME-OS-ARCH)
     #[arg(long)]
     moniker: Option<String>,
 }
