@@ -92,6 +92,7 @@ jobs:
           for ex in basic custom_selectors configuration ir_access; do
             cargo run -q -p markkit --example "$ex"
           done
+          cargo run -q -p markkit --features tool --example agent_tool
 
   check:
     name: Check

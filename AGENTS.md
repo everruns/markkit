@@ -28,6 +28,7 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 | foundations/ir | Canonical IR between parsers and the markdown renderer |
 | formats/html-extraction | HTML element mapping, stripping, whitespace, depth limits |
 | formats/format-support | Formats, bytes-in API, detection order, DOCX + spreadsheet mapping |
+| integrations/tool-contract | `MarkkitTool` LLM tool (`tool` feature), Everruns toolkit contract |
 | security/security-model | One-page threat/invariant summary |
 | security/threat-model | Threats T1-T6, mitigations, test map, resource limits, invariants S1-S12 |
 | runtimes/python-package | PyO3 `markkit` module, maturin, PyPI |

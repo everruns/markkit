@@ -36,6 +36,8 @@
 //! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLS and ODS workbooks to tables
 //! - **PDF** (`pdf`): Planned; currently returns [`Error::UnsupportedFormat`]
 //! - **URL fetching** (`http_client`, opt-in): Fetch and extract from URLs via reqwest
+//! - **Agent tool** (`tool`): `markkit::tool::MarkkitTool`, an LLM tool following the
+//!   Everruns toolkit-library contract (schemas, OpenAI definition, `tower::Service`)
 //!
 //! The default build has no network stack; enable `http_client` for
 //! `Markkit::extract_url`. Office formats only, no HTML:
@@ -57,12 +59,14 @@ pub mod ir;
 pub mod render;
 #[cfg(feature = "spreadsheet")]
 mod spreadsheet;
+#[cfg(feature = "tool")]
+pub mod tool;
 #[cfg(feature = "docx")]
 mod xml;
 
 pub use config::MarkkitBuilder;
 pub use error::Error;
-pub use extract::{Extraction, ExtractionStats, Markkit};
+pub use extract::{Extraction, ExtractionStats, Markkit, Metadata};
 pub use format::{DocumentHint, Format};
 pub use ir::Document;
 pub use render::MarkdownRenderer;

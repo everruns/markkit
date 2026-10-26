@@ -11,6 +11,7 @@ okf_version: "0.2"
 
 * [foundations/](foundations/) - Extraction pipeline architecture and the intermediate representation.
 * [formats/](formats/) - Per-format parsing: HTML extraction, format detection, DOCX and spreadsheet mapping.
+* [integrations/](integrations/) - Agent-facing integrations: the LLM tool contract.
 * [security/](security/) - Security model and detailed threat model for untrusted input.
 * [runtimes/](runtimes/) - Published language bindings for Python and Node.js.
 * [operations/](operations/) - Testing, documentation, examples, maintenance, release, and eval.
