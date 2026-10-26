@@ -176,7 +176,7 @@ generous; violations return `Error::ResourceLimit` naming the limit.
 | `max_input_size` | 50 MiB | Input bytes, fetched URL body |
 | `max_output_size` | 128 MiB | Markdown output |
 | `timeout` | 60 s | Fetch + parse + render, per call |
-| `max_nesting_depth` | 256 (hard max 1024) | HTML flattens deeper content; deeper DOCX XML is rejected |
+| `max_nesting_depth` | 256 (hard max 512) | HTML flattens deeper content; deeper DOCX XML is rejected |
 | `max_nodes` | 5 000 000 | HTML DOM nodes, DOCX XML nodes |
 | `max_archive_entries` | 10 000 | ZIP entries (DOCX/XLSX/ODS) |
 | `max_archive_entry_size` | 64 MiB | Decompressed bytes per ZIP entry |

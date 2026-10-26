@@ -70,8 +70,9 @@ All limits live in one `Limits` struct (`crates/markkit/src/limits.rs`,
 #### T2b: Deep Nesting (Stack Overflow)
 - `max_nesting_depth` (default 256) bounds recursion: HTML flattens deeper subtrees to
   plain text; DOCX XML parts deeper than it are rejected
-- Clamped to `HARD_MAX_NESTING_DEPTH` (1024) whatever the embedder sets: 1024 levels
-  of the worst recursive constructs fit a 2 MiB stack in release (debug frames are ~6x)
+- Clamped to `HARD_MAX_NESTING_DEPTH` (512) whatever the embedder sets: 512 levels
+  of the worst recursive construct (nested blockquotes) fit a 2 MiB stack in release
+  with ~2x headroom (1024 did not after IR v2); debug frames are ~6x larger
 - Tested with 4096 levels under a small thread stack
 
 #### T2c: Many Elements / Slow Input (CPU Exhaustion)
@@ -266,7 +267,7 @@ process, or smuggling content past a human reviewer.
 | Output size | 128 MiB | `max_output_size(usize)` | Renderer, per block / list item / table row |
 | Processing time | 60 s | `timeout(Duration)`, `max_processing_secs(u64)` | One budget per call: fetch, parse, render (cooperative) |
 | Parsed nodes | 5 000 000 | `max_nodes(usize)` | After html5ever (DOM count); while building DOCX XML trees |
-| Nesting depth | 256 (hard max 1024) | `max_nesting_depth(usize)` | HTML walk (flatten); DOCX XML build (reject) |
+| Nesting depth | 256 (hard max 512) | `max_nesting_depth(usize)` | HTML walk (flatten); DOCX XML build (reject) |
 | Redirects (`extract_url`) | 5 | `max_redirects(usize)` | Every redirect hop |
 | Fetched body (`extract_url`) | = input size | `max_input_size(usize)` | `Content-Length` and while streaming |
 | Table span grid | 1 000 000 slots | Hardcoded `MAX_TABLE_GRID_CELLS` | Renderer table layout (spans dropped past it) |

@@ -138,7 +138,7 @@ At render time, the `normalize_output` function:
 | No empty Text nodes after whitespace collapse | `collapse_whitespace` returns empty string for whitespace-only; parser skips empty |
 | Block lists hold no bare inline runs | `normalize_blocks` drops whitespace-only runs, wraps others in `Paragraph` |
 | Empty containers are elided | Parser returns `None` for headings, paragraphs, lists, etc. with no children |
-| Depth bounded (`limits.max_nesting_depth`, default 256, hard max 1024) | HTML parser flattens the subtree to text at the limit |
+| Depth bounded (`limits.max_nesting_depth`, default 256, hard max 512) | HTML parser flattens the subtree to text at the limit |
 | No executable content in IR | Script, style, iframe, etc. stripped by parser |
 | `List.start` is `None` when `ordered=false` | Parser only reads `start` attr for `<ol>` |
 | Table spans ≥ 1 | `TableCell::with_span` clamps 0 to 1; HTML parser clamps to 1000 / 65534 |

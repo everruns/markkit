@@ -26,11 +26,12 @@ use std::time::{Duration, Instant};
 use crate::error::Error;
 
 // THREAT[T2b]: recursion depth must stay safe on small host stacks whatever
-// the embedder configures. Measured worst case (nested blockquote / inline
-// tags): 1024 levels fit a 2 MiB thread in release; debug frames are ~6x
-// larger (default 256 fits 2 MiB in debug). Test: limits::*hard_ceiling*.
+// the embedder configures. Measured worst case (nested blockquotes, renderer
+// recursion): 768 levels fit a 2 MiB thread in release, 1024 do not; 512 keeps
+// ~2x headroom. Debug frames are ~6x larger (default 256 fits 2 MiB in debug).
+// Test: limits::*hard_ceiling*.
 /// Upper bound applied to [`Limits::max_nesting_depth`].
-pub const HARD_MAX_NESTING_DEPTH: usize = 1024;
+pub const HARD_MAX_NESTING_DEPTH: usize = 512;
 
 /// Resource limits applied to every extraction.
 #[derive(Debug, Clone, PartialEq, Eq)]

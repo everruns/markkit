@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   per-field setters). New: `timeout` (default 60 s) now bounds parsing and rendering, not just URL
   fetch; `max_output_size` (128 MiB) stops output amplification (e.g. one wide table row padding
   thousands of rows); `max_nodes` (5 000 000) caps parsed HTML DOM / DOCX XML nodes;
-  `max_nesting_depth` (256) is configurable, with a hard ceiling of 1024 that keeps deep input off
+  `max_nesting_depth` (256) is configurable, with a hard ceiling of 512 that keeps deep input off
   the host stack. Violations return `Error::ResourceLimit` naming the limit.
 
 - `extract_url` (CLI, Python and Node `extract_url` too) now refuses non-public destinations by default:

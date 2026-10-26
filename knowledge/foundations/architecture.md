@@ -49,7 +49,7 @@ Input (bytes/URL/file)
 
 Via `MarkkitBuilder`:
 - Resource limits: one `Limits` struct (`limits.rs`, set whole via `.limits(..)` or per
-  field via builder setters): input/output size, timeout, nesting depth (hard max 1024),
+  field via builder setters): input/output size, timeout, nesting depth (hard max 512),
   node count, archive, spreadsheet and redirect caps. Violations are
   `Error::ResourceLimit`; see [Threat Model](../security/threat-model.md) Resource Limits
 - CSS selectors for include/exclude
