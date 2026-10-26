@@ -18,6 +18,7 @@ tags:
 | URL fetching | `extract_url()` (http_client feature) | Untrusted remote |
 | Byte input | `extract_bytes()` with content-type | Untrusted |
 | Document input | `extract_document()`, `extract_document_sync()` | Untrusted (bytes and `DocumentHint`) |
+| LLM tool arguments | `MarkkitTool::execution()` (tool feature) | Untrusted (model output); validated before execution, see [Tool Contract](../integrations/tool-contract.md) |
 | Configuration | `MarkkitBuilder` methods | Trusted (caller-controlled) |
 | CSS selectors | `include_selector()`, `exclude_selector()` | Semi-trusted (caller-provided) |
 

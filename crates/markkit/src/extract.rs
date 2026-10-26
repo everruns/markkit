@@ -246,9 +246,22 @@ impl Markkit {
     /// by `max_processing_secs` ([`Error::ResourceLimit`]).
     #[cfg(feature = "http_client")]
     pub async fn extract_url(&self, url: &str) -> crate::Result<String> {
+        self.extract_url_document(url).await.map(|e| e.markdown)
+    }
+
+    /// [`Markkit::extract_url`] with metadata (format, title, warnings, stats).
+    ///
+    /// The response `Content-Type` is the format hint; same URL policy and limits.
+    #[cfg(feature = "http_client")]
+    pub async fn extract_url_document(&self, url: &str) -> crate::Result<Extraction> {
         let fetched = crate::fetch::fetch(url, &self.config).await?;
-        self.extract_bytes(&fetched.bytes, fetched.content_type.as_deref())
-            .await
+        self.extract_document_sync(
+            &fetched.bytes,
+            DocumentHint {
+                content_type: fetched.content_type.as_deref(),
+                file_name: None,
+            },
+        )
     }
 
     /// PDF extraction is not implemented yet; report it explicitly rather than

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `tool` feature: `markkit::tool::MarkkitTool`, an LLM agent tool following the Everruns
+  toolkit-library contract (builder, OpenAI tool definition, input/output schemas, `tower::Service`,
+  single-use `ToolExecution`, `en-US`/`uk-UA` text). One call converts a `url`, `html` or base64
+  document to Markdown, with output capped by `max_output_chars`. Example: `examples/agent_tool.rs`.
+- `Markkit::extract_url_document`: `extract_url` with format, title, warnings and stats.
+
 ### Security
 
 - `extract_url` (CLI, Python and Node `extract_url` too) now refuses non-public destinations by default:
