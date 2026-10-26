@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   no longer dropped.
 - `Document.ir_version` (`markkit::ir::IR_VERSION = 2`) is serialized with the IR JSON.
 - Math: `$tex$` and `$$` blocks from MathML (`application/x-tex` annotation), KaTeX and MathJax output.
+- IR transforms: `MarkkitBuilder::transform(..)` runs `Transform` passes after parsing and before
+  rendering, for every format. Built-ins `transform::NormalizeHeadings` and `transform::DropImages`;
+  `transform::from_fn` for closures; `Document::visit` / `visit_mut` to walk the tree.
 - JSON Schema for the IR at `schema/ir.schema.json`; `json-schema` feature adds `markkit::ir::json_schema()`.
 - Per-block provenance: `MarkkitBuilder::track_sources(true)` records a `Source` on each IR block
   (HTML element XPath, DOCX body block index, spreadsheet sheet and A1 range) for citations.
@@ -50,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking:** `Error` is `#[non_exhaustive]` (new `Error::Transform`); matches need a `_` arm.
 - **Breaking (IR API):** `Node`, `Document`, `ListItem` and the new IR structs are `#[non_exhaustive]`;
   matches need a `_` arm and structs are built with constructors. `Node::Table` cells are now
   `TableCell` (`children`, `colspan`, `rowspan`) with an `alignments` field. Block variants gain a

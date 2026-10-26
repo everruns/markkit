@@ -61,6 +61,7 @@ pub mod render;
 mod spreadsheet;
 #[cfg(feature = "tool")]
 pub mod tool;
+pub mod transform;
 #[cfg(feature = "docx")]
 mod xml;
 
