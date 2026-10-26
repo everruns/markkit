@@ -19,7 +19,7 @@ html = ["dep:scraper", "dep:html5ever"]
 pdf = []
 docx = ["dep:zip", "dep:quick-xml"]
 spreadsheet = ["dep:calamine", "dep:zip", "dep:quick-xml", "dep:cfb"]
-http_client = ["dep:reqwest"]
+http_client = ["dep:reqwest", "tokio/net"]
 logging = ["dep:tracing"]
 all_formats = ["html", "pdf", "docx", "spreadsheet"]
 
@@ -54,7 +54,7 @@ tracing = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow.workspace = true
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util", "time"] }
 tempfile.workspace = true
 proptest.workspace = true
 criterion.workspace = true

@@ -16,6 +16,11 @@ pub enum Error {
     #[error("HTTP error: {0}")]
     Http(String),
 
+    /// `extract_url` refused a URL: disallowed scheme, host outside the
+    /// allowlist, or an address on a non-public network.
+    #[error("URL blocked: {0}")]
+    UrlBlocked(String),
+
     #[error("Encoding error: {0}")]
     Encoding(String),
 

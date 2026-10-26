@@ -168,7 +168,8 @@ markkit = { version = "0.1", default-features = false, features = ["docx", "spre
 
 Office-document limits are configurable on the builder: `max_archive_entries`,
 `max_archive_entry_size`, `max_archive_total_size`, `max_spreadsheet_cells`,
-`max_sheet_rows`, `max_sheet_cols`, `include_hidden_sheets`.
+`max_sheet_rows`, `max_sheet_cols`, `include_hidden_sheets`. URL fetching:
+`allow_private_networks`, `allow_host`, `max_redirects`.
 
 ## Security
 
@@ -176,9 +177,11 @@ Markkit treats every input as untrusted. HTML scripts, styles, forms, iframes an
 SVG are stripped; office containers are decompressed under measured byte limits;
 spreadsheet grids are pre-scanned so sparse cells cannot force huge allocations;
 XML entities are never expanded; macros and formulas are never executed; hidden
-sheets are skipped by default. URL fetching does not yet block private networks,
-so embedders fetching attacker-chosen URLs should fetch themselves and call
-`extract_document` (build with `default-features = false`).
+sheets are skipped by default. `extract_url` accepts only http/https, refuses
+loopback, private, link-local and cloud-metadata addresses (also after DNS
+resolution and on every redirect), caps redirects, and bounds the body by
+`max_input_size` and the fetch by `max_processing_secs`. Opt in to internal
+hosts with `allow_private_networks(true)`; restrict hosts with `allow_host(..)`.
 
 See the [threat model](knowledge/security/threat-model.md) and the
 [security policy](SECURITY.md) for reporting vulnerabilities.

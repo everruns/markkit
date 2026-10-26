@@ -32,6 +32,14 @@ pub struct MarkkitBuilder {
     pub max_spreadsheet_cells: u64,
     /// Render hidden / very hidden sheets. Default: false (skipped with a warning).
     pub include_hidden_sheets: bool,
+    /// Let `extract_url` reach loopback, private, link-local and other
+    /// non-public addresses. Default: false (SSRF protection).
+    pub allow_private_networks: bool,
+    /// Hosts `extract_url` may contact, matched exactly and case-insensitively
+    /// on every hop (empty = any public host).
+    pub allowed_hosts: Vec<String>,
+    /// Maximum redirects `extract_url` follows. Default: 5.
+    pub max_redirects: usize,
 }
 
 impl Default for MarkkitBuilder {
@@ -58,6 +66,9 @@ impl Default for MarkkitBuilder {
             max_sheet_cols: 256,
             max_spreadsheet_cells: 4_000_000,
             include_hidden_sheets: false,
+            allow_private_networks: false,
+            allowed_hosts: Vec::new(),
+            max_redirects: 5,
         }
     }
 }
@@ -125,6 +136,24 @@ impl MarkkitBuilder {
 
     pub fn include_hidden_sheets(mut self, yes: bool) -> Self {
         self.include_hidden_sheets = yes;
+        self
+    }
+
+    /// Allow `extract_url` to reach non-public addresses (loopback, RFC 1918,
+    /// link-local, cloud metadata, ...). Only for trusted URLs.
+    pub fn allow_private_networks(mut self, yes: bool) -> Self {
+        self.allow_private_networks = yes;
+        self
+    }
+
+    /// Restrict `extract_url` to this host (repeatable). Checked on every redirect hop.
+    pub fn allow_host(mut self, host: impl Into<String>) -> Self {
+        self.allowed_hosts.push(host.into());
+        self
+    }
+
+    pub fn max_redirects(mut self, n: usize) -> Self {
+        self.max_redirects = n;
         self
     }
 

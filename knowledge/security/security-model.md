@@ -24,8 +24,9 @@ Markkit processes untrusted input from the internet. Key threats:
 - **Mitigation**: Nesting depth limits
 
 ### TM-SSRF: Server-side request forgery (URL fetching)
-- **Status**: open, mitigations planned (see [Threat Model](threat-model.md) T3)
-- **Planned**: URL allowlist, private IP range blocking, redirect limit, bounded response body
+- **Mitigation**: Non-public addresses refused by default, after DNS resolution and on every redirect (opt in with `allow_private_networks`)
+- **Mitigation**: http/https only, optional host allowlist, redirect limit, body bounded by `max_input_size`, fetch bounded by `max_processing_secs`
+- **Residual**: an environment proxy resolves names itself; see [Threat Model](threat-model.md) T3
 
 ### TM-DOC: Malicious office documents
 - **Mitigation**: Bounded ZIP decompression (entry count, per-entry and total size)

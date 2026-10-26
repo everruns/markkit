@@ -52,7 +52,7 @@ each security test states exactly which bytes it feeds the parser.
 `cargo audit` + `cargo deny`, `cargo test --workspace` (default and all features),
 the `docx,spreadsheet` no-HTTP build with a reqwest leak check, and every example.
 `nightly.yml` repeats build + test on nightly Rust daily; `coverage.yml` uploads
-tarpaulin coverage. All must pass before merge.
+tarpaulin coverage (`--engine llvm`; ptrace segfaults on threaded socket tests). All must pass before merge.
 
 ## See also
 

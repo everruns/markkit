@@ -32,7 +32,7 @@ Markkit processes untrusted input (HTML, DOCX, spreadsheets) and converts it to 
 - **No code execution**: scripts, styles, forms, iframes and SVG are stripped; macros and formulas are never executed; XML entities are never expanded
 - **Resource limits**: input size, HTML/XML nesting depth, archive entry count and decompressed size, spreadsheet grid cells, rows and columns
 - **Explicit failure**: malformed input returns errors, never panics; unsupported formats fail explicitly
-- **URL fetching**: enabled by the default `http_client` feature; private-network blocking and allowlists are not implemented yet, so fetch attacker-chosen URLs yourself and build with `default-features = false`
+- **URL fetching**: enabled by the default `http_client` feature; http/https only, non-public addresses refused by default (after DNS and on every redirect), optional host allowlist, bounded redirects, body size and fetch time. Behind an environment HTTP proxy, the proxy resolves names, so restrict egress there too
 
 Full analysis: [threat model](knowledge/security/threat-model.md).
 

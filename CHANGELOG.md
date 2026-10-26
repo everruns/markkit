@@ -7,12 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- `extract_url` (CLI, Python and Node `extract_url` too) now refuses non-public destinations by default:
+  loopback, private, link-local / cloud metadata and other reserved addresses, checked on the URL,
+  after DNS resolution and on every redirect. Only `http`/`https` are fetched. Redirects are capped
+  (`max_redirects`, default 5), the body is bounded by `max_input_size` while streaming, and the whole
+  fetch by `max_processing_secs`. New builder options `allow_private_networks(true)` and `allow_host(..)`;
+  refusals return the new `Error::UrlBlocked`.
+
 ### Changed
 
 - Design docs moved from `specs/` to an OKF v0.2 knowledge bundle in `knowledge/`, validated in CI.
 - CI workflows declare read-only default permissions and do not persist checkout credentials.
 - CI runs every example; `just bench` now runs the criterion benchmarks.
-- README, SECURITY and binding docs corrected: Python module is `markkit`, URL fetching has no private-network blocking yet.
+- README, SECURITY and binding docs corrected: Python module is `markkit`.
 - Dependencies: drop unused `async-trait`, `futures`, `regex`, `unicode-segmentation`, `encoding_rs`,
   `base64`, `mime`, `lol_html` (core) and `tracing-subscriber`, plus unused deps of the CLI, bindings
   and stub crates. Upgrade scraper 0.29, html5ever 0.40, quick-xml 0.42 (now a single version shared
