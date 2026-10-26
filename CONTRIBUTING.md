@@ -23,9 +23,10 @@ just test
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feat/your-feature`
-3. Make your changes
-4. Run `just pre-pr` to validate
-5. Submit a pull request
+3. Write a failing test, then make your changes
+4. Update `knowledge/` and `CHANGELOG.md` if behavior changes
+5. Run `just pre-pr` to validate
+6. Submit a pull request using the template; PRs are squash-merged
 
 ## Code Quality
 
@@ -51,11 +52,15 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 - Cover positive and negative scenarios
 - Security tests for input parsing changes
 - Run `just bench` for performance-sensitive changes
+- Run `just examples` when the public API changes
 
-## Specs
+## Knowledge
 
-The `specs/` directory contains architecture and design documentation. New
-features should either comply with existing specs or propose changes.
+`knowledge/` is the project's design knowledge in [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
+format: architecture, IR, format mappings, threat model, and processes. New
+features either follow the existing knowledge or update it in the same PR.
+`just check-okf` validates the bundle; rules are in
+[knowledge/knowledge-contract.md](knowledge/knowledge-contract.md).
 
 ## Questions?
 

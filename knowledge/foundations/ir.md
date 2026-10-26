@@ -1,3 +1,13 @@
+---
+type: Interface Contract
+title: IR Specification
+description: Canonical intermediate representation that decouples format parsers from the Markdown renderer.
+tags:
+  - markkit
+  - ir
+  - pipeline
+---
+
 # IR Specification
 
 ## Overview
@@ -130,3 +140,9 @@ Roundtrip guarantee: `serialize -> deserialize` produces `==` document.
 Tested in `ir::tests::ir_roundtrip_json` and `html_integration::ir_serialization_roundtrip`.
 
 All types derive: `Debug`, `Clone`, `PartialEq`, `Serialize`, `Deserialize`.
+
+## See also
+
+- [Markkit Architecture](architecture.md), where the IR sits in the pipeline
+- [HTML Extraction](../formats/html-extraction.md), the HTML parser that builds it
+- [Examples](../operations/examples.md), `ir_access.rs` walks it

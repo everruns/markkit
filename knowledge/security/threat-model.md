@@ -1,3 +1,13 @@
+---
+type: Threat Model
+title: Threat Model
+description: Attack surface, threats T1-T6 with mitigations and test coverage, resource limits, and security invariants.
+tags:
+  - markkit
+  - security
+  - threats
+---
+
 # Threat Model
 
 ## Attack Surface
@@ -82,15 +92,23 @@
 
 **Impact**: High -- access to internal infrastructure.
 
-**Likelihood**: Medium -- only when `http_client` feature is enabled.
+**Likelihood**: Medium -- `extract_url()` exists whenever `http_client` is enabled,
+and `http_client` is a **default** feature.
+
+**Status**: Open. `extract_url()` calls `reqwest::get` directly: reqwest's default
+redirect policy (10 hops) applies, nothing else does.
 
 **Mitigations**:
 - URL allowlist support (planned)
 - Private IP range blocking (planned)
-- Redirect limit (planned)
-- Feature-gated: `http_client` feature must be explicitly enabled
+- Response body bounded by `max_input_size` before download completes (planned;
+  today `max_input_size` is checked only after the full body is buffered, see T4)
+- Request timeout from `max_processing_secs` (planned)
+- Opt-out: embedders that fetch content themselves build with
+  `default-features = false` and never link reqwest (CI asserts this for
+  `docx,spreadsheet`)
 
-**Test Coverage**: Pending URL fetching implementation.
+**Test Coverage**: None yet.
 
 ### T4: Memory Exhaustion
 
@@ -240,3 +258,9 @@ process, or smuggling content past a human reviewer.
 | S9 | Malformed office documents produce errors, never panics | `document_security::truncated_fixtures_never_panic`, `*_never_panic` proptests |
 | S10 | Spreadsheet parsing never allocates a grid beyond `max_spreadsheet_cells` | `document_security::xls_*_rejected`, `ods_repeated_rows_and_columns_rejected` |
 | S11 | Unsupported formats fail explicitly (no empty success) | `document_detection::pdf_is_explicitly_unsupported_not_empty` |
+
+## See also
+
+- [Security Model](security-model.md), the one-page summary of these threats
+- [Format Support](../formats/format-support.md), office-format limits referenced by T6
+- [Testing Strategy](../operations/testing.md), where the security suites live

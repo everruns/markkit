@@ -1,3 +1,13 @@
+---
+type: Subsystem Design
+title: HTML Extraction
+description: HTML to Markdown conversion covering element mapping, stripping, whitespace normalization, and depth limits.
+tags:
+  - markkit
+  - html
+  - extraction
+---
+
 # HTML Extraction
 
 ## Overview
@@ -28,12 +38,6 @@ HTML from the web: malformed markup, complex layouts, embedded scripts, etc.
 | `<em>/<i>` | `*text*` |
 | `<strong>/<b>` | `**text**` |
 | `<del>/<s>` | `~~text~~` |
-
-## Content Extraction Strategies
-
-- **CSS selectors**: User-provided include/exclude selectors
-- **Readability**: Article content detection heuristic
-- **Full page**: Convert everything (for known-good HTML)
 
 ## Complete Element Mapping
 
@@ -135,9 +139,9 @@ providing defense-in-depth.
 
 ## Content Extraction Strategies
 
-- **CSS selectors**: User-provided include/exclude selectors
-- **Readability**: Article content detection heuristic
-- **Full page**: Convert everything (for known-good HTML)
+- **CSS selectors** (implemented): include/exclude selectors, with the defaults below
+- **Full page** (implemented): no include selector converts the whole body minus excludes
+- **Readability** (planned): article-content detection heuristic, not implemented
 
 ## Edge Cases
 
@@ -151,3 +155,9 @@ providing defense-in-depth.
 - Unclosed/mismatched tags: html5ever auto-repairs per HTML5 spec
 - Empty containers: all block-level containers with no content are elided
 - HTML entities: decoded by html5ever before reaching parser
+
+## See also
+
+- [IR Specification](../foundations/ir.md), the nodes HTML maps onto
+- [Format Support](format-support.md), how HTML is detected among other formats
+- [Threat Model](../security/threat-model.md), T1 injection and T2 nesting limits

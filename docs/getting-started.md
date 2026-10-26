@@ -9,11 +9,11 @@ Add markkit to your `Cargo.toml`:
 markkit = "0.1"
 ```
 
-For additional format support:
+For DOCX and spreadsheets:
 
 ```toml
 [dependencies]
-markkit = { version = "0.1", features = ["all_formats"] }
+markkit = { version = "0.1", features = ["docx", "spreadsheet"] }
 ```
 
 ## Basic Usage
@@ -38,6 +38,18 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
+## Documents from bytes
+
+```rust
+use markkit::{DocumentHint, Markkit};
+
+let markkit = Markkit::builder().build();
+let bytes = std::fs::read("report.docx")?;
+let hint = DocumentHint { content_type: None, file_name: Some("report.docx") };
+let doc = markkit.extract_document_sync(&bytes, hint)?;
+println!("{}", doc.markdown);
+```
+
 ## Configuration
 
 ```rust
@@ -51,6 +63,7 @@ let markkit = Markkit::builder()
 
 ## Next Steps
 
-- See `specs/002-html-extraction.md` for HTML conversion details
-- See `specs/003-format-support.md` for supported formats
-- See `specs/005-security.md` for security considerations
+- [HTML extraction](../knowledge/formats/html-extraction.md): element mapping and stripping rules
+- [Format support](../knowledge/formats/format-support.md): formats, detection, DOCX and spreadsheet mapping
+- [Threat model](../knowledge/security/threat-model.md): security boundaries and limits
+- [Examples](../examples/): runnable with `cargo run -p markkit --example <name>`

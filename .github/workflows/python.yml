@@ -12,12 +12,17 @@ on:
       - "crates/markkit-python/**"
       - "crates/markkit/**"
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build Python bindings
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-python@v5
         with:

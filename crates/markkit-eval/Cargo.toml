@@ -1,5 +1,5 @@
 # LLM evaluation harness for markkit extraction quality
-# See specs/012-eval.md for design
+# See knowledge/operations/eval.md for design
 
 [package]
 name = "markkit-eval"

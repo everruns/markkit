@@ -1,3 +1,11 @@
+---
+name: process-issues
+description: Resolve open GitHub issues for Markkit, one shipped PR per issue. Trigger when user says process issues, work through issues, resolve issues, or handle open issues.
+user_invocable: true
+metadata:
+  internal: true
+---
+
 Process open GitHub issues and resolve them via merged pull requests.
 
 ## Qualifying Issues
@@ -29,7 +37,7 @@ One issue = one PR. No bundling. No skipping.
 
 ### 4. Ship
 - Use the `/ship` skill for:
-  - Spec updates
+  - Knowledge updates (`knowledge/`)
   - Quality gates
   - PR creation
   - CI verification

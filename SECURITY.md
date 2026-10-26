@@ -27,13 +27,14 @@ Please include:
 
 ## Security Architecture
 
-Markkit processes untrusted input (HTML, PDF, DOCX, etc.) and converts it to markdown. Key security considerations:
+Markkit processes untrusted input (HTML, DOCX, spreadsheets) and converts it to markdown. Key security considerations:
 
-- **Input sanitization**: All parsed content is sanitized before output
-- **Resource limits**: Configurable limits on input size and processing time
-- **No code execution**: Extracted content is treated as data, never executed
-- **Network isolation**: URL fetching is opt-in with configurable allowlists
-- **Memory budgets**: Configurable memory limits to prevent DoS via large documents
+- **No code execution**: scripts, styles, forms, iframes and SVG are stripped; macros and formulas are never executed; XML entities are never expanded
+- **Resource limits**: input size, HTML/XML nesting depth, archive entry count and decompressed size, spreadsheet grid cells, rows and columns
+- **Explicit failure**: malformed input returns errors, never panics; unsupported formats fail explicitly
+- **URL fetching**: enabled by the default `http_client` feature; private-network blocking and allowlists are not implemented yet, so fetch attacker-chosen URLs yourself and build with `default-features = false`
+
+Full analysis: [threat model](knowledge/security/threat-model.md).
 
 ## Scope
 
