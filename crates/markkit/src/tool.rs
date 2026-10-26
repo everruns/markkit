@@ -494,6 +494,7 @@ impl Tool for MarkkitTool {
 // ----------------------------------------------------------------------------
 
 enum Source {
+    #[cfg_attr(not(feature = "http_client"), allow(dead_code))]
     Url(String),
     Html(String),
     Bytes(Vec<u8>),
