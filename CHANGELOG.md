@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
+  `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
+  canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and
+  JSON-LD. `markkit extract --json` includes `format`, `title` and `metadata` for files and stdin.
+- IR v2: footnotes (`[^1]`), definition lists (`Term` / `:   definition`), task lists (`- [x]`),
+  figures with captions, table column alignment (`:---:`) and `colspan`/`rowspan` (laid out on a
+  grid; GFM has no spans). HTML maps GitHub and Pandoc footnote markup, `<dl>`, checkbox list items,
+  `<figure>`/`<figcaption>` and table spans/alignment. Row-header `<th>` cells in table bodies are
+  no longer dropped.
+- `Document.ir_version` (`markkit::ir::IR_VERSION = 2`) is serialized with the IR JSON.
+
 ### Security
 
 - `extract_url` (CLI, Python and Node `extract_url` too) now refuses non-public destinations by default:
@@ -24,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking (IR API):** `Node`, `Document`, `ListItem` and the new IR structs are `#[non_exhaustive]`;
+  matches need a `_` arm and structs are built with constructors. `Node::Table` cells are now
+  `TableCell` (`children`, `colspan`, `rowspan`) with an `alignments` field. DOCX `gridSpan` is
+  carried as `colspan`.
 - Design docs moved from `specs/` to an OKF v0.2 knowledge bundle in `knowledge/`, validated in CI.
 - CI workflows declare read-only default permissions and do not persist checkout credentials.
 - CI runs every example; criterion benchmarks run with `just bench-criterion`.

@@ -28,7 +28,7 @@ use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::format::Format;
-use crate::ir::{Document, Node};
+use crate::ir::{Document, Node, TableCell};
 use crate::render::escape_table_cell;
 
 pub(crate) struct SheetOutput {
@@ -376,17 +376,18 @@ impl<'c> Collector<'c> {
         self.sheets += 1;
         self.rows += rows.len();
         let cell = |s: String| {
-            if s.is_empty() {
+            TableCell::new(if s.is_empty() {
                 vec![]
             } else {
                 vec![Node::Text(s)]
-            }
+            })
         };
         self.nodes.push(Node::Heading {
             level: 2,
             children: vec![Node::Text(name.replace(['\r', '\n'], " "))],
         });
         self.nodes.push(Node::Table {
+            alignments: Vec::new(),
             headers: header.into_iter().map(cell).collect(),
             rows: rows
                 .into_iter()
