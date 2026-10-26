@@ -1,7 +1,7 @@
 ---
 type: Subsystem Design
 title: Format Support
-description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet, PDF, plain text, Markdown, CSV/TSV and Jupyter notebook mapping.
+description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet, PDF, plain text, Markdown, CSV/TSV, Jupyter notebook and email mapping.
 tags:
   - markkit
   - formats
@@ -12,6 +12,7 @@ tags:
   - markdown
   - csv
   - notebook
+  - email
 ---
 
 # Format Support
@@ -21,6 +22,7 @@ tags:
 ### Tier 1 (Core)
 - **HTML/XHTML**: Full support via html5ever + scraper (`html` feature, default)
 - **Plain text**: Always on, no dependencies (`text/plain`, `.txt`, `.text`)
+- **Email** (`email`): `.eml` / `message/rfc822` via mail-parser 0.11 (no default features)
 - **Jupyter notebooks**: Always on, serde_json (`application/x-ipynb+json`, `.ipynb`; nbformat 4)
 - **CSV / TSV**: Always on, no dependencies (`text/csv`, `application/csv`, `.csv`; `text/tab-separated-values`, `.tsv`, `.tab`)
 
@@ -85,7 +87,7 @@ only the Markdown. Parsing is CPU-bound; async callers should use the sync varia
 Warning codes: `truncated_sheet`, `hidden_sheet_skipped`, `sheet_error`, `truncated_pdf`,
 `pdf_unmapped_font`, `pdf_no_text`, `invalid_utf8`, `hidden_content_skipped`,
 `hidden_slide_skipped`, `slide_error`,
-`malformed_csv`, `truncated_table`.
+`malformed_csv`, `truncated_table`, `encoding_problem`.
 
 ## Format Detection
 
@@ -105,7 +107,7 @@ Priority order (`Format::detect`):
    - `%PDF-` within the first 1 KiB → PDF.
    - `<!doctype html`, `<html`, `<head`, `<body` (after BOM/whitespace) → HTML.
 
-Plain text, Markdown, CSV/TSV and notebooks are never sniffed: they need a content type or extension, so
+Plain text, Markdown, CSV/TSV, notebooks and email are never sniffed: they need a content type or extension, so
 unlabelled bytes stay `UnsupportedFormat` rather than rendering binary as text.
 
 Spreadsheet parsing re-sniffs the container (XLSX vs XLS vs ODS), so a workbook
@@ -287,6 +289,34 @@ control-character pass. Title: `metadata.title`, else the first level-1 heading.
 `stats.cells` counts cells that rendered. nbformat < 4, invalid JSON and missing `cells`
 are `Error::NotebookExtract`; serde_json's 128-level nesting limit turns hostile JSON into
 an error. Unexpected value types are ignored.
+
+## Email Mapping
+
+```
+# <Subject>
+
+**From:** Name <addr>
+**To:** a, b          (groups flattened)
+**Cc:** …
+**Date:** RFC 3339
+
+<body>
+
+## Attachments
+
+- report.pdf (application/pdf, 1.2 MB)
+```
+
+- Body = RFC 8621 `textBody`: the text/plain alternative when present, else the HTML one.
+  Plain parts use the plain-text path; HTML parts the HTML parser (`html` feature) or
+  mail-parser's HTML-to-text conversion.
+- Attachments (including nested `message/rfc822`, shown by subject) are listed, never
+  parsed. `stats.attachments` counts them.
+- Header values: RFC 2047 decoded by mail-parser, then control characters dropped and all
+  whitespace (including encoded newlines) folded to single spaces, so headers cannot inject
+  lines. `encoding_problem` when a body part could not be fully decoded.
+- Legacy multi-byte charsets (Shift-JIS, GB2312, …) need mail-parser's `full_encoding`,
+  which is not enabled; such parts decode lossily.
 
 ## Resource Limits
 

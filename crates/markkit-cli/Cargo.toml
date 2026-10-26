@@ -26,6 +26,7 @@ docx = ["markkit/docx"]
 pptx = ["markkit/pptx"]
 spreadsheet = ["markkit/spreadsheet"]
 markdown = ["markkit/markdown"]
+email = ["markkit/email"]
 
 [dependencies]
 markkit = { path = "../markkit", version = "0.1.1", features = ["http_client", "tool"] }
