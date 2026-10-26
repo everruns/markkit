@@ -90,7 +90,7 @@ pub struct Metadata {
 pub struct Extraction {
     pub markdown: String,
     pub title: Option<String>,
-    /// Detected format (`html`, `docx`, `xlsx`, `xls`, `ods`, `text`, `markdown`).
+    /// Detected format (`html`, `docx`, `xlsx`, `xls`, `ods`, `text`, `markdown`, `csv`, `tsv`).
     pub format: String,
     pub warnings: Vec<String>,
     pub stats: ExtractionStats,

@@ -38,8 +38,9 @@ Markkit processes untrusted input from the internet. Key threats:
 - **Compatibility**: ZIP entry-name decoding errors propagate; Unicode and legacy CP437 part names preserve bounded case-insensitive lookup
 - See [Threat Model](threat-model.md) T6
 
-### TM-TXT: Text and Markdown input
+### TM-TXT: Text, Markdown and CSV input
 - **Mitigation**: Selected only by content type / extension, total decoding, control characters dropped
+- **Mitigation**: CSV bounded by the sheet row/column caps while reading
 - **Mitigation**: Markdown re-parsed into the IR; raw HTML never copied (HTML blocks go through the HTML parser)
 - See [Threat Model](threat-model.md) T7
 

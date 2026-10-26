@@ -30,8 +30,11 @@ pub enum Format {
     Ods,
     /// Office Open XML presentation (`.pptx`). Detected but not supported.
     Pptx,
+    /// Comma (or `;` / `|`) separated values (`.csv`).
     Csv,
-    /// Plain text (`text/plain`, `.txt`). Never sniffed from bytes.
+    /// Tab separated values (`.tsv`, `.tab`).
+    Tsv,
+    /// Plain text (`text/plain`, `.txt`). Never sniffed from bytes (nor CSV/TSV/Markdown).
     /// Serialized as `"text"`, same as `as_str`.
     #[serde(rename = "text")]
     PlainText,
@@ -87,6 +90,7 @@ impl Format {
             Format::Ods => "ods",
             Format::Pptx => "pptx",
             Format::Csv => "csv",
+            Format::Tsv => "tsv",
             Format::PlainText => "text",
             Format::Markdown => "markdown",
             Format::Unknown => "unknown",
@@ -115,7 +119,9 @@ impl Format {
             Format::Ods
         } else if ct.contains("presentationml") || ct.contains("ms-powerpoint") {
             Format::Pptx
-        } else if ct.contains("text/csv") {
+        } else if ct.contains("tab-separated-values") {
+            Format::Tsv
+        } else if ct.contains("text/csv") || ct.contains("application/csv") {
             Format::Csv
         } else if ct.contains("text/plain") {
             Format::PlainText
@@ -138,7 +144,8 @@ impl Format {
             "xls" | "xlt" => Format::Xls,
             "ods" => Format::Ods,
             "pptx" | "pptm" | "ppt" => Format::Pptx,
-            "csv" | "tsv" => Format::Csv,
+            "csv" => Format::Csv,
+            "tsv" | "tab" => Format::Tsv,
             "txt" | "text" => Format::PlainText,
             "md" | "markdown" | "mdown" | "mkd" | "mkdn" => Format::Markdown,
             _ => Format::Unknown,

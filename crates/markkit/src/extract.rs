@@ -22,7 +22,7 @@ pub struct Extraction {
     pub format: Format,
     /// Non-fatal issues, each prefixed with a stable code
     /// (`truncated_sheet:`, `hidden_sheet_skipped:`, `sheet_error:`,
-    /// `invalid_utf8:`).
+    /// `invalid_utf8:`, `malformed_csv:`, `truncated_table:`).
     pub warnings: Vec<String>,
     /// Format-specific counters.
     pub stats: ExtractionStats,
@@ -65,11 +65,11 @@ pub struct ExtractionStats {
     pub pages: Option<usize>,
     /// Sheets rendered (spreadsheets; empty and skipped sheets excluded).
     pub sheets: Option<usize>,
-    /// Data rows rendered across all sheets (header rows excluded).
+    /// Data rows rendered across all sheets / the CSV table (header rows excluded).
     pub rows: Option<usize>,
     /// Non-empty paragraphs, headings and list items (DOCX, plain text, Markdown).
     pub paragraphs: Option<usize>,
-    /// Tables (DOCX, Markdown).
+    /// Tables (DOCX, Markdown, CSV/TSV).
     pub tables: Option<usize>,
 }
 
@@ -224,7 +224,8 @@ impl Markkit {
         .map(|e| e.markdown)
     }
 
-    /// Convert a document (HTML, DOCX, XLSX/XLS/ODS, plain text, Markdown) to Markdown with metadata.
+    /// Convert a document (HTML, DOCX, XLSX/XLS/ODS, plain text, Markdown, CSV/TSV) to
+    /// Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
     /// `hint.file_name`, then magic bytes. Parsing is CPU-bound and runs inline;
@@ -292,7 +293,8 @@ impl Markkit {
     ) -> crate::Result<ParsedDocument> {
         self.config.limits.check_input(bytes.len())?;
 
-        match Format::detect(bytes, hint) {
+        let format = Format::detect(bytes, hint);
+        match format {
             Format::Html => self.parse_html_doc(bytes, budget),
             Format::Pdf => self.parse_pdf(bytes),
             Format::Docx => self.parse_docx(bytes, budget),
@@ -301,6 +303,7 @@ impl Markkit {
             }
             Format::PlainText => self.parse_plain_text(bytes, budget),
             Format::Markdown => self.parse_markdown(bytes, budget),
+            Format::Csv | Format::Tsv => self.parse_csv(bytes, format, budget),
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
@@ -340,6 +343,24 @@ impl Markkit {
         let mut p = ParsedDocument::new(doc, Format::PlainText);
         p.warnings = decoded.warnings;
         p.stats.paragraphs = Some(paragraphs);
+        Ok(p)
+    }
+
+    fn parse_csv(
+        &self,
+        bytes: &[u8],
+        format: Format,
+        budget: &Budget,
+    ) -> crate::Result<ParsedDocument> {
+        let decoded = crate::text::decode(bytes);
+        let out = crate::csv::parse(&decoded.text, format == Format::Tsv, &self.config, budget)?;
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, format);
+        p.warnings = decoded.warnings;
+        p.warnings.extend(out.warnings);
+        p.stats.rows = Some(out.rows);
+        p.stats.tables = Some(out.tables);
         Ok(p)
     }
 

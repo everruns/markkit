@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- CSV and TSV input (`text/csv`, `text/tab-separated-values`, `.csv`, `.tsv`), always on: one GFM
+  table, RFC 4180 quoting, `;`/`|`/tab delimiter detection, bounded by `max_sheet_rows` /
+  `max_sheet_cols` (`truncated_table` warning). New `Format::Tsv`.
 - Plain text input (`text/plain`, `.txt`), always on: paragraphs and hard breaks through the IR,
   UTF-8/UTF-16 BOM decoding, control characters dropped, `invalid_utf8` warning on lossy decode.
 - Markdown input (`markdown` feature, in `all_formats`; `text/markdown`, `.md`): re-parsed with
