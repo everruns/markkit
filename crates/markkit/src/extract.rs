@@ -8,9 +8,11 @@ use crate::format::{DocumentHint, Format};
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Extraction {
-    /// Rendered Markdown.
+    /// Rendered Markdown. Non-empty output always ends with exactly one `\n`
+    /// (POSIX text convention, safe to concatenate); empty documents render `""`.
     pub markdown: String,
-    /// Document title when known (DOCX core properties or `Title` style).
+    /// Document title when known: DOCX core properties or `Title` style,
+    /// XLSX `docProps/core.xml`, ODS `meta.xml`, XLS `SummaryInformation`.
     pub title: Option<String>,
     /// Format the document was parsed as.
     pub format: Format,
@@ -50,7 +52,8 @@ impl Extraction {
 }
 
 /// Run a parser, converting a panic into an error (defence in depth for
-/// third-party parsers; only effective when built with `panic = "unwind"`).
+/// third-party parsers; only effective when built with `panic = "unwind"`, which
+/// markkit's own release profile uses).
 #[cfg(any(feature = "docx", feature = "spreadsheet"))]
 fn guarded<T>(
     what: &str,
@@ -181,7 +184,9 @@ impl Markkit {
             }
             Format::Pdf => self.extract_pdf_sync(bytes),
             Format::Docx => self.extract_docx(bytes),
-            Format::Xlsx | Format::Xls | Format::Ods => self.extract_spreadsheet(bytes),
+            Format::Xlsx | Format::Xlsb | Format::Xls | Format::Ods => {
+                self.extract_spreadsheet(bytes)
+            }
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
@@ -222,6 +227,7 @@ impl Markkit {
         })?;
         let mut renderer = crate::render::MarkdownRenderer::new();
         let mut e = Extraction::new(renderer.render(&out.doc), out.format);
+        e.title = out.title;
         e.warnings = out.warnings;
         e.stats.sheets = Some(out.sheets);
         e.stats.rows = Some(out.rows);

@@ -56,7 +56,8 @@ pub mod ir;
 pub mod render;
 #[cfg(feature = "spreadsheet")]
 mod spreadsheet;
-#[cfg(feature = "docx")]
+#[cfg(any(feature = "docx", feature = "spreadsheet"))]
+#[cfg_attr(not(feature = "docx"), allow(dead_code))] // spreadsheet uses only `find`/`text`
 mod xml;
 
 pub use config::MarkkitBuilder;

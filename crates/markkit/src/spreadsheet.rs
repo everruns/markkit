@@ -34,6 +34,7 @@ use crate::render::escape_table_cell;
 pub(crate) struct SheetOutput {
     pub doc: Document,
     pub format: Format,
+    pub title: Option<String>,
     pub warnings: Vec<String>,
     pub sheets: usize,
     pub rows: usize,
@@ -63,7 +64,8 @@ enum Container {
 }
 
 pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput, Error> {
-    let container = if bytes.starts_with(b"PK") {
+    let mut patched = None;
+    let (container, title) = if bytes.starts_with(b"PK") {
         let mut zip = ZipGuard::open(bytes, config).map_err(archive_err)?;
         let has =
             |zip: &ZipGuard<'_>, name: &str| zip.names().any(|n| n.eq_ignore_ascii_case(name));
@@ -79,20 +81,29 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput
             return Err(err("ZIP container is not an XLSX or ODS workbook"));
         };
         zip.validate_all().map_err(archive_err)?;
-        if let Container::Ods = container {
+        let title = if let Container::Ods = container {
             let content = zip
                 .read("content.xml")
                 .map_err(archive_err)?
                 .ok_or_else(|| err("ODS is missing content.xml"))?;
             prescan_ods(&content, config.max_spreadsheet_cells)?;
-        }
-        container
+            read_dc_title(&mut zip, "meta.xml")?
+        } else {
+            if !has(&zip, "_rels/.rels") {
+                patched = Some(with_package_rels(&mut zip)?);
+            }
+            read_dc_title(&mut zip, "docProps/core.xml")?
+        };
+        (container, title)
     } else if bytes.starts_with(OLE2_MAGIC) {
-        prescan_xls(bytes, config)?;
-        Container::Xls
+        let mut comp = cfb::CompoundFile::open(Cursor::new(bytes))
+            .map_err(|e| err(format!("invalid XLS container: {e}")))?;
+        prescan_xls(&mut comp, config)?;
+        (Container::Xls, xls_title(&mut comp))
     } else {
         return Err(err("not a spreadsheet (expected XLSX, XLS or ODS)"));
     };
+    let bytes = patched.as_deref().unwrap_or(bytes);
 
     let mut out = Collector::new(config);
     match container {
@@ -116,19 +127,19 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput
                     Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
                 }
             }
-            out.finish(Format::Xlsx)
+            out.finish(Format::Xlsx, title)
         }
         Container::Ods => {
             let mut wb: Ods<_> = Ods::new(Cursor::new(bytes)).map_err(err)?;
             let sel = out.select(wb.sheets_metadata());
             read_ranges(&mut wb, sel, &mut out, config);
-            out.finish(Format::Ods)
+            out.finish(Format::Ods, title)
         }
         Container::Xls => {
             let mut wb: Xls<_> = Xls::new(Cursor::new(bytes)).map_err(err)?;
             let sel = out.select(wb.sheets_metadata());
             read_ranges(&mut wb, sel, &mut out, config);
-            out.finish(Format::Xls)
+            out.finish(Format::Xls, title)
         }
     }
 }
@@ -217,6 +228,19 @@ fn fmt_ref(d: &DataRef<'_>) -> String {
 
 // ─── Grid collection (bounded) ──────────────────────────────────────
 
+/// Excel column letters for a 0-based index (`0` → `A`, `26` → `AA`).
+fn col_name(c: u32) -> String {
+    let mut n = u64::from(c) + 1;
+    let mut out = Vec::new();
+    while n > 0 {
+        n -= 1;
+        out.push(b'A' + (n % 26) as u8);
+        n /= 26;
+    }
+    out.reverse();
+    String::from_utf8(out).unwrap_or_default()
+}
+
 struct SheetTable {
     header: Vec<String>,
     rows: Vec<Vec<String>>,
@@ -298,10 +322,19 @@ impl Grid {
             }
             row
         });
-        let header = rows.next()?;
+        let first = rows.next()?;
+        let rest: Vec<Vec<String>> = rows.collect();
+        // GFM tables need a header row. A sheet with a single row is data, not a
+        // header: label its columns A, B, … so the row renders as a data row.
+        let (header, rows) = if rest.is_empty() {
+            let letters = (min_col..min_col + width as u32).map(col_name).collect();
+            (letters, vec![first])
+        } else {
+            (first, rest)
+        };
         Some(SheetTable {
             header,
-            rows: rows.collect(),
+            rows,
             truncated_rows: self.truncated_rows,
             truncated_cols: self.truncated_cols,
         })
@@ -395,15 +428,138 @@ impl<'c> Collector<'c> {
         });
     }
 
-    fn finish(self, format: Format) -> Result<SheetOutput, Error> {
+    fn finish(self, format: Format, title: Option<String>) -> Result<SheetOutput, Error> {
         Ok(SheetOutput {
             doc: Document::new(self.nodes),
             format,
+            title,
             warnings: self.warnings,
             sheets: self.sheets,
             rows: self.rows,
         })
     }
+}
+
+// ─── Package fixes and document title ───────────────────────────────
+
+/// Longest title kept (characters); longer titles are cut.
+const MAX_TITLE_CHARS: usize = 1024;
+
+/// calamine locates the workbook through `_rels/.rels` and fails without it.
+/// Rebuild the (already validated) archive with the standard relationship to
+/// `xl/workbook.xml`; entries are copied raw, without recompression.
+fn with_package_rels(zip: &mut ZipGuard<'_>) -> Result<Vec<u8>, Error> {
+    const RELS: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>"#;
+    let zerr = |e: zip::result::ZipError| err(format!("cannot rebuild XLSX package: {e}"));
+    let mut w = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for i in 0..zip.archive.len() {
+        let entry = zip.archive.by_index_raw(i).map_err(zerr)?;
+        w.raw_copy_file(entry).map_err(zerr)?;
+    }
+    let opts =
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    w.start_file("_rels/.rels", opts).map_err(zerr)?;
+    std::io::Write::write_all(&mut w, RELS.as_bytes())
+        .map_err(|e| err(format!("cannot rebuild XLSX package: {e}")))?;
+    Ok(w.finish().map_err(zerr)?.into_inner())
+}
+
+fn clean_title(raw: &str) -> Option<String> {
+    let t: String = raw
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(MAX_TITLE_CHARS)
+        .collect();
+    (!t.is_empty()).then_some(t)
+}
+
+/// `dc:title` from OOXML `docProps/core.xml` or ODF `meta.xml`. Best effort:
+/// a missing or malformed part yields `None`; only archive limits are errors.
+fn read_dc_title(zip: &mut ZipGuard<'_>, part: &str) -> Result<Option<String>, Error> {
+    let Some(xml) = zip.read(part).map_err(archive_err)? else {
+        return Ok(None);
+    };
+    Ok(dc_title(&xml))
+}
+
+fn dc_title(xml: &[u8]) -> Option<String> {
+    let root = crate::xml::parse(xml).ok()?;
+    clean_title(&root.find("title")?.text())
+}
+
+/// Title (PIDSI_TITLE) from the XLS `\u{5}SummaryInformation` property set
+/// ([MS-OLEPS]). Best effort: anything malformed yields `None`.
+fn xls_title<F: Read + Seek>(comp: &mut cfb::CompoundFile<F>) -> Option<String> {
+    const CAP: u64 = 1024 * 1024;
+    let mut data = Vec::new();
+    comp.open_stream("/\u{5}SummaryInformation")
+        .ok()?
+        .take(CAP)
+        .read_to_end(&mut data)
+        .ok()?;
+    summary_title(&data)
+}
+
+fn summary_title(d: &[u8]) -> Option<String> {
+    const PID_CODEPAGE: u32 = 1;
+    const PID_TITLE: u32 = 2;
+    const VT_I2: u32 = 0x0002;
+    const VT_LPSTR: u32 = 0x001E;
+    const VT_LPWSTR: u32 = 0x001F;
+    if read_u16(d, 0)? != 0xFFFE || read_u32(d, 24)? == 0 {
+        return None;
+    }
+    let set = read_u32(d, 44)? as usize;
+    let count = read_u32(d, set.checked_add(4)?)? as usize;
+    let mut codepage = None;
+    let mut title_at = None;
+    for i in 0..count.min(1024) {
+        let entry = set.checked_add(8 + i * 8)?;
+        let (pid, off) = (read_u32(d, entry)?, read_u32(d, entry + 4)? as usize);
+        let at = set.checked_add(off)?;
+        match pid {
+            PID_CODEPAGE if read_u32(d, at)? & 0xFFFF == VT_I2 => {
+                codepage = Some(read_u16(d, at + 4)?);
+            }
+            PID_TITLE => title_at = Some(at),
+            _ => {}
+        }
+    }
+    let at = title_at?;
+    let typ = read_u32(d, at)? & 0xFFFF;
+    let n = read_u32(d, at + 4)? as usize;
+    let start = at + 8;
+    let raw = match typ {
+        VT_LPWSTR => {
+            let bytes = d.get(start..start.checked_add(n.checked_mul(2)?)?)?;
+            let units: Vec<u16> = bytes
+                .chunks_exact(2)
+                .map(|b| u16::from_le_bytes([b[0], b[1]]))
+                .collect();
+            String::from_utf16_lossy(&units)
+        }
+        VT_LPSTR => {
+            let bytes = d.get(start..start.checked_add(n)?)?;
+            match codepage {
+                Some(1200) => {
+                    let units: Vec<u16> = bytes
+                        .chunks_exact(2)
+                        .map(|b| u16::from_le_bytes([b[0], b[1]]))
+                        .collect();
+                    String::from_utf16_lossy(&units)
+                }
+                // UTF-8 when valid, otherwise Latin-1 (close to Windows-1252).
+                _ => match std::str::from_utf8(bytes) {
+                    Ok(s) => s.to_string(),
+                    Err(_) => bytes.iter().map(|&b| char::from(b)).collect(),
+                },
+            }
+        }
+        _ => return None,
+    };
+    clean_title(raw.trim_end_matches('\0'))
 }
 
 // ─── XLS pre-scan (BIFF records) ────────────────────────────────────
@@ -429,9 +585,10 @@ fn records(stream: &[u8]) -> impl Iterator<Item = (u16, &[u8])> {
     })
 }
 
-fn prescan_xls(bytes: &[u8], config: &MarkkitBuilder) -> Result<(), Error> {
-    let mut comp = cfb::CompoundFile::open(Cursor::new(bytes))
-        .map_err(|e| err(format!("invalid XLS container: {e}")))?;
+fn prescan_xls<F: Read + Seek>(
+    comp: &mut cfb::CompoundFile<F>,
+    config: &MarkkitBuilder,
+) -> Result<(), Error> {
     let name = ["/Workbook", "/Book", "/WORKBOOK", "/BOOK"]
         .into_iter()
         .find(|n| comp.is_stream(n))
@@ -703,6 +860,92 @@ mod tests {
         assert_eq!(t.header, vec!["a"]);
         assert_eq!(t.rows, vec![vec!["b".to_string()]]);
         assert!(t.truncated_rows);
+    }
+
+    #[test]
+    fn column_names() {
+        assert_eq!(col_name(0), "A");
+        assert_eq!(col_name(25), "Z");
+        assert_eq!(col_name(26), "AA");
+        assert_eq!(col_name(16_383), "XFD");
+        assert_eq!(col_name(701), "ZZ");
+        assert_eq!(col_name(702), "AAA");
+        assert!(!col_name(u32::MAX).is_empty());
+    }
+
+    #[test]
+    fn single_row_becomes_data_under_column_letters() {
+        let cfg = MarkkitBuilder::default();
+        let mut g = Grid::new(&cfg);
+        g.add(4, 2, "x".into());
+        g.add(4, 3, "y".into());
+        let t = g.into_table().unwrap();
+        assert_eq!(t.header, vec!["C", "D"]);
+        assert_eq!(t.rows, vec![vec!["x".to_string(), "y".to_string()]]);
+    }
+
+    #[test]
+    fn dc_title_reads_and_normalizes() {
+        let core = br#"<cp:coreProperties xmlns:cp="c" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title> Q3
+  Budget &amp; Plan </dc:title></cp:coreProperties>"#;
+        assert_eq!(dc_title(core).as_deref(), Some("Q3 Budget & Plan"));
+        assert_eq!(dc_title(b"<a><dc:title>  </dc:title></a>"), None);
+        assert_eq!(dc_title(b"<a></a>"), None);
+        assert_eq!(dc_title(b"\xff\xfe<<"), None);
+        let long = format!("<title>{}</title>", "x".repeat(5000));
+        assert_eq!(dc_title(long.as_bytes()).unwrap().len(), MAX_TITLE_CHARS);
+    }
+
+    fn summary_info(codepage: u16, typ: u32, value: &[u8], count: u32) -> Vec<u8> {
+        let mut d = vec![0u8; 48];
+        d[0..2].copy_from_slice(&0xFFFEu16.to_le_bytes());
+        d[24..28].copy_from_slice(&1u32.to_le_bytes());
+        d[44..48].copy_from_slice(&48u32.to_le_bytes());
+        // Property set: size, count, 2 × (pid, offset), codepage, title.
+        let mut set = Vec::new();
+        set.extend_from_slice(&0u32.to_le_bytes());
+        set.extend_from_slice(&2u32.to_le_bytes());
+        set.extend_from_slice(&1u32.to_le_bytes());
+        set.extend_from_slice(&24u32.to_le_bytes());
+        set.extend_from_slice(&2u32.to_le_bytes());
+        set.extend_from_slice(&32u32.to_le_bytes());
+        set.extend_from_slice(&2u32.to_le_bytes());
+        set.extend_from_slice(&u32::from(codepage).to_le_bytes());
+        set.extend_from_slice(&typ.to_le_bytes());
+        set.extend_from_slice(&count.to_le_bytes());
+        set.extend_from_slice(value);
+        d.extend_from_slice(&set);
+        d
+    }
+
+    #[test]
+    fn summary_title_decodes_codepages() {
+        let d = summary_info(1252, 0x1E, b"Sales\0", 6);
+        assert_eq!(summary_title(&d).as_deref(), Some("Sales"));
+        let d = summary_info(1252, 0x1E, b"Caf\xe9\0", 5);
+        assert_eq!(summary_title(&d).as_deref(), Some("Café"));
+        let d = summary_info(65001, 0x1E, "Звіт\0".as_bytes(), 9);
+        assert_eq!(summary_title(&d).as_deref(), Some("Звіт"));
+        let wide: Vec<u8> = "Hi\0".encode_utf16().flat_map(u16::to_le_bytes).collect();
+        let d = summary_info(1200, 0x1F, &wide, 3);
+        assert_eq!(summary_title(&d).as_deref(), Some("Hi"));
+    }
+
+    #[test]
+    fn summary_title_rejects_malformed() {
+        assert_eq!(summary_title(b""), None);
+        assert_eq!(summary_title(&[0xFE, 0xFF, 0, 0]), None);
+        // Length pointing past the stream.
+        let d = summary_info(1252, 0x1E, b"abc", u32::MAX);
+        assert_eq!(summary_title(&d), None);
+        // Property offset pointing past the stream.
+        let mut d = summary_info(1252, 0x1E, b"abc\0", 4);
+        d[48 + 20..48 + 24].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert_eq!(summary_title(&d), None);
+        // Section offset pointing past the stream.
+        let mut d = summary_info(1252, 0x1E, b"abc\0", 4);
+        d[44..48].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert_eq!(summary_title(&d), None);
     }
 
     #[test]
