@@ -37,6 +37,8 @@ tags:
 - Event handler attributes (onclick, onload, etc.) are not preserved -- only `href`, `src`, `alt`, `title`, `class`, `start` attributes are read
 - Output is markdown text with no HTML pass-through
 - Form elements (`<form>`, `<input>`, `<button>`, `<select>`, `<textarea>`) stripped
+- Page metadata (`Extraction::metadata`): URL fields drop non-`http(s)` schemes
+  (`javascript:`, `data:`); values single-line and capped at 2048 chars
 
 **Test Coverage**:
 - `html_security::xss_script_tag`
@@ -48,6 +50,7 @@ tags:
 - `html_security::xss_iframe`
 - `html_proptest::no_script_tags_in_output`
 - `html_proptest::no_style_tags_in_output`
+- `html_metadata::dangerous_url_schemes_dropped`, `values_are_single_line_and_capped`, `html_proptest::metadata_values_single_line`
 
 ### T2: Denial of Service (Resource Exhaustion)
 
@@ -77,6 +80,12 @@ tags:
 - html5ever handles entity expansion internally
 - No custom entity processing
 - Input size limit bounds total expansion
+
+#### T2e: JSON-LD Amplification
+- First 16 `application/ld+json` scripts only, each at most 1 MiB, at most 256 nodes
+- serde_json recursion limit (128) bounds nesting; parse errors are ignored
+- Tests: `html_metadata::deeply_nested_json_ld_does_not_overflow`,
+  `oversized_json_ld_skipped`, `many_json_ld_scripts_bounded`, `malformed_json_ld_ignored`
 
 **Test Coverage**:
 - `html_security::deeply_nested_elements`

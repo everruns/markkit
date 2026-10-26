@@ -61,7 +61,7 @@ mod xml;
 
 pub use config::MarkkitBuilder;
 pub use error::Error;
-pub use extract::{Extraction, ExtractionStats, Markkit};
+pub use extract::{Extraction, ExtractionStats, Markkit, Metadata};
 pub use format::{DocumentHint, Format};
 pub use ir::Document;
 pub use render::MarkdownRenderer;

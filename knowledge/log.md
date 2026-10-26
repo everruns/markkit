@@ -2,6 +2,8 @@
 
 ## 2026-10-26
 
+* **Page metadata**: HTML `extract_document` now fills `title` and a new `Extraction::metadata` (description, author, published, language, canonical URL, site name, image) from `<meta>`, Open Graph, `<link rel=canonical>` and bounded JSON-LD. Precedence table in [HTML Extraction](formats/html-extraction.md); scheme filter and JSON-LD bounds in [Threat Model](security/threat-model.md) T1 / T2e.
+
 * **URL fetch hardening**: T3 SSRF is mitigated. `extract_url` blocks non-public addresses by default (URL, resolver and redirect layers), enforces scheme, allowlist, redirect, body and time limits; new invariant S12 and `url_security` tests. Proxy-resolved names are the documented residual. See [Threat Model](security/threat-model.md) and [Security Model](security/security-model.md).
 * **Dependency trim**: unused dependencies removed (lockfile shrinks by ~460 lines; the `instant`/`paste` unmaintained advisories and their `deny.toml` ignores are gone with the stub bench deps). quick-xml moves to 0.42, one version shared with calamine; markkit's XML walkers now read `&str` names and values. See [Threat Model](security/threat-model.md) T6d and [Maintenance](operations/maintenance.md).
 * **Inter-block whitespace**: indented HTML lost blank lines between blocks and leaked a leading space into every following line, because whitespace-only text between blocks stayed in the block list as `Text(" ")`. The parser now normalizes block-context lists; golden fixtures, which had recorded the broken output, are regenerated. See [HTML Extraction](formats/html-extraction.md) and [IR Specification](foundations/ir.md).

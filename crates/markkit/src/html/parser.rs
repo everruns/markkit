@@ -6,6 +6,8 @@ use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::ir::{Document, ListItem, Node};
 
+use super::metadata::PageInfo;
+
 /// Maximum recursion depth for nested elements.
 const MAX_DEPTH: usize = 200;
 
@@ -21,7 +23,16 @@ impl<'a> HtmlParser<'a> {
 
     /// Parse an HTML string into a [`Document`].
     pub fn parse(&self, html: &str) -> Result<Document, Error> {
+        self.parse_dom(&Html::parse_document(html))
+    }
+
+    /// Parse an HTML string into a [`Document`] plus page title and metadata.
+    pub(crate) fn parse_page(&self, html: &str) -> Result<(Document, PageInfo), Error> {
         let dom = Html::parse_document(html);
+        Ok((self.parse_dom(&dom)?, super::metadata::extract(&dom)))
+    }
+
+    fn parse_dom(&self, dom: &Html) -> Result<Document, Error> {
         let root = dom.root_element();
 
         let content_nodes: Vec<scraper::ElementRef<'_>> =
