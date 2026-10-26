@@ -74,6 +74,12 @@ tags:
 - `max_processing_secs` configurable (default: 60s)
 - Tested with 1000 paragraph elements
 
+#### T2e: Table Span Amplification
+- `colspan`/`rowspan` clamped by the HTML parser (1000 / 65534) and again at layout
+- Renderer lays spans out on a grid capped at 1 000 000 slots, checked incrementally
+  before allocating; a table over budget is laid out ignoring spans (one slot per cell)
+- Tested with 5 000 rows of `colspan=999999999 rowspan=0`
+
 #### T2d: Billion Laughs / Entity Expansion
 - html5ever handles entity expansion internally
 - No custom entity processing
@@ -85,6 +91,8 @@ tags:
 - `html_security::many_elements`
 - `html_security::resource_limit_bytes`
 - `html_integration::resource_limit_enforced`
+- `html_security::hostile_colspan_rowspan_bounded`
+- `html_security::deep_definition_lists_bounded`
 - `html_proptest::resource_limit_enforced`
 
 ### T3: Server-Side Request Forgery (SSRF)
@@ -241,6 +249,7 @@ process, or smuggling content past a human reviewer.
 | Redirects (`extract_url`) | 5 | `max_redirects(usize)` | Every redirect hop |
 | Fetched body (`extract_url`) | = input size | `max_input_size(usize)` | `Content-Length` and while streaming |
 | Nesting depth | 200 | Hardcoded `MAX_DEPTH` | During HTML tree walk |
+| Table span grid | 1 000 000 slots | Hardcoded `MAX_TABLE_GRID_CELLS` | Renderer table layout (spans dropped past it) |
 | XML nesting depth (DOCX) | 256 | Hardcoded `MAX_XML_DEPTH` | While building the XML tree |
 | ZIP entries | 10 000 | `max_archive_entries(usize)` | On archive open |
 | ZIP entry size (decompressed) | 64 MiB | `max_archive_entry_size(u64)` | While decompressing |
@@ -286,6 +295,7 @@ process, or smuggling content past a human reviewer.
 | S10 | Spreadsheet parsing never allocates a grid beyond `max_spreadsheet_cells` | `document_security::xls_*_rejected`, `ods_repeated_rows_and_columns_rejected` |
 | S11 | Unsupported formats fail explicitly (no empty success) | `document_detection::pdf_is_explicitly_unsupported_not_empty` |
 | S12 | Default `extract_url` never connects to a non-public address | `url_security::*_blocked*`, `fetch::tests::non_public_addresses_forbidden` |
+| S13 | Table spans never grow the render grid past `MAX_TABLE_GRID_CELLS`; footnote labels cannot leave `[^...]` | `html_security::hostile_colspan_rowspan_bounded`, `html_integration::footnote_label_cannot_break_out` |
 
 ## See also
 

@@ -2,6 +2,7 @@
 
 ## 2026-10-26
 
+* **IR v2**: footnotes, definition lists, task lists, figures, table alignment and spans; `Document.ir_version` (`IR_VERSION = 2`), `#[non_exhaustive]` IR types, `Node::is_block`/`is_inline`. HTML maps GitHub/Pandoc footnotes, `<dl>`, checkbox items, captioned figures, `colspan`/`rowspan`/alignment and row-header `<th>`. New threat T2e and invariant S13 (span grid budget, footnote label sanitizing). See [IR Specification](foundations/ir.md), [HTML Extraction](formats/html-extraction.md), [Threat Model](security/threat-model.md).
 * **Agent tool**: new [Tool Contract](integrations/tool-contract.md) concept in a new `integrations/` domain. `MarkkitTool` (opt-in `tool` feature) follows the Everruns toolkit-library contract; tool arguments are a new untrusted surface in the [Threat Model](security/threat-model.md).
 
 * **URL fetch hardening**: T3 SSRF is mitigated. `extract_url` blocks non-public addresses by default (URL, resolver and redirect layers), enforces scheme, allowlist, redirect, body and time limits; new invariant S12 and `url_security` tests. Proxy-resolved names are the documented residual. See [Threat Model](security/threat-model.md) and [Security Model](security/security-model.md).
