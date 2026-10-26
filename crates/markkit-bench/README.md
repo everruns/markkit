@@ -26,3 +26,17 @@ Saved runs live in [`results/`](results/) as
 same moniker only. Commit a fresh run with performance-relevant PRs.
 
 Design and metric definitions: `knowledge/operations/performance-results.md`.
+
+## Latest baseline (vm, linux x86_64, 4 CPUs, 2026-10-26)
+
+20 iterations, 3 warmup, release. Full report:
+[`bench-vm-linux-x86_64-1793057755.md`](results/bench-vm-linux-x86_64-1793057755.md).
+
+| Case | Input | Mean | Ops/s | Allocs/op | Peak heap |
+|------|------:|-----:|------:|----------:|----------:|
+| html_fixture_article | 881 B | 45.6 µs | 21,948 | 204 | 27.3 KiB |
+| html_docs_page | 299.6 KiB | 12.0 ms | 83 | 42,778 | 7.23 MiB |
+| html_tables | 256.6 KiB | 13.5 ms | 74 | 44,149 | 8.23 MiB |
+| docx_report | 9.1 KiB (262 KiB out) | 36.6 ms | 27 | 265,311 | 18.26 MiB |
+| xlsx_large (150k cells) | 765.8 KiB | 180.7 ms | 6 | 722,794 | 22.65 MiB |
+| ods_medium | 69.8 KiB | 26.1 ms | 38 | 86,513 | 2.76 MiB |
