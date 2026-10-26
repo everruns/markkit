@@ -41,6 +41,9 @@ pub struct MarkkitBuilder {
     /// Readability-style. Include selectors win; falls back to the full body when
     /// nothing scores. Default: false.
     pub main_content: bool,
+    /// Declarative HTML element rules, tried in order before the built-in
+    /// mapping (see [`crate::rules`]).
+    pub html_rules: Vec<crate::rules::HtmlRule>,
 }
 
 impl Default for MarkkitBuilder {
@@ -66,6 +69,7 @@ impl Default for MarkkitBuilder {
             track_sources: false,
             transforms: Default::default(),
             main_content: false,
+            html_rules: Vec::new(),
         }
     }
 }
@@ -129,6 +133,17 @@ impl MarkkitBuilder {
     /// Append an IR transform pass; passes run in registration order.
     pub fn transform(mut self, t: impl crate::transform::Transform + 'static) -> Self {
         self.transforms.push(t);
+        self
+    }
+
+    /// Add an HTML element rule: elements matching `selector` become `action`.
+    pub fn html_rule(
+        mut self,
+        selector: impl Into<String>,
+        action: crate::rules::ElementAction,
+    ) -> Self {
+        self.html_rules
+            .push(crate::rules::HtmlRule::new(selector, action));
         self
     }
 

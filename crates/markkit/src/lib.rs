@@ -66,6 +66,7 @@ mod markdown;
 #[cfg(feature = "pdf")]
 mod pdf;
 pub mod render;
+pub mod rules;
 #[cfg(feature = "spreadsheet")]
 mod spreadsheet;
 mod text;

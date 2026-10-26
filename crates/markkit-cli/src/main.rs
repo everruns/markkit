@@ -42,6 +42,11 @@ enum Commands {
         #[arg(long = "exclude", short = 'e')]
         exclude_selectors: Vec<String>,
 
+        /// JSON file with HTML element rules, e.g.
+        /// `[{"selector": ".note", "action": "block_quote", "title": "Note"}]`
+        #[arg(long)]
+        rules: Option<std::path::PathBuf>,
+
         /// Output as JSON with metadata
         #[arg(long)]
         json: bool,
@@ -193,6 +198,7 @@ async fn main() -> Result<()> {
             include_selectors,
             exclude_selectors,
             limits,
+            rules,
             json: output_json,
             base_url,
             main_content,
@@ -216,6 +222,12 @@ async fn main() -> Result<()> {
 
             if let Some(base) = base_url {
                 builder = builder.base_url(base);
+            }
+
+            if let Some(path) = &rules {
+                let text = std::fs::read_to_string(path)?;
+                builder.html_rules = serde_json::from_str(&text)
+                    .map_err(|e| anyhow::anyhow!("invalid rules file {}: {e}", path.display()))?;
             }
 
             let markkit = builder.build();

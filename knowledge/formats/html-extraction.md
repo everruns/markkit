@@ -177,6 +177,31 @@ providing defense-in-depth.
   Headings above the article container (page `<h1>`) are usually outside it; the title is in
   `Extraction::title`. Fixture: `news_page.html` -> `news_page.main.md`.
 
+## Element Rules
+
+`MarkkitBuilder::html_rule(selector, ElementAction)` (or `html_rules` from
+JSON; CLI `--rules file.json`) maps matching elements without code. Rules are
+compiled once per parse; an invalid selector fails with `Error::HtmlParse`.
+They run after `exclude_selectors` and before every built-in mapping
+(including figure, footnote and math handling), in block and inline context;
+the first matching rule wins.
+
+| `action` | Result |
+|----------|--------|
+| `skip` | Element and content dropped |
+| `unwrap` | Element ignored, children converted in place |
+| `heading` (`level`) | `Heading` (level clamped 1-6) from inline content |
+| `paragraph` | `Paragraph` from inline content |
+| `block_quote` (`title?`) | `BlockQuote` of block content, optional `**title**` first line (callouts) |
+| `code_block` (`language?`) | `CodeBlock` from raw text |
+| `inline_code` | `InlineCode` from collapsed text |
+| `bold`, `italic` | Inline emphasis |
+| `text` | Collapsed text only |
+
+Empty results are elided like built-ins. At `MAX_DEPTH` rules are ignored and
+the subtree is flattened as usual. Rule files are embedder configuration,
+trusted like code; untrusted HTML cannot add rules.
+
 ## Page Metadata
 
 `extract_document` on HTML fills `Extraction::title` and `Extraction::metadata`
