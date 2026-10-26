@@ -1,3 +1,13 @@
+---
+type: Architecture
+title: Markkit Architecture
+description: Extraction pipeline, design principles, crate structure, and builder configuration.
+tags:
+  - markkit
+  - architecture
+  - pipeline
+---
+
 # Architecture
 
 ## Overview
@@ -42,4 +52,11 @@ Via `MarkkitBuilder`:
 - Processing time limits
 - CSS selectors for include/exclude
 - Link and image preservation
-- Code block extraction
+- Office-document limits (archive entries/sizes, sheet rows/cols, grid cells, hidden sheets)
+
+## See also
+
+- [IR Specification](ir.md), the normalized AST every parser emits
+- [Format Support](../formats/format-support.md), detection and per-format parsers
+- [HTML Extraction](../formats/html-extraction.md), the primary conversion path
+- [Threat Model](../security/threat-model.md), why every input is untrusted

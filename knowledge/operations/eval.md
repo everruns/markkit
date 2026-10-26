@@ -1,4 +1,19 @@
+---
+type: Test Strategy
+title: Evaluation Harness
+description: LLM-as-judge extraction quality evaluation with its methodology, metrics, and providers.
+tags:
+  - markkit
+  - eval
+  - llm
+---
+
 # Evaluation Harness
+
+## Status
+
+Not implemented. `crates/markkit-eval` is a CLI stub (`--provider`, `--dataset`)
+that prints a placeholder and exits 0. This document is the design it will follow.
 
 ## Overview
 
@@ -23,3 +38,8 @@ to compare markkit output against reference extractions.
 
 - Anthropic (Claude)
 - OpenAI (GPT)
+
+## See also
+
+- [Testing Strategy](testing.md), deterministic tests that eval complements
+- [HTML Extraction](../formats/html-extraction.md), the behavior being scored

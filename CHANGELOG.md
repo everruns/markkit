@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Design docs moved from `specs/` to an OKF v0.2 knowledge bundle in `knowledge/`, validated in CI.
+- CI workflows declare read-only default permissions and do not persist checkout credentials.
+- CI runs every example; `just bench` now runs the criterion benchmarks.
+- README, SECURITY and binding docs corrected: Python module is `markkit`, URL fetching has no private-network blocking yet.
+
 ## [0.1.1] - 2026-10-22
 
 ### Security

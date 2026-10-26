@@ -8,7 +8,7 @@
 //! need a small subset of WordprocessingML: paragraphs, runs, hyperlinks,
 //! numbering, tables, styles and core properties.
 //!
-//! Best-effort mapping (see specs/format-support.md):
+//! Best-effort mapping (see knowledge/formats/format-support.md):
 //! - Headings: `Title`/`HeadingN` style ids or names (`heading n`, resolved through
 //!   `basedOn`), or `outlineLvl`; levels > 6 clamp to 6.
 //! - Lists: `numPr` (direct or from the paragraph style) + numbering.xml `numFmt`;

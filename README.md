@@ -1,18 +1,38 @@
 # Markkit
 
-Extract clean markdown from any format.
+[![CI](https://github.com/everruns/markkit/actions/workflows/ci.yml/badge.svg)](https://github.com/everruns/markkit/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/markkit.svg)](https://crates.io/crates/markkit)
+[![docs.rs](https://img.shields.io/docsrs/markkit)](https://docs.rs/markkit)
+[![PyPI](https://img.shields.io/pypi/v/markkit.svg)](https://pypi.org/project/markkit/)
+[![npm](https://img.shields.io/npm/v/@everruns/markkit.svg)](https://www.npmjs.com/package/@everruns/markkit)
+[![Repo: Agent Friendly](https://img.shields.io/badge/Repo-Agent%20Friendly-blue)](https://github.com/everruns/markkit/blob/main/AGENTS.md)
 
-Markkit is a Rust library and CLI tool for converting HTML, PDF, DOCX, spreadsheets, and other document formats into well-structured markdown. It provides native bindings for Python and Node.js.
+Extract clean markdown from any format. Written in Rust.
+
+Markkit converts HTML, Word documents and spreadsheets into well-structured
+markdown, built for feeding untrusted documents to LLMs and agents. It ships as
+a Rust library, a CLI, and native bindings for Python and Node.js.
 
 ## Features
 
-- **HTML** – Convert web pages and HTML documents to markdown
-- **DOCX** – Convert Word documents (headings, lists, tables, links, emphasis)
-- **Spreadsheets** – Convert XLSX/XLSM, XLS and ODS workbooks to markdown tables
-- **PDF** – Planned (currently reported as unsupported)
-- **URL fetching** – Fetch and extract from URLs directly
-- **Configurable** – CSS selectors for include/exclude, resource limits
-- **Safe** – Input sanitization, resource limits, no code execution
+- **HTML** – Web pages and HTML documents; nav, header, footer, scripts, styles and forms stripped by default
+- **DOCX** – Headings, lists, tables, links, emphasis
+- **Spreadsheets** – XLSX/XLSM, XLS and ODS workbooks to markdown tables, one section per sheet
+- **Format detection** – Content type, then file extension, then magic bytes
+- **URL fetching** – Fetch and extract in one call (`http_client` feature)
+- **Configurable** – CSS include/exclude selectors, link/image preservation, resource limits
+- **Safe by default** – No code execution (scripts, macros, formulas), bounded decompression,
+  depth and size limits, [threat model](knowledge/security/threat-model.md) with a test per mitigation
+- **PDF** – Planned (currently an explicit `UnsupportedFormat` error, never an empty success)
+
+| Format | Status | Feature |
+|---|---|---|
+| HTML / XHTML | Supported | `html` (default) |
+| DOCX | Supported | `docx` |
+| XLSX, XLSM, XLS, ODS | Supported | `spreadsheet` |
+| PDF | Planned | `pdf` |
+| DOC, PPTX, XLSB | Detected, rejected explicitly | – |
 
 ## Quick Start
 
@@ -57,6 +77,9 @@ markkit extract https://example.com --include "article" --exclude "nav,footer"
 
 # JSON output with metadata
 markkit extract https://example.com --json
+
+# From stdin
+cat page.html | markkit extract -
 ```
 
 ### Python
@@ -64,7 +87,7 @@ markkit extract https://example.com --json
 ```python
 import markkit
 
-markdown = await markkit.extract_html("<h1>Hello</h1>")
+markdown = markkit.extract_html_sync("<h1>Hello</h1>")
 markdown = await markkit.extract_url("https://example.com")
 ```
 
@@ -73,8 +96,8 @@ markdown = await markkit.extract_url("https://example.com")
 ```javascript
 const { extractHtml, extractUrl } = require('@everruns/markkit');
 
-const markdown = await extractHtml('<h1>Hello</h1>');
-const markdown = await extractUrl('https://example.com');
+const fromHtml = await extractHtml('<h1>Hello</h1>');
+const fromUrl = await extractUrl('https://example.com');
 ```
 
 ## Installation
@@ -98,11 +121,15 @@ cargo install markkit-cli
 pip install markkit
 ```
 
+Wheels: Linux x64, CPython 3.12. Other platforms build from the sdist (needs Rust).
+
 ### Node.js
 
 ```bash
 npm install @everruns/markkit
 ```
+
+Native binary: Linux x64 (glibc).
 
 ## Configuration
 
@@ -143,15 +170,49 @@ Office-document limits are configurable on the builder: `max_archive_entries`,
 `max_archive_entry_size`, `max_archive_total_size`, `max_spreadsheet_cells`,
 `max_sheet_rows`, `max_sheet_cols`, `include_hidden_sheets`.
 
+## Security
+
+Markkit treats every input as untrusted. HTML scripts, styles, forms, iframes and
+SVG are stripped; office containers are decompressed under measured byte limits;
+spreadsheet grids are pre-scanned so sparse cells cannot force huge allocations;
+XML entities are never expanded; macros and formulas are never executed; hidden
+sheets are skipped by default. URL fetching does not yet block private networks,
+so embedders fetching attacker-chosen URLs should fetch themselves and call
+`extract_document` (build with `default-features = false`).
+
+See the [threat model](knowledge/security/threat-model.md) and the
+[security policy](SECURITY.md) for reporting vulnerabilities.
+
+## Documentation
+
+- [Getting started](docs/getting-started.md)
+- API reference: [docs.rs/markkit](https://docs.rs/markkit)
+- Design knowledge (architecture, IR, formats, threat model, processes): [`knowledge/`](knowledge/index.md)
+- [Examples](examples/): `cargo run -p markkit --example basic`
+
 ## Development
 
 ```bash
-just build     # Build workspace
-just test      # Run all tests
-just lint      # Run clippy
-just pre-pr    # Full pre-PR validation
-just bench     # Run benchmarks
+just build      # Build workspace
+just test       # Run all tests
+just lint       # Run clippy
+just check      # fmt, clippy, tests, knowledge, examples
+just pre-pr     # Full pre-PR validation
+just bench      # Criterion benchmarks
 ```
+
+Coding agents: start with [AGENTS.md](AGENTS.md).
+
+## Contributing
+
+Bug reports, feature requests and questions are welcome as
+[issues](https://github.com/everruns/markkit/issues). For code, see
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Ecosystem
+
+Markkit is part of the [Everruns](https://everruns.com) ecosystem, alongside
+[Bashkit](https://github.com/everruns/bashkit).
 
 ## License
 

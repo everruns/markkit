@@ -1,3 +1,15 @@
+---
+type: Subsystem Design
+title: Format Support
+description: Supported and planned formats, bytes-in API, format detection, DOCX and spreadsheet mapping.
+tags:
+  - markkit
+  - formats
+  - docx
+  - spreadsheet
+  - detection
+---
+
 # Format Support
 
 ## Supported Formats
@@ -101,8 +113,14 @@ All formats enforce:
 - Maximum processing time (default: 60s) – configuration only, enforcement TBD
 - Maximum output size (prevent markdown explosion) – bounded by the caps below
 
-Office formats additionally enforce (see `specs/threat-model.md`):
+Office formats additionally enforce (see [Threat Model](../security/threat-model.md) T6):
 - `max_archive_entries` (10 000), `max_archive_entry_size` (64 MiB decompressed),
   `max_archive_total_size` (256 MiB decompressed)
 - `max_spreadsheet_cells` (4 000 000) for the dense grid calamine builds for XLS/ODS
 - XML nesting depth 256 for DOCX parts
+
+## See also
+
+- [HTML Extraction](html-extraction.md), the Tier 1 path
+- [IR Specification](../foundations/ir.md), the shared output of every parser
+- [Threat Model](../security/threat-model.md), T6 malicious office documents

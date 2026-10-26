@@ -12,12 +12,17 @@ on:
       - "crates/markkit-js/**"
       - "crates/markkit/**"
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build Node.js bindings
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v4
         with:

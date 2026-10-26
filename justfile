@@ -3,6 +3,10 @@
 
 set dotenv-load := false
 
+# Keep in lockstep with the okf-lint step in .github/workflows/ci.yml
+okf_lint_version := "0.1.1"
+okf_lint_max_line_length := "10000"
+
 # Default recipe: list all available commands
 default:
     @just --list
@@ -17,8 +21,8 @@ build:
 build-release:
     cargo build --workspace --release
 
-# Run all checks (format, lint, test)
-check: fmt-check lint test
+# Run all checks (format, lint, test, knowledge, scripts, examples)
+check: fmt-check lint test check-okf test-scripts examples
 
 # Format code
 fmt:
@@ -46,6 +50,19 @@ test-all:
 test-one name:
     cargo test --workspace -- {{name}}
 
+# Run repository script tests (scripts/tests)
+test-scripts:
+    python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+
+# Run every example (CI runs this too)
+examples:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for ex in basic custom_selectors configuration ir_access; do
+        echo "── example: $ex"
+        cargo run -q -p markkit --example "$ex"
+    done
+
 # ─── Run ─────────────────────────────────────────────────────
 
 # Run the CLI with arguments
@@ -62,13 +79,17 @@ extract-file path:
 
 # ─── Benchmarks ──────────────────────────────────────────────
 
-# Run benchmarks
+# Run criterion benchmarks for the core crate
 bench *args:
+    cargo bench -p markkit --bench extraction {{args}}
+
+# Run the markkit-bench harness (stub, not yet implemented)
+bench-harness *args:
     cargo run -p markkit-bench --release -- {{args}}
 
 # ─── Eval ────────────────────────────────────────────────────
 
-# Run LLM evaluation harness
+# Run the LLM evaluation harness (stub, not yet implemented)
 eval *args:
     cargo run -p markkit-eval --release -- {{args}}
 
@@ -89,7 +110,7 @@ vet:
 # ─── Release ────────────────────────────────────────────────
 
 # Pre-PR checklist
-pre-pr: fmt lint test deny
+pre-pr: fmt lint test check-okf test-scripts examples deny
     @echo "All pre-PR checks passed"
 
 # Check current version
@@ -100,7 +121,26 @@ version:
 publish-dry-run:
     cargo publish -p markkit --dry-run
 
-# ─── Docs ───────────────────────────────────────────────────
+# ─── Docs & Knowledge ───────────────────────────────────────
+
+# okf-lint covers the OKF spec rules; check_okf.py covers bundle-local
+# conventions it does not enforce (see knowledge/knowledge-contract.md).
+# okf-lint is pinned in CI and skipped here when absent: just install-okf-lint
+# Validate the knowledge/ OKF v0.2 bundle
+check-okf:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    python3 scripts/check_okf.py knowledge
+    if command -v okf-lint >/dev/null; then
+        okf-lint knowledge --max-line-length {{ okf_lint_max_line_length }}
+        echo "okf-lint {{ okf_lint_version }}: knowledge conforms to OKF v0.2"
+    else
+        echo "okf-lint not installed — skipping (just install-okf-lint)"
+    fi
+
+# Install the pinned upstream OKF spec linter
+install-okf-lint:
+    cargo install okf-lint --version {{ okf_lint_version }} --locked
 
 # Build documentation
 docs:

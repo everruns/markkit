@@ -11,12 +11,17 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -Dwarnings
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -29,12 +34,25 @@ jobs:
         run: cargo doc --workspace --no-deps
         env:
           RUSTDOCFLAGS: -Dwarnings
+      # OKF v0.2 conformance of knowledge/. okf-lint enforces the spec;
+      # check_okf.py enforces bundle-local conventions it does not cover.
+      # Keep the version and --max-line-length in lockstep with the justfile.
+      - name: Install okf-lint
+        run: cargo install okf-lint --version 0.1.1 --locked
+      - name: Check knowledge bundle (OKF)
+        run: |
+          python3 scripts/check_okf.py knowledge
+          okf-lint knowledge --max-line-length 10000
+      - name: Test repo scripts
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 
   audit:
     name: Audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - name: Install cargo-audit
         run: cargo install cargo-audit
@@ -50,6 +68,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
@@ -63,6 +83,11 @@ jobs:
             echo "HTTP client leaked into the docx,spreadsheet feature set"
             exit 1
           fi
+      - name: Run examples
+        run: |
+          for ex in basic custom_selectors configuration ir_access; do
+            cargo run -q -p markkit --example "$ex"
+          done
 
   check:
     name: Check

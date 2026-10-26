@@ -1,3 +1,12 @@
+---
+type: Playbook
+title: Release Process
+description: Versioning, agent-driven release flow, and publication to crates.io, PyPI, and npm.
+tags:
+  - markkit
+  - release
+---
+
 # Release Process
 
 ## Versioning
@@ -43,9 +52,15 @@ The initial npm artifact supports Linux x64/glibc only, and the current Python
 wheel publisher targets Linux x64/CPython 3.12 only. Other platforms and interpreters
 are not claimed as available; a future native release can expand coverage.
 
-Both publishers default to a credential-free dry run. Actual publication requires
-an existing publisher credential before building; missing credentials fail without
-printing values. Do not create credentials or alter permissions to complete a release.
+Both publishers default to a credential-free dry run. npm publication requires the
+`NPM_TOKEN` secret and fails before building when it is missing, without printing
+values; Python publishes through PyPI Trusted Publishing (OIDC), with no stored token. Do not create credentials or alter permissions to complete a release.
 Before upload, npm installs and loads its packed tarball (loader plus native binary),
 and Python checks metadata and imports the built wheel in a clean virtual environment.
 Both builds must preserve the patched Cargo.lock.
+
+## See also
+
+- [Maintenance](maintenance.md), the pre-release pass
+- [Python Package](../runtimes/python-package.md), wheel scope
+- [Node.js Package](../runtimes/node-package.md), npm scope
