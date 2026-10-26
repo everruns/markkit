@@ -50,7 +50,7 @@ fn utf8(bytes: &[u8], warnings: &mut Vec<String>) -> String {
 }
 
 fn utf16(bytes: &[u8], read: fn([u8; 2]) -> u16, warnings: &mut Vec<String>) -> String {
-    let units = bytes.chunks_exact(2).map(|c| read([c[0], c[1]]));
+    let units = bytes.as_chunks::<2>().0.iter().map(|c| read(*c));
     let mut lossy = !bytes.len().is_multiple_of(2);
     let s: String = char::decode_utf16(units)
         .map(|r| {
