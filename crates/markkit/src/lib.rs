@@ -36,7 +36,7 @@
 //! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLS and ODS workbooks to tables
 //! - **PDF** (`pdf`): Planned; currently returns [`Error::UnsupportedFormat`]
 //! - **URL fetching** (`http_client`, default): Fetch and extract from URLs via reqwest
-//! - **Agent tool** (`tool`): [`tool::MarkkitTool`], an LLM tool following the
+//! - **Agent tool** (`tool`): `markkit::tool::MarkkitTool`, an LLM tool following the
 //!   Everruns toolkit-library contract (schemas, OpenAI definition, `tower::Service`)
 //!
 //! Embedders that do their own fetching can drop reqwest entirely:
