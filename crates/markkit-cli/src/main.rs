@@ -81,27 +81,36 @@ async fn main() -> Result<()> {
 
             let source_label = source.clone().unwrap_or_else(|| "<stdin>".to_string());
 
-            let markdown = if read_stdin {
-                let mut buf = String::new();
-                std::io::stdin().read_to_string(&mut buf)?;
-                markkit.extract_html_sync(&buf)?
+            let extraction = if read_stdin {
+                let mut buf = Vec::new();
+                std::io::stdin().read_to_end(&mut buf)?;
+                Some(markkit.extract_document_sync(
+                    &buf,
+                    markkit::DocumentHint::content_type("text/html"),
+                )?)
             } else if file {
                 let src = source.as_deref().unwrap();
                 let bytes = tokio::fs::read(src).await?;
                 // Format detected from the extension, then magic bytes.
-                markkit
-                    .extract_document_sync(&bytes, markkit::DocumentHint::file_name(src))?
-                    .markdown
+                Some(markkit.extract_document_sync(&bytes, markkit::DocumentHint::file_name(src))?)
             } else {
-                let src = source.as_deref().unwrap();
-                markkit.extract_url(src).await?
+                None
+            };
+            let markdown = match &extraction {
+                Some(e) => e.markdown.clone(),
+                None => markkit.extract_url(source.as_deref().unwrap()).await?,
             };
 
             if output_json {
-                let output = serde_json::json!({
+                let mut output = serde_json::json!({
                     "source": source_label,
                     "markdown": markdown,
                 });
+                if let Some(e) = &extraction {
+                    output["format"] = serde_json::to_value(e.format)?;
+                    output["title"] = serde_json::to_value(&e.title)?;
+                    output["metadata"] = serde_json::to_value(&e.metadata)?;
+                }
                 println!("{}", serde_json::to_string_pretty(&output)?);
             } else {
                 print!("{markdown}");
