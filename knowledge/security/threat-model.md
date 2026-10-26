@@ -100,8 +100,8 @@ tags:
 
 **Impact**: High -- access to internal infrastructure.
 
-**Likelihood**: Medium -- `extract_url()` exists whenever `http_client` is enabled,
-and `http_client` is a **default** feature.
+**Likelihood**: Medium -- `extract_url()` exists only when the opt-in `http_client`
+feature is enabled (off by default; the CLI and Python/Node bindings enable it).
 
 **Status**: Mitigated (`crates/markkit/src/fetch.rs`).
 

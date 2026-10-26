@@ -14,11 +14,12 @@ description = "Extract clean markdown from any format – HTML, PDF, DOCX, and m
 readme = "../../README.md"
 
 [features]
-default = ["html", "http_client"]
+default = ["html"]
 html = ["dep:scraper", "dep:html5ever"]
 pdf = []
 docx = ["dep:zip", "dep:quick-xml"]
 spreadsheet = ["dep:calamine", "dep:zip", "dep:quick-xml", "dep:cfb"]
+# Opt-in: the default build has no network stack (no reqwest/hyper/TLS).
 http_client = ["dep:reqwest", "tokio/net"]
 logging = ["dep:tracing"]
 all_formats = ["html", "pdf", "docx", "spreadsheet"]

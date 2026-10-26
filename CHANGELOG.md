@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking (features):** `http_client` is no longer a default feature; the default build pulls in
+  no HTTP/TLS stack. Library users calling `extract_url` add `features = ["http_client"]`. The CLI and
+  the Python/Node packages still enable it, so their `extract_url` is unchanged.
 - **Breaking (IR API):** `Node`, `Document`, `ListItem` and the new IR structs are `#[non_exhaustive]`;
   matches need a `_` arm and structs are built with constructors. `Node::Table` cells are now
   `TableCell` (`children`, `colspan`, `rowspan`) with an `alignments` field. DOCX `gridSpan` is

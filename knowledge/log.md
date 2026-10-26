@@ -2,6 +2,7 @@
 
 ## 2026-10-26
 
+* **HTTP client opt-in**: `http_client` dropped from the `markkit` default features; the default build has no reqwest/hyper. CLI and bindings enable it explicitly; CI asserts the default tree stays network-free. See [Threat Model](security/threat-model.md) T3 and [Maintenance](operations/maintenance.md).
 * **IR v2**: footnotes, definition lists, task lists, figures, table alignment and spans; `Document.ir_version` (`IR_VERSION = 2`), `#[non_exhaustive]` IR types, `Node::is_block`/`is_inline`. HTML maps GitHub/Pandoc footnotes, `<dl>`, checkbox items, captioned figures, `colspan`/`rowspan`/alignment and row-header `<th>`. New threat T2e and invariant S13 (span grid budget, footnote label sanitizing). See [IR Specification](foundations/ir.md), [HTML Extraction](formats/html-extraction.md), [Threat Model](security/threat-model.md).
 
 * **URL fetch hardening**: T3 SSRF is mitigated. `extract_url` blocks non-public addresses by default (URL, resolver and redirect layers), enforces scheme, allowlist, redirect, body and time limits; new invariant S12 and `url_security` tests. Proxy-resolved names are the documented residual. See [Threat Model](security/threat-model.md) and [Security Model](security/security-model.md).
