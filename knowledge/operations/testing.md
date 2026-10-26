@@ -21,7 +21,9 @@ tags:
 | `crates/markkit/tests/docx_integration.rs`, `spreadsheet_integration.rs` | Office mapping |
 | `crates/markkit/tests/document_detection.rs` | Format detection order and explicit unsupported errors |
 | `crates/markkit/tests/document_security.rs` | Zip bombs, grid amplification, XML entities, malformed containers |
-| `crates/markkit/tests/common/` | In-memory DOCX/XLSX/XLS/ODS fixture builders |
+| `crates/markkit/tests/pdf_integration.rs` | PDF text layout, fonts/encodings, forms, page cap |
+| `crates/markkit/tests/pdf_security.rs` | PDF bombs, interpretation budget, encrypted/unverifiable input, malformed PDFs |
+| `crates/markkit/tests/common/` | In-memory DOCX/XLSX/XLS/ODS/PDF fixture builders |
 | `crates/markkit-cli/tests/cli_integration.rs` | CLI flags and output |
 | `crates/markkit/benches/extraction.rs` | Criterion throughput benchmarks |
 

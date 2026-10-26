@@ -1,7 +1,7 @@
 ---
 type: Threat Model
 title: Threat Model
-description: Attack surface, threats T1-T6 with mitigations and test coverage, resource limits, and security invariants.
+description: Attack surface, threats T1-T7 with mitigations and test coverage, resource limits, and security invariants.
 tags:
   - markkit
   - security
@@ -226,6 +226,64 @@ process, or smuggling content past a human reviewer.
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
   `spreadsheet_integration::xlsm_with_vba_project_extracts_values_only`
 
+### T7: Malicious PDFs
+
+**Description**: Crafted PDFs aimed at exhausting memory/CPU through stream
+decompression or content amplification, crashing the parser, or hiding text.
+
+**Impact**: High -- OOM abort, CPU exhaustion.
+
+**Likelihood**: Medium -- PDFs are the most common document type fetched by agents.
+
+**Sub-threats and mitigations** (`crates/markkit/src/pdf/`):
+
+#### T7a: Decompression bombs
+- hayro-syntax decodes object and xref streams itself, without limits, while resolving
+  objects. So before hayro sees the file, `guard::prescan` finds every `stream` keyword
+  in the raw bytes (streams cannot be nested in object streams), reads `/Filter` from the
+  preceding dictionary text (`#xx` name escapes resolved, abbreviations accepted) and
+  decodes the chain with markkit's own bounded Flate (miniz_oxide), LZW, RunLength,
+  ASCIIHex and ASCII85 decoders, measuring every stage. Over `max_pdf_stream_size`
+  (64 MiB) for one stream or `max_pdf_decoded_size` (256 MiB) in total →
+  `Error::ResourceLimit`.
+- Streams markkit interprets (page content, form XObjects, ToUnicode CMaps) are decoded
+  with the same bounded decoders, never hayro's `decoded()`.
+- Refused instead of trusted: an indirect or repeated `/Filter` (`Error::PdfExtract`),
+  and encrypted files (`/Encrypt` key; the scan would only see ciphertext) →
+  `UnsupportedFormat`. Image filters end a chain; hayro is built without image decoders.
+
+#### T7b: Interpretation amplification
+- Every decoded content stream is charged to an interpretation budget equal to
+  `max_pdf_decoded_size`, per use: a form XObject drawn 10 000 times, or one stream listed
+  10 000 times in `/Contents`, exhausts it → `ResourceLimit`. Operators are charged too.
+- Form XObjects: depth 8, recursion into a form already on the stack is skipped.
+- `q` nesting capped at 256 saved states; non-finite matrices are ignored.
+- CMap `bfrange`s are never expanded (binary-searched ranges); `/W` arrays capped at 65 536 entries.
+- `max_pdf_pages` (10 000) truncates with a `truncated_pdf` warning.
+
+#### T7c: Parser crashes on malformed input
+- hayro-syntax repairs broken xref tables and returns `None` on bad objects; markkit
+  maps load failures to `Error::PdfExtract`. Parsing runs under `catch_unwind` like the
+  office parsers (defence in depth).
+
+#### T7d: Hidden text
+- Residual: text render mode 3 (invisible) is extracted, because that is how OCR layers
+  of scanned PDFs are stored; white-on-white or off-page text is also extracted. Treat
+  PDF text as untrusted content (prompt-injection vector), as with any source.
+
+**Test Coverage** (`tests/pdf_security.rs`):
+- `flate_bomb_content_stream_rejected`, `bomb_in_unreferenced_object_stream_rejected_before_parsing`,
+  `chained_filters_are_measured_after_every_stage`, `escaped_filter_name_cannot_evade_scan`,
+  `total_decoded_size_capped_across_streams`, `run_length_bomb_rejected`
+- `form_xobject_reuse_hits_interpretation_budget`, `repeated_contents_reference_is_charged_each_time`,
+  `self_referencing_form_does_not_recurse_forever`, `deep_save_state_nesting_and_degenerate_matrices`,
+  `huge_cmap_range_and_width_arrays_are_cheap`
+- `encrypted_pdf_is_explicitly_unsupported`, `indirect_filter_is_refused_not_trusted`,
+  `not_a_pdf_is_an_error_not_a_panic`, `max_input_size_honoured_for_pdf`
+- `truncated_pdfs_never_panic`, `random_bytes_after_header_never_panic`,
+  `mutated_pdfs_never_panic`, `arbitrary_content_stream_never_panics`
+- Unit: `pdf::guard::tests::*` (decoders, caps, filter parsing), `pdf::font::tests::*`
+
 ### T5: Information Disclosure
 
 **Description**: Error messages or output leak sensitive information.
@@ -254,6 +312,10 @@ process, or smuggling content past a human reviewer.
 | ZIP entry size (decompressed) | 64 MiB | `max_archive_entry_size(u64)` | While decompressing |
 | ZIP total size (decompressed) | 256 MiB | `max_archive_total_size(u64)` | While decompressing |
 | Spreadsheet grid (XLS/ODS) | 4 000 000 cells | `max_spreadsheet_cells(u64)` | Pre-scan before calamine |
+| PDF stream (decoded) | 64 MiB | `max_pdf_stream_size(usize)` | Pre-scan + every interpreted stream |
+| PDF decoded total / interpreted content | 256 MiB | `max_pdf_decoded_size(usize)` | Pre-scan; interpretation budget |
+| PDF pages | 10 000 | `max_pdf_pages(usize)` | Page loop (truncate + warn) |
+| PDF form XObject depth | 8 | Hardcoded `MAX_FORM_DEPTH` | `Do` operator |
 | Rows / columns per sheet | 10 000 / 256 | `max_sheet_rows`, `max_sheet_cols` | While collecting cells (truncate + warn) |
 | Output size | Unbounded | N/A | Proportional to input size |
 
@@ -290,14 +352,15 @@ process, or smuggling content past a human reviewer.
 | S6 | Deep nesting does not cause stack overflow | `html_security::deeply_nested_elements` |
 | S7 | Non-content elements produce no output | `html_integration::script_stripped`, `style_stripped`, `form_elements_stripped` |
 | S8 | Archive decompression is bounded by measured output, not headers | `document_security::*zip_bomb*`, `archive_entry_count_capped` |
-| S9 | Malformed office documents produce errors, never panics | `document_security::truncated_fixtures_never_panic`, `*_never_panic` proptests |
+| S9 | Malformed office documents and PDFs produce errors, never panics | `document_security::truncated_fixtures_never_panic`, `pdf_security::*_never_panic`, `*_never_panic` proptests |
 | S10 | Spreadsheet parsing never allocates a grid beyond `max_spreadsheet_cells` | `document_security::xls_*_rejected`, `ods_repeated_rows_and_columns_rejected` |
-| S11 | Unsupported formats fail explicitly (no empty success) | `document_detection::pdf_is_explicitly_unsupported_not_empty` |
+| S11 | Unsupported formats fail explicitly (no empty success) | `document_detection::*unsupported*`, `pdf_security::encrypted_pdf_is_explicitly_unsupported` |
 | S12 | Default `extract_url` never connects to a non-public address | `url_security::*_blocked*`, `fetch::tests::non_public_addresses_forbidden` |
 | S13 | Table spans never grow the render grid past `MAX_TABLE_GRID_CELLS`; footnote labels cannot leave `[^...]` | `html_security::hostile_colspan_rowspan_bounded`, `html_integration::footnote_label_cannot_break_out` |
+| S14 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
 
 ## See also
 
 - [Security Model](security-model.md), the one-page summary of these threats
-- [Format Support](../formats/format-support.md), office-format limits referenced by T6
+- [Format Support](../formats/format-support.md), office-format and PDF limits referenced by T6 and T7
 - [Testing Strategy](../operations/testing.md), where the security suites live

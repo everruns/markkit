@@ -24,14 +24,14 @@ a Rust library, a CLI, and native bindings for Python and Node.js.
 - **Configurable** – CSS include/exclude selectors, link/image preservation, resource limits
 - **Safe by default** – No code execution (scripts, macros, formulas), bounded decompression,
   depth and size limits, [threat model](knowledge/security/threat-model.md) with a test per mitigation
-- **PDF** – Planned (currently an explicit `UnsupportedFormat` error, never an empty success)
+- **PDF** – Text layer to paragraphs, headings and bullet lists (pure Rust, no OCR; encrypted PDFs rejected)
 
 | Format | Status | Feature |
 |---|---|---|
 | HTML / XHTML | Supported | `html` (default) |
 | DOCX | Supported | `docx` |
 | XLSX, XLSM, XLS, ODS | Supported | `spreadsheet` |
-| PDF | Planned | `pdf` |
+| PDF (text layer) | Supported | `pdf` |
 | DOC, PPTX, XLSB | Detected, rejected explicitly | – |
 
 ## Quick Start
@@ -153,7 +153,7 @@ let markkit = Markkit::builder()
 | `http_client` | Yes | URL fetching via reqwest (`extract_url`) |
 | `docx` | No | DOCX conversion (zip + quick-xml) |
 | `spreadsheet` | No | XLSX/XLSM, XLS, ODS conversion (calamine) |
-| `pdf` | No | Placeholder; PDF currently returns `UnsupportedFormat` |
+| `pdf` | No | PDF text-layer extraction (hayro-syntax, pure Rust) |
 | `all_formats` | No | `html`, `pdf`, `docx`, `spreadsheet` |
 | `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
 
@@ -168,7 +168,8 @@ markkit = { version = "0.1", default-features = false, features = ["docx", "spre
 
 Office-document limits are configurable on the builder: `max_archive_entries`,
 `max_archive_entry_size`, `max_archive_total_size`, `max_spreadsheet_cells`,
-`max_sheet_rows`, `max_sheet_cols`, `include_hidden_sheets`. URL fetching:
+`max_sheet_rows`, `max_sheet_cols`, `include_hidden_sheets`. PDF: `max_pdf_pages`,
+`max_pdf_stream_size`, `max_pdf_decoded_size`. URL fetching:
 `allow_private_networks`, `allow_host`, `max_redirects`.
 
 ## Security
@@ -176,7 +177,8 @@ Office-document limits are configurable on the builder: `max_archive_entries`,
 Markkit treats every input as untrusted. HTML scripts, styles, forms, iframes and
 SVG are stripped; office containers are decompressed under measured byte limits;
 spreadsheet grids are pre-scanned so sparse cells cannot force huge allocations;
-XML entities are never expanded; macros and formulas are never executed; hidden
+XML entities are never expanded; every PDF stream is decode-checked against size
+limits before parsing; macros and formulas are never executed; hidden
 sheets are skipped by default. `extract_url` accepts only http/https, refuses
 loopback, private, link-local and cloud-metadata addresses (also after DNS
 resolution and on every redirect), caps redirects, and bounds the body by

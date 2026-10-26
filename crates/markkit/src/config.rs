@@ -40,6 +40,13 @@ pub struct MarkkitBuilder {
     pub allowed_hosts: Vec<String>,
     /// Maximum redirects `extract_url` follows. Default: 5.
     pub max_redirects: usize,
+    /// Maximum PDF pages rendered (rest skipped with a warning). Default: 10 000.
+    pub max_pdf_pages: usize,
+    /// Maximum decoded size of a single PDF stream in bytes. Default: 64 MiB.
+    pub max_pdf_stream_size: usize,
+    /// Maximum total decoded size of all PDF streams, and of content
+    /// interpreted (form XObjects count once per use), in bytes. Default: 256 MiB.
+    pub max_pdf_decoded_size: usize,
 }
 
 impl Default for MarkkitBuilder {
@@ -69,6 +76,9 @@ impl Default for MarkkitBuilder {
             allow_private_networks: false,
             allowed_hosts: Vec::new(),
             max_redirects: 5,
+            max_pdf_pages: 10_000,
+            max_pdf_stream_size: 64 * 1024 * 1024,
+            max_pdf_decoded_size: 256 * 1024 * 1024,
         }
     }
 }
@@ -154,6 +164,21 @@ impl MarkkitBuilder {
 
     pub fn max_redirects(mut self, n: usize) -> Self {
         self.max_redirects = n;
+        self
+    }
+
+    pub fn max_pdf_pages(mut self, n: usize) -> Self {
+        self.max_pdf_pages = n;
+        self
+    }
+
+    pub fn max_pdf_stream_size(mut self, bytes: usize) -> Self {
+        self.max_pdf_stream_size = bytes;
+        self
+    }
+
+    pub fn max_pdf_decoded_size(mut self, bytes: usize) -> Self {
+        self.max_pdf_decoded_size = bytes;
         self
     }
 

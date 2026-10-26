@@ -34,7 +34,8 @@
 //! - **HTML** (`html`, default): Convert HTML to markdown with configurable rules
 //! - **DOCX** (`docx`): Convert Word documents
 //! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLS and ODS workbooks to tables
-//! - **PDF** (`pdf`): Planned; currently returns [`Error::UnsupportedFormat`]
+//! - **PDF** (`pdf`): Text layer of PDF documents (no OCR); encrypted PDFs are
+//!   rejected with [`Error::UnsupportedFormat`]
 //! - **URL fetching** (`http_client`, default): Fetch and extract from URLs via reqwest
 //!
 //! Embedders that do their own fetching can drop reqwest entirely:
@@ -53,6 +54,8 @@ pub mod format;
 #[cfg(feature = "html")]
 pub mod html;
 pub mod ir;
+#[cfg(feature = "pdf")]
+mod pdf;
 pub mod render;
 #[cfg(feature = "spreadsheet")]
 mod spreadsheet;

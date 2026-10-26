@@ -10,12 +10,13 @@ use crate::format::{DocumentHint, Format};
 pub struct Extraction {
     /// Rendered Markdown.
     pub markdown: String,
-    /// Document title when known (DOCX core properties or `Title` style).
+    /// Document title when known (DOCX core properties or `Title` style, PDF `/Title`).
     pub title: Option<String>,
     /// Format the document was parsed as.
     pub format: Format,
     /// Non-fatal issues, each prefixed with a stable code
-    /// (`truncated_sheet:`, `hidden_sheet_skipped:`, `sheet_error:`).
+    /// (`truncated_sheet:`, `hidden_sheet_skipped:`, `sheet_error:`,
+    /// `truncated_pdf:`, `pdf_unmapped_font:`, `pdf_no_text:`).
     pub warnings: Vec<String>,
     /// Format-specific counters.
     pub stats: ExtractionStats,
@@ -51,7 +52,7 @@ impl Extraction {
 
 /// Run a parser, converting a panic into an error (defence in depth for
 /// third-party parsers; only effective when built with `panic = "unwind"`).
-#[cfg(any(feature = "docx", feature = "spreadsheet"))]
+#[cfg(any(feature = "docx", feature = "spreadsheet", feature = "pdf"))]
 fn guarded<T>(
     what: &str,
     make_err: fn(String) -> Error,
@@ -142,7 +143,7 @@ impl Markkit {
         .map(|e| e.markdown)
     }
 
-    /// Convert a document (HTML, DOCX, XLSX/XLS/ODS) to Markdown with metadata.
+    /// Convert a document (HTML, PDF, DOCX, XLSX/XLS/ODS) to Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
     /// `hint.file_name`, then magic bytes. Parsing is CPU-bound and runs inline;
@@ -251,14 +252,24 @@ impl Markkit {
             .await
     }
 
-    /// PDF extraction is not implemented yet; report it explicitly rather than
-    /// returning an empty (misleading) success.
+    #[cfg(feature = "pdf")]
+    fn extract_pdf_sync(&self, bytes: &[u8]) -> crate::Result<Extraction> {
+        let out = guarded("PDF", Error::PdfExtract, || {
+            crate::pdf::parse(bytes, &self.config)
+        })?;
+        let mut renderer = crate::render::MarkdownRenderer::new();
+        let mut e = Extraction::new(renderer.render(&out.doc), Format::Pdf);
+        e.title = out.title;
+        e.warnings = out.warnings;
+        e.stats.pages = Some(out.pages);
+        Ok(e)
+    }
+
+    #[cfg(not(feature = "pdf"))]
     fn extract_pdf_sync(&self, _bytes: &[u8]) -> crate::Result<Extraction> {
-        #[cfg(feature = "pdf")]
-        let msg = "PDF extraction is not implemented yet";
-        #[cfg(not(feature = "pdf"))]
-        let msg = "PDF support requires the 'pdf' feature";
-        Err(Error::UnsupportedFormat(msg.to_string()))
+        Err(Error::UnsupportedFormat(
+            "PDF support requires the 'pdf' feature".to_string(),
+        ))
     }
 
     /// Access the current configuration.

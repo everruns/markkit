@@ -9,11 +9,11 @@ Add markkit to your `Cargo.toml`:
 markkit = "0.1"
 ```
 
-For DOCX and spreadsheets:
+For PDF, DOCX and spreadsheets:
 
 ```toml
 [dependencies]
-markkit = { version = "0.1", features = ["docx", "spreadsheet"] }
+markkit = { version = "0.1", features = ["pdf", "docx", "spreadsheet"] }
 ```
 
 ## Basic Usage
@@ -64,6 +64,6 @@ let markkit = Markkit::builder()
 ## Next Steps
 
 - [HTML extraction](../knowledge/formats/html-extraction.md): element mapping and stripping rules
-- [Format support](../knowledge/formats/format-support.md): formats, detection, DOCX and spreadsheet mapping
+- [Format support](../knowledge/formats/format-support.md): formats, detection, DOCX, spreadsheet and PDF mapping
 - [Threat model](../knowledge/security/threat-model.md): security boundaries and limits
 - [Examples](../examples/): runnable with `cargo run -p markkit --example <name>`
