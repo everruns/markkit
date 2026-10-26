@@ -29,7 +29,9 @@ pub enum Format {
     /// Office Open XML presentation (`.pptx`). Detected but not supported.
     Pptx,
     Csv,
+    /// Plain text (`text/plain`, `.txt`). Never sniffed from bytes.
     PlainText,
+    /// Markdown (`text/markdown`, `.md`), passed through normalized.
     Markdown,
     Unknown,
 }
@@ -110,7 +112,7 @@ impl Format {
             Format::Csv
         } else if ct.contains("text/plain") {
             Format::PlainText
-        } else if ct.contains("text/markdown") {
+        } else if ct.contains("text/markdown") || ct.contains("text/x-markdown") {
             Format::Markdown
         } else {
             Format::Unknown
@@ -129,8 +131,8 @@ impl Format {
             "ods" => Format::Ods,
             "pptx" | "pptm" | "ppt" => Format::Pptx,
             "csv" | "tsv" => Format::Csv,
-            "txt" => Format::PlainText,
-            "md" | "markdown" => Format::Markdown,
+            "txt" | "text" => Format::PlainText,
+            "md" | "markdown" | "mdown" | "mkd" | "mkdn" => Format::Markdown,
             _ => Format::Unknown,
         }
     }

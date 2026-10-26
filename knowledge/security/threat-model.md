@@ -218,6 +218,28 @@ process, or smuggling content past a human reviewer.
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
   `spreadsheet_integration::xlsm_with_vba_project_extracts_values_only`
 
+### T7: Text and Markdown Input
+
+**Description**: Plain text or Markdown carrying terminal escapes, NULs, invalid encodings,
+raw HTML (`<script>`, event handlers) or pathological nesting.
+
+**Impact**: Medium -- raw HTML passed through re-introduces T1; deep nesting can crash.
+
+**Mitigations**:
+- Text and Markdown are never sniffed; a content type or extension must select them
+- Decoding is total: invalid UTF-8/UTF-16 is replaced (U+FFFD) with an `invalid_utf8` warning
+- C0 controls (except tab/newline) and DEL are dropped before parsing
+- Markdown is re-parsed (pulldown-cmark) into the IR; raw HTML is never copied. HTML blocks
+  go through the HTML parser (T1 stripping) or are dropped; inline tags are dropped
+- Explicit-stack IR builder, nesting capped at 200 (deeper content flattened)
+
+**Test Coverage** (`text_integration`):
+- `security_control_chars_stripped`, `security_arbitrary_bytes_never_panic`
+- `security_invalid_utf8_lossy_with_warning`, `security_utf16_malformed_no_panic`
+- `security_markdown_raw_html_never_passes_through`
+- `security_markdown_deep_nesting_no_stack_overflow`, `security_long_line`
+- `security_input_size_limit`, `security_output_bounded_by_input`
+
 ### T5: Information Disclosure
 
 **Description**: Error messages or output leak sensitive information.
@@ -239,7 +261,7 @@ process, or smuggling content past a human reviewer.
 | Processing time | 60 s | `max_processing_secs(u64)` | Whole `extract_url` fetch (parsing itself TBD) |
 | Redirects (`extract_url`) | 5 | `max_redirects(usize)` | Every redirect hop |
 | Fetched body (`extract_url`) | = input size | `max_input_size(usize)` | `Content-Length` and while streaming |
-| Nesting depth | 200 | Hardcoded `MAX_DEPTH` | During HTML tree walk |
+| Nesting depth | 200 | Hardcoded `MAX_DEPTH` | During HTML tree walk and Markdown IR build |
 | XML nesting depth (DOCX) | 256 | Hardcoded `MAX_XML_DEPTH` | While building the XML tree |
 | ZIP entries | 10 000 | `max_archive_entries(usize)` | On archive open |
 | ZIP entry size (decompressed) | 64 MiB | `max_archive_entry_size(u64)` | While decompressing |
@@ -285,6 +307,7 @@ process, or smuggling content past a human reviewer.
 | S10 | Spreadsheet parsing never allocates a grid beyond `max_spreadsheet_cells` | `document_security::xls_*_rejected`, `ods_repeated_rows_and_columns_rejected` |
 | S11 | Unsupported formats fail explicitly (no empty success) | `document_detection::pdf_is_explicitly_unsupported_not_empty` |
 | S12 | Default `extract_url` never connects to a non-public address | `url_security::*_blocked*`, `fetch::tests::non_public_addresses_forbidden` |
+| S13 | Text and Markdown output never contains C0 controls (except tab/newline) or raw HTML from the input | `text_integration::security_*` |
 
 ## See also
 

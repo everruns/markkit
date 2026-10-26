@@ -10,12 +10,14 @@ use crate::format::{DocumentHint, Format};
 pub struct Extraction {
     /// Rendered Markdown.
     pub markdown: String,
-    /// Document title when known (DOCX core properties or `Title` style).
+    /// Document title when known (DOCX core properties or `Title` style,
+    /// Markdown front matter `title:` or first `# ` heading).
     pub title: Option<String>,
     /// Format the document was parsed as.
     pub format: Format,
     /// Non-fatal issues, each prefixed with a stable code
-    /// (`truncated_sheet:`, `hidden_sheet_skipped:`, `sheet_error:`).
+    /// (`truncated_sheet:`, `hidden_sheet_skipped:`, `sheet_error:`,
+    /// `invalid_utf8:`).
     pub warnings: Vec<String>,
     /// Format-specific counters.
     pub stats: ExtractionStats,
@@ -31,9 +33,9 @@ pub struct ExtractionStats {
     pub sheets: Option<usize>,
     /// Data rows rendered across all sheets (header rows excluded).
     pub rows: Option<usize>,
-    /// Non-empty paragraphs, headings and list items (DOCX).
+    /// Non-empty paragraphs, headings and list items (DOCX, plain text, Markdown).
     pub paragraphs: Option<usize>,
-    /// Tables (DOCX).
+    /// Tables (DOCX, Markdown).
     pub tables: Option<usize>,
 }
 
@@ -142,7 +144,8 @@ impl Markkit {
         .map(|e| e.markdown)
     }
 
-    /// Convert a document (HTML, DOCX, XLSX/XLS/ODS) to Markdown with metadata.
+    /// Convert a document (HTML, DOCX, XLSX/XLS/ODS, plain text, Markdown) to
+    /// Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
     /// `hint.file_name`, then magic bytes. Parsing is CPU-bound and runs inline;
@@ -182,6 +185,8 @@ impl Markkit {
             Format::Pdf => self.extract_pdf_sync(bytes),
             Format::Docx => self.extract_docx(bytes),
             Format::Xlsx | Format::Xls | Format::Ods => self.extract_spreadsheet(bytes),
+            Format::PlainText => Ok(self.extract_plain_text(bytes)),
+            Format::Markdown => self.extract_markdown(bytes),
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
@@ -193,6 +198,36 @@ impl Markkit {
                 None => other.to_string(),
             })),
         }
+    }
+
+    fn extract_plain_text(&self, bytes: &[u8]) -> Extraction {
+        let decoded = crate::text::decode(bytes);
+        let (doc, paragraphs) = crate::text::plain_to_ir(&decoded.text);
+        let mut renderer = crate::render::MarkdownRenderer::new();
+        let mut e = Extraction::new(renderer.render(&doc), Format::PlainText);
+        e.warnings = decoded.warnings;
+        e.stats.paragraphs = Some(paragraphs);
+        e
+    }
+
+    #[cfg(feature = "markdown")]
+    fn extract_markdown(&self, bytes: &[u8]) -> crate::Result<Extraction> {
+        let decoded = crate::text::decode(bytes);
+        let out = crate::markdown::parse(&decoded.text, &self.config);
+        let mut renderer = crate::render::MarkdownRenderer::new();
+        let mut e = Extraction::new(renderer.render(&out.doc), Format::Markdown);
+        e.title = out.title;
+        e.warnings = decoded.warnings;
+        e.stats.paragraphs = Some(out.paragraphs);
+        e.stats.tables = Some(out.tables);
+        Ok(e)
+    }
+
+    #[cfg(not(feature = "markdown"))]
+    fn extract_markdown(&self, _bytes: &[u8]) -> crate::Result<Extraction> {
+        Err(Error::UnsupportedFormat(
+            "Markdown support requires the 'markdown' feature".to_string(),
+        ))
     }
 
     #[cfg(feature = "docx")]

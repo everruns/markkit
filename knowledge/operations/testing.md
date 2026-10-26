@@ -19,6 +19,7 @@ tags:
 | `crates/markkit/tests/html_security.rs` | XSS payloads, nesting, oversized input |
 | `crates/markkit/tests/html_proptest.rs` | Property tests: no panic, no script/style, determinism, limits |
 | `crates/markkit/tests/docx_integration.rs`, `spreadsheet_integration.rs` | Office mapping |
+| `crates/markkit/tests/text_integration.rs` | Plain text and Markdown mapping, T7 security tests |
 | `crates/markkit/tests/document_detection.rs` | Format detection order and explicit unsupported errors |
 | `crates/markkit/tests/document_security.rs` | Zip bombs, grid amplification, XML entities, malformed containers |
 | `crates/markkit/tests/common/` | In-memory DOCX/XLSX/XLS/ODS fixture builders |
@@ -50,7 +51,7 @@ each security test states exactly which bytes it feeds the parser.
 
 `ci.yml` runs fmt, clippy, rustdoc (`-D warnings`), the knowledge bundle check,
 `cargo audit` + `cargo deny`, `cargo test --workspace` (default and all features),
-the `docx,spreadsheet` no-HTTP build with a reqwest leak check, and every example.
+the `docx,spreadsheet,markdown` no-HTTP build with a reqwest leak check, and every example.
 `nightly.yml` repeats build + test on nightly Rust daily; `coverage.yml` uploads
 tarpaulin coverage (`--engine llvm`; ptrace segfaults on threaded socket tests). All must pass before merge.
 

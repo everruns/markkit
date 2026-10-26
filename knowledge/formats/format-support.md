@@ -1,13 +1,14 @@
 ---
 type: Subsystem Design
 title: Format Support
-description: Supported and planned formats, bytes-in API, format detection, DOCX and spreadsheet mapping.
+description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet, plain text and Markdown mapping.
 tags:
   - markkit
   - formats
   - docx
   - spreadsheet
   - detection
+  - markdown
 ---
 
 # Format Support
@@ -16,11 +17,12 @@ tags:
 
 ### Tier 1 (Core)
 - **HTML/XHTML**: Full support via html5ever + scraper (`html` feature, default)
-- **Plain text**: Planned pass-through (currently `UnsupportedFormat` via the bytes API)
+- **Plain text**: Always on, no dependencies (`text/plain`, `.txt`, `.text`)
 
 ### Tier 2 (Feature-gated)
 - **DOCX** (`docx`): Word documents via a direct `zip` + `quick-xml` reader (no docx-rs)
 - **XLSX/XLSM, XLS, ODS** (`spreadsheet`): Workbooks to Markdown tables via calamine
+- **Markdown** (`markdown`): Re-parsed with pulldown-cmark into the IR and rendered back (`text/markdown`, `text/x-markdown`, `.md`, `.markdown`, `.mdown`, `.mkd`, `.mkdn`)
 - **PDF** (`pdf`): Planned. Returns `Error::UnsupportedFormat` (never an empty success)
 
 ### Detected, not supported
@@ -30,7 +32,6 @@ tags:
 - **EPUB**: E-book extraction
 - **RTF**: Rich text format
 - **CSV/TSV**: Tabular data to markdown tables
-- **Markdown**: Normalize/clean existing markdown
 
 ## Bytes-in API
 
@@ -55,7 +56,7 @@ pub struct Extraction {           // #[non_exhaustive]
 only the Markdown. Parsing is CPU-bound; async callers should use the sync variant in
 `spawn_blocking`.
 
-Warning codes: `truncated_sheet`, `hidden_sheet_skipped`, `sheet_error`.
+Warning codes: `truncated_sheet`, `hidden_sheet_skipped`, `sheet_error`, `invalid_utf8`.
 
 ## Format Detection
 
@@ -70,6 +71,9 @@ Priority order (`Format::detect`):
    - OLE2 (`D0 CF 11 E0`): UTF-16 `WordDocument` stream → DOC; `Workbook`/`Book` → XLS.
    - `%PDF-` within the first 1 KiB → PDF.
    - `<!doctype html`, `<html`, `<head`, `<body` (after BOM/whitespace) → HTML.
+
+Plain text and Markdown are never sniffed: they need a content type or extension, so
+unlabelled bytes stay `UnsupportedFormat` rather than rendering binary as text.
 
 Spreadsheet parsing re-sniffs the container (XLSX vs XLS vs ODS), so a workbook
 mislabelled as another Excel type still parses.
@@ -105,6 +109,31 @@ numbering through the main part's relationships.
   `include_hidden_sheets(true)`. Chart, dialog and macro sheets are skipped.
 - Only cached cell values are read: formulas are not evaluated, VBA/XLM macros are never
   executed or rendered.
+
+## Plain Text and Markdown
+
+Shared decoding: UTF-8 (BOM stripped); UTF-16 LE/BE only with a BOM; otherwise lossy UTF-8
+with an `invalid_utf8` warning. CRLF/CR become LF; C0 controls other than tab/newline, and
+DEL, are dropped (no terminal escapes or NULs in output).
+
+Plain text goes through the IR: blank lines separate paragraphs (`stats.paragraphs`),
+single newlines become hard breaks (`  \n`), trailing whitespace is trimmed, text stays
+`Node::Text`. No title.
+
+Markdown is parsed, not passed through:
+
+| Markdown | Output |
+|---|---|
+| CommonMark blocks and inlines | Same construct via the IR (`*` bullets become `-`, setext headings become ATX) |
+| GFM tables, `~~strike~~`, task lists `[x]` | Kept (task markers as literal text) |
+| Soft line break | Space (paragraphs reflow); hard breaks kept |
+| YAML front matter | Not rendered; `title:` becomes `Extraction::title` (else first `# ` heading) |
+| HTML block | Through the HTML parser when `html` is on (scripts, styles, handlers stripped), else dropped |
+| Inline HTML tag | Dropped; text between tags kept |
+| Footnote reference, other extensions | Literal text (extensions not enabled) |
+
+Containers nested deeper than 200 are flattened into the deepest kept container
+(explicit-stack builder, so neither the builder nor the recursive renderer can overflow).
 
 ## Resource Limits
 

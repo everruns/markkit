@@ -19,9 +19,10 @@ html = ["dep:scraper", "dep:html5ever"]
 pdf = []
 docx = ["dep:zip", "dep:quick-xml"]
 spreadsheet = ["dep:calamine", "dep:zip", "dep:quick-xml", "dep:cfb"]
+markdown = ["dep:pulldown-cmark"]
 http_client = ["dep:reqwest", "tokio/net"]
 logging = ["dep:tracing"]
-all_formats = ["html", "pdf", "docx", "spreadsheet"]
+all_formats = ["html", "pdf", "docx", "spreadsheet", "markdown"]
 
 [dependencies]
 # Async
@@ -45,6 +46,9 @@ quick-xml = { workspace = true, optional = true }
 # Spreadsheet (optional)
 calamine = { workspace = true, optional = true }
 cfb = { workspace = true, optional = true }
+
+# Markdown (optional)
+pulldown-cmark = { workspace = true, optional = true }
 
 # HTTP client (optional)
 reqwest = { workspace = true, optional = true }

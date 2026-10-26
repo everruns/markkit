@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Plain text input (`text/plain`, `.txt`), always on: paragraphs and hard breaks through the IR,
+  UTF-8/UTF-16 BOM decoding, control characters dropped, `invalid_utf8` warning on lossy decode.
+- Markdown input (`markdown` feature, in `all_formats`; `text/markdown`, `.md`): re-parsed with
+  pulldown-cmark and rendered back, so raw HTML never passes through. Front matter `title:` or the
+  first `# ` heading becomes `Extraction::title`. Available in the CLI, Python and Node bindings.
+
 ### Security
 
 - `extract_url` (CLI, Python and Node `extract_url` too) now refuses non-public destinations by default:
