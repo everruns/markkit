@@ -12,7 +12,7 @@
 //!   truncated output. Exceptions, kept for compatibility: per-sheet rows and
 //!   columns truncate with a warning, and HTML nesting past
 //!   `max_nesting_depth` is flattened to plain text.
-//! - Time is checked cooperatively ([`Budget`]) in parser and renderer loops.
+//! - Time is checked cooperatively (`Budget`) in parser and renderer loops.
 //!   Third-party parse steps (html5ever tokenizing, calamine cell decoding) are
 //!   not interruptible; they are bounded by input size and checked right after.
 //! - `max_nesting_depth` is clamped to [`HARD_MAX_NESTING_DEPTH`] because the
