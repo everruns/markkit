@@ -22,7 +22,9 @@ jobs:
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Generate coverage
-        run: cargo tarpaulin --workspace --out xml
+        # llvm engine: the default ptrace engine segfaults on multi-threaded
+        # tokio socket tests (tests/url_security.rs)
+        run: cargo tarpaulin --workspace --engine llvm --out xml
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
