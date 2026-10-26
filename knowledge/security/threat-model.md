@@ -205,7 +205,11 @@ process, or smuggling content past a human reviewer.
   DIMENSIONS, inverted MULRK column ranges, out-of-range sheet offsets).
 - XML: depth capped at 256, tree built iteratively, unclosed elements tolerated.
 - Parsers run under `catch_unwind` (defence in depth; only effective with
-  `panic = "unwind"` -- the workspace release profile uses `abort`).
+  `panic = "unwind"`, which the workspace release profile uses so the CLI and the
+  Python/Node bindings survive a parser panic; embedders building with `abort` lose
+  this layer).
+- XLS `SummaryInformation` title parsing is bounds-checked (1 MiB stream cap, checked
+  offsets, 1024-property cap); failures yield no title, never an error.
 
 #### T6d: XML entity attacks (billion laughs, XXE)
 - quick-xml never expands DTD-declared or external entities; such references are dropped.
@@ -231,6 +235,8 @@ process, or smuggling content past a human reviewer.
   `spreadsheet_integration::xlsx_sparse_far_cell_does_not_allocate_grid`
 - `docx_billion_laughs_not_expanded`, `docx_external_entity_not_resolved`,
   `docx_deep_nesting_does_not_overflow_stack`
+- `spreadsheet::tests::summary_title_rejects_malformed`,
+  `spreadsheet_integration::xlsx_malformed_core_properties_do_not_fail_extraction`
 - `truncated_fixtures_never_panic`, `random_bytes_never_panic`,
   `random_container_bytes_never_panic`, `mutated_fixtures_never_panic`
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,

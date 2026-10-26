@@ -319,6 +319,24 @@ fn valid_fixtures() -> Vec<Vec<u8>> {
             dims: Some((0, 1, 0, 2)),
             cells: vec![XlsCell::Label(0, 0, "a"), XlsCell::Num(0, 1, 2.0)],
         }]));
+        // Title sources: XLS SummaryInformation, XLSX core.xml + no `_rels/.rels`.
+        let stream = biff8_workbook(&[XlsSheet {
+            name: "S",
+            dims: None,
+            cells: vec![XlsCell::Label(0, 0, "a")],
+        }]);
+        let summary = summary_information(1252, b"Title");
+        v.push(ole2(&[
+            ("/Workbook", &stream),
+            ("/\u{5}SummaryInformation", &summary),
+        ]));
+        let core = b"<cp:coreProperties><dc:title>T</dc:title></cp:coreProperties>";
+        let book = xlsx_with(
+            &[Sheet::new("S", vec![vec![Cell::S("a")]])],
+            &[],
+            &[("docProps/core.xml", core)],
+        );
+        v.push(rezip(&book, &["_rels/.rels"], &[]));
     }
     v
 }
@@ -379,7 +397,7 @@ proptest! {
     /// Byte flips in valid documents never panic.
     #[test]
     fn mutated_fixtures_never_panic(
-        idx in 0usize..4,
+        idx in 0usize..6,
         flips in proptest::collection::vec((any::<prop::sample::Index>(), any::<u8>()), 1..16),
     ) {
         let fixtures = valid_fixtures();

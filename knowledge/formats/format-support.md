@@ -44,13 +44,29 @@ impl Markkit {
 
 pub struct Extraction {           // #[non_exhaustive]
     pub markdown: String,
-    pub title: Option<String>,    // HTML og:title / JSON-LD / <title>; DOCX core.xml dc:title, else Title style
+    pub title: Option<String>,    // see "Document titles" below
     pub format: Format,
     pub warnings: Vec<String>,    // "<code>: <message>"
     pub stats: ExtractionStats,   // pages / sheets / rows / paragraphs / tables (Option each)
     pub metadata: Metadata,       // HTML page metadata, see HTML Extraction; empty otherwise
 }
 ```
+
+Non-empty `markdown` always ends with exactly one `\n` (POSIX text convention; outputs
+concatenate cleanly); an empty document renders `""`. This is intended and stable.
+
+### Document titles
+
+| Format | Source |
+|---|---|
+| HTML | `og:title` / JSON-LD / `<title>` (see [HTML Extraction](html-extraction.md)) |
+| DOCX | `docProps/core.xml` `dc:title` (via `_rels/.rels`), else the first `Title`-style paragraph |
+| XLSX | `docProps/core.xml` `dc:title` |
+| ODS | `meta.xml` `dc:title` |
+| XLS | `\u{5}SummaryInformation` property set, `PIDSI_TITLE` (code page aware: 1200 UTF-16, UTF-8, else Latin-1) |
+
+Whitespace is collapsed, titles are capped at 1024 characters, and a missing or
+malformed property part yields `None` without failing the extraction.
 
 `extract_bytes(bytes, content_type)` delegates to `extract_document_sync` and returns
 only the Markdown. Parsing is CPU-bound; async callers should use the sync variant in
@@ -61,12 +77,14 @@ Warning codes: `truncated_sheet`, `hidden_sheet_skipped`, `sheet_error`.
 ## Format Detection
 
 Priority order (`Format::detect`):
-1. Content type (`DocumentHint::content_type`; parameters ignored). Generic types such as
+1. Content type (`DocumentHint::content_type`; parameters ignored). XLSB
+   (`application/vnd.ms-excel.sheet.binary.macroEnabled.12`) is matched before the
+   generic `ms-excel.sheet` → XLSX rule. Generic types such as
    `application/octet-stream` map to `Unknown` and fall through.
 2. File extension (`DocumentHint::file_name`; URL query/fragment ignored).
 3. Magic bytes (`Format::sniff`):
    - `PK\x03\x04` ZIP: ODF `mimetype` entry → ODS; `word/document*` → DOCX;
-     `xl/workbook.*` → XLSX; `ppt/presentation.*` → PPTX (part names are stored
+     `xl/workbook.bin` → XLSB; `xl/workbook.*` → XLSX; `ppt/presentation.*` → PPTX (part names are stored
      uncompressed, so no archive parsing is needed for detection).
    - OLE2 (`D0 CF 11 E0`): UTF-16 `WordDocument` stream → DOC; `Workbook`/`Book` → XLS.
    - `%PDF-` within the first 1 KiB → PDF.
@@ -96,7 +114,11 @@ numbering through the main part's relationships.
 
 - One `## <Sheet name>` section per non-empty worksheet, in workbook order, followed by a
   GFM table. The first non-empty row is the header; fully empty rows and leading empty
-  columns are dropped.
+  columns are dropped. A sheet with a single non-empty row has no header: its columns
+  are labelled with their Excel letters (`| C | D |`) and the row renders as data
+  (counted in `stats.rows`).
+- XLSX packages without `_rels/.rels` (hand-built files) get the standard
+  officeDocument relationship to `xl/workbook.xml` before calamine opens them.
 - Cells: numbers without trailing `.0` for integers; booleans `true`/`false`; dates as
   `YYYY-MM-DD[ HH:MM:SS]`, durations `H:MM:SS`; errors as Excel shows them (`#DIV/0!`).
   Pipes are escaped (`\|`), line breaks flattened to spaces.
