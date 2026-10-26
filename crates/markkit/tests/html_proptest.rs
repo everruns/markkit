@@ -39,6 +39,31 @@ proptest! {
         let _ = m.extract_html_sync(&s);
     }
 
+    /// Page metadata from arbitrary head markup never panics and stays single-line.
+    #[test]
+    fn metadata_values_single_line(
+        key in prop::sample::select(vec!["og:title", "description", "author", "og:url", "og:image"]),
+        value in "\\PC{0,300}",
+        ld in "\\PC{0,300}",
+    ) {
+        let html = format!(
+            "<head><meta property=\"{key}\" content=\"{}\"><title>{value}</title>\
+             <script type=\"application/ld+json\">{ld}</script></head>",
+            value.replace('"', "&quot;")
+        );
+        let e = Markkit::builder()
+            .build()
+            .extract_document_sync(html.as_bytes(), markkit::DocumentHint::content_type("text/html"))
+            .unwrap();
+        let m = &e.metadata;
+        for v in [&e.title, &m.description, &m.author, &m.canonical_url, &m.image].into_iter().flatten() {
+            prop_assert!(!v.contains(['\n', '\r']) && v.chars().count() <= 2048, "{:?}", v);
+        }
+        for v in [&m.canonical_url, &m.image].into_iter().flatten() {
+            prop_assert!(!v.to_ascii_lowercase().starts_with("javascript:"), "{:?}", v);
+        }
+    }
+
     /// Extraction is deterministic: same input always gives same output.
     #[test]
     fn deterministic_output(s in "\\PC{0,200}") {
