@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Indented HTML (most real web pages) now keeps blank lines between blocks; previously
+  headings, paragraphs, lists and tables after the first ran together with a leading space
+  (`# A\n B` instead of `# A\n\nB`), which also broke headings and tables as markdown.
+
 ### Changed
 
 - Design docs moved from `specs/` to an OKF v0.2 knowledge bundle in `knowledge/`, validated in CI.

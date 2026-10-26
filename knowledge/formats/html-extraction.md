@@ -107,6 +107,14 @@ The `collapse_whitespace` function normalizes text nodes:
 3. Trailing whitespace: preserved as single space if original had trailing whitespace AND result is non-empty
 4. Whitespace-only text nodes: if adjacent to existing content, emit single space; otherwise elided
 
+Block-context normalization (`normalize_blocks`, applied to the document body,
+blockquote children and list-item children): when a node list contains any block,
+whitespace-only inline runs between blocks are dropped and remaining inline runs
+are wrapped in a `Paragraph` with edge whitespace trimmed. This is what keeps
+indented source (`<body>\n  <h1>A</h1>\n  <p>B</p>`) rendering as `# A\n\nB`
+instead of `# A\n B`. Pure-inline lists are left untouched, so whitespace between
+inline siblings survives.
+
 Trimming at render time:
 - `trim_trailing_inline`: strips leading/trailing spaces from inline content within headings and paragraphs
 - `normalize_output`: collapses multiple blank lines to one, trims document-level leading/trailing blanks
@@ -155,6 +163,9 @@ providing defense-in-depth.
 - Unclosed/mismatched tags: html5ever auto-repairs per HTML5 spec
 - Empty containers: all block-level containers with no content are elided
 - HTML entities: decoded by html5ever before reaching parser
+- Blocks inside inline formatting: after an unclosed `<strong>`, html5ever's adoption
+  agency wraps following paragraphs in the formatting element; they render inside the
+  emphasis markers (known limitation, see `malformed` fixture)
 
 ## See also
 

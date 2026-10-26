@@ -51,7 +51,7 @@ impl<'a> HtmlParser<'a> {
             self.convert_children(content_root, &exclude_selectors, &mut nodes, 0);
         }
 
-        Ok(Document::new(nodes))
+        Ok(Document::new(normalize_blocks(nodes)))
     }
 
     fn is_excluded(&self, el: &scraper::ElementRef<'_>, exclude: &[Selector]) -> bool {
@@ -181,6 +181,7 @@ impl<'a> HtmlParser<'a> {
             "blockquote" => {
                 let mut children = Vec::new();
                 self.convert_children(el, exclude, &mut children, depth);
+                let children = normalize_blocks(children);
                 if children.is_empty() {
                     return None;
                 }
@@ -348,6 +349,7 @@ impl<'a> HtmlParser<'a> {
             {
                 let mut children = Vec::new();
                 self.convert_children(el, exclude, &mut children, depth + 1);
+                let children = normalize_blocks(children);
                 if !children.is_empty() {
                     items.push(ListItem::new(children));
                 }
@@ -459,6 +461,62 @@ fn collapse_whitespace(s: &str) -> String {
     }
 
     result
+}
+
+/// Normalize a block-context node list.
+///
+/// Source indentation between block elements arrives as whitespace-only text,
+/// which `convert_children` keeps as `Text(" ")` (it matters between inline
+/// siblings). Next to a block it is noise that breaks blank-line separation and
+/// leaks a leading space into the next line, so: when the list holds any block,
+/// drop whitespace-only inline runs and wrap the remaining inline runs in a
+/// `Paragraph` (edge whitespace trimmed). Pure-inline lists are returned as is.
+fn normalize_blocks(nodes: Vec<Node>) -> Vec<Node> {
+    if nodes.iter().all(is_inline) {
+        return nodes;
+    }
+    let mut out = Vec::with_capacity(nodes.len());
+    let mut run: Vec<Node> = Vec::new();
+    for node in nodes {
+        if is_inline(&node) {
+            run.push(node);
+        } else {
+            flush_inline_run(&mut run, &mut out);
+            out.push(node);
+        }
+    }
+    flush_inline_run(&mut run, &mut out);
+    out
+}
+
+fn flush_inline_run(run: &mut Vec<Node>, out: &mut Vec<Node>) {
+    let mut children = std::mem::take(run);
+    trim_edge_text(&mut children);
+    if !children.is_empty() {
+        out.push(Node::Paragraph { children });
+    }
+}
+
+/// Trim whitespace at the outer edges of an inline run, dropping emptied text nodes.
+fn trim_edge_text(children: &mut Vec<Node>) {
+    while let Some(Node::Text(t)) = children.first_mut() {
+        let trimmed = t.trim_start();
+        if trimmed.is_empty() {
+            children.remove(0);
+        } else {
+            *t = trimmed.to_string();
+            break;
+        }
+    }
+    while let Some(Node::Text(t)) = children.last_mut() {
+        let trimmed = t.trim_end();
+        if trimmed.is_empty() {
+            children.pop();
+        } else {
+            *t = trimmed.to_string();
+            break;
+        }
+    }
 }
 
 /// Check if a tag is a transparent container (should be unwrapped in block context).
