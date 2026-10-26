@@ -72,6 +72,8 @@ pub struct ExtractionStats {
     pub paragraphs: Option<usize>,
     /// Tables (DOCX, Markdown, CSV/TSV).
     pub tables: Option<usize>,
+    /// Non-empty cells rendered (Jupyter notebooks).
+    pub cells: Option<usize>,
 }
 
 /// Result of [`Markkit::parse_document`]: the IR plus metadata, not rendered.
@@ -231,8 +233,8 @@ impl Markkit {
         .map(|e| e.markdown)
     }
 
-    /// Convert a document (HTML, PDF, DOCX, XLSX/XLSB/XLS/ODS, plain text, Markdown, CSV/TSV)
-    /// to Markdown with metadata.
+    /// Convert a document (HTML, PDF, DOCX, XLSX/XLSB/XLS/ODS, plain text, Markdown, CSV/TSV,
+    /// Jupyter notebooks) to Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
     /// `hint.file_name`, then magic bytes. Parsing is CPU-bound and runs inline;
@@ -323,6 +325,7 @@ impl Markkit {
             Format::PlainText => self.parse_plain_text(bytes, budget),
             Format::Markdown => self.parse_markdown(bytes, budget),
             Format::Csv | Format::Tsv => self.parse_csv(bytes, format, budget),
+            Format::Notebook => self.parse_notebook(bytes, budget),
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
@@ -380,6 +383,18 @@ impl Markkit {
         p.warnings.extend(out.warnings);
         p.stats.rows = Some(out.rows);
         p.stats.tables = Some(out.tables);
+        Ok(p)
+    }
+
+    fn parse_notebook(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
+        let decoded = crate::text::decode(bytes);
+        let out = crate::notebook::parse(&decoded.text, &self.config, budget)?;
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, Format::Notebook);
+        p.title = out.title;
+        p.warnings = decoded.warnings;
+        p.stats.cells = Some(out.cells);
         Ok(p)
     }
 

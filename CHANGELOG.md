@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `markkit mcp`: Model Context Protocol server over stdio exposing the `markkit` tool
   (`tools/list`, `tools/call`). URL fetching keeps the SSRF guard; `--no-url` keeps it offline,
   the `extract` limit flags and `--max-output-chars` bound each call.
+- Jupyter notebook input (`.ipynb`, `application/x-ipynb+json`, nbformat 4), always on: Markdown
+  cells, code cells as fenced blocks tagged with the kernel language, text outputs and ANSI-free
+  tracebacks; images/HTML outputs skipped. New `Format::Notebook`, `Error::NotebookExtract` and
+  `ExtractionStats::cells`.
 - CSV and TSV input (`text/csv`, `text/tab-separated-values`, `.csv`, `.tsv`), always on: one GFM
   table, RFC 4180 quoting, `;`/`|`/tab delimiter detection, bounded by `max_sheet_rows` /
   `max_sheet_cols` (`truncated_table` warning). New `Format::Tsv`.

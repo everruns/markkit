@@ -20,6 +20,7 @@ package for browsers and edge runtimes.
 - **HTML** – Web pages and HTML documents; nav, header, footer, scripts, styles and forms stripped by default
 - **DOCX** – Headings, lists, tables, links, emphasis
 - **Spreadsheets** – XLSX/XLSM, XLSB, XLS and ODS workbooks to markdown tables, one section per sheet
+- **Jupyter notebooks** – Markdown cells, code cells with language, text outputs and tracebacks
 - **CSV / TSV** – One markdown table; `;` and `|` delimiters detected, RFC 4180 quoting
 - **Plain text / Markdown** – Text to paragraphs; Markdown normalized through the same IR (raw HTML never passed through)
 - **Format detection** – Content type, then file extension, then magic bytes
@@ -36,6 +37,7 @@ package for browsers and edge runtimes.
 | XLSX, XLSM, XLSB, XLS, ODS | Supported | `spreadsheet` |
 | Plain text | Supported | always on |
 | CSV, TSV | Supported | always on |
+| Jupyter notebooks (ipynb) | Supported | always on |
 | Markdown | Supported | `markdown` |
 | PDF (text layer) | Supported | `pdf` |
 | DOC, PPTX | Detected, rejected explicitly | – |

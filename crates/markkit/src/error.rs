@@ -14,6 +14,9 @@ pub enum Error {
     #[error("Spreadsheet extraction error: {0}")]
     SpreadsheetExtract(String),
 
+    #[error("Notebook extraction error: {0}")]
+    NotebookExtract(String),
+
     #[error("HTTP error: {0}")]
     Http(String),
 

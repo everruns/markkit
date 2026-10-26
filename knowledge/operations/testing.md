@@ -21,7 +21,7 @@ tags:
 | `crates/markkit/tests/output_safety.rs` | Renderer escaping, URL scheme allowlist, fences; pulldown-cmark oracle + proptests |
 | `crates/markkit/tests/html_proptest.rs` | Property tests: no panic, no script/style, determinism, limits |
 | `crates/markkit/tests/docx_integration.rs`, `spreadsheet_integration.rs` | Office mapping |
-| `crates/markkit/tests/text_integration.rs`, `csv_integration.rs` | Plain text, Markdown and CSV/TSV mapping, T7 security tests |
+| `crates/markkit/tests/text_integration.rs`, `csv_integration.rs`, `notebook_integration.rs` | Plain text, Markdown, CSV/TSV and notebook mapping, T7 security tests |
 | `crates/markkit/tests/document_detection.rs` | Format detection order and explicit unsupported errors |
 | `crates/markkit/tests/document_security.rs` | Zip bombs, grid amplification, XML entities, malformed containers |
 | `crates/markkit/tests/limits.rs` | Every `Limits` field enforced for HTML, DOCX, spreadsheets; small-stack depth ceiling |
