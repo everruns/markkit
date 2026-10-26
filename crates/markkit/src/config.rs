@@ -40,6 +40,10 @@ pub struct MarkkitBuilder {
     pub allowed_hosts: Vec<String>,
     /// Maximum redirects `extract_url` follows. Default: 5.
     pub max_redirects: usize,
+    /// Absolute URL that relative HTML links, images and metadata URLs resolve
+    /// against (a document `<base href>` applies on top). `extract_url` uses the
+    /// final response URL instead. Default: none (relative URLs kept as is).
+    pub base_url: Option<String>,
 }
 
 impl Default for MarkkitBuilder {
@@ -69,6 +73,7 @@ impl Default for MarkkitBuilder {
             allow_private_networks: false,
             allowed_hosts: Vec::new(),
             max_redirects: 5,
+            base_url: None,
         }
     }
 }
@@ -154,6 +159,13 @@ impl MarkkitBuilder {
 
     pub fn max_redirects(mut self, n: usize) -> Self {
         self.max_redirects = n;
+        self
+    }
+
+    /// Resolve relative HTML URLs against this absolute URL. Ignored when it
+    /// does not parse or cannot be a base (`data:`, `javascript:`, ...).
+    pub fn base_url(mut self, url: impl Into<String>) -> Self {
+        self.base_url = Some(url.into());
         self
     }
 

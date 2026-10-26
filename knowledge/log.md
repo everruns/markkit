@@ -2,6 +2,7 @@
 
 ## 2026-10-26
 
+* **Relative URLs**: links, images and metadata URLs resolve against `base_url` (or the final `extract_url` response URL) plus `<base href>`. Only scheme-less references change; page bases are limited to `http(s)`. New `extract_url_document`. See [HTML Extraction](formats/html-extraction.md) and [Threat Model](security/threat-model.md) T1.
 * **Page metadata**: HTML `extract_document` now fills `title` and a new `Extraction::metadata` (description, author, published, language, canonical URL, site name, image) from `<meta>`, Open Graph, `<link rel=canonical>` and bounded JSON-LD. Precedence table in [HTML Extraction](formats/html-extraction.md); scheme filter and JSON-LD bounds in [Threat Model](security/threat-model.md) T1 / T2f.
 * **IR v2**: footnotes, definition lists, task lists, figures, table alignment and spans; `Document.ir_version` (`IR_VERSION = 2`), `#[non_exhaustive]` IR types, `Node::is_block`/`is_inline`. HTML maps GitHub/Pandoc footnotes, `<dl>`, checkbox items, captioned figures, `colspan`/`rowspan`/alignment and row-header `<th>`. New threat T2e and invariant S13 (span grid budget, footnote label sanitizing). See [IR Specification](foundations/ir.md), [HTML Extraction](formats/html-extraction.md), [Threat Model](security/threat-model.md).
 

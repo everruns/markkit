@@ -54,6 +54,7 @@ Via `MarkkitBuilder`:
 - Link and image preservation
 - Office-document limits (archive entries/sizes, sheet rows/cols, grid cells, hidden sheets)
 - URL fetch policy (`allow_private_networks`, `allow_host`, `max_redirects`)
+- Base URL for relative links, images and metadata URLs (`base_url`)
 
 ## See also
 
