@@ -58,4 +58,5 @@ Published to npm by `publish-js.yml` from a verified release tag; see
 ## See also
 
 - [Python Package](python-package.md), the sibling binding
+- [WASM Package](wasm-package.md), the browser and edge build
 - [Release Process](../operations/release-process.md), npm publication and tarball verification
