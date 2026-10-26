@@ -88,6 +88,10 @@ pub struct ParsedDocument {
 }
 
 impl ParsedDocument {
+    #[cfg_attr(
+        not(any(feature = "html", feature = "docx", feature = "spreadsheet")),
+        allow(dead_code)
+    )]
     fn new(document: Document, format: Format) -> Self {
         Self {
             document,
