@@ -19,7 +19,7 @@ package for browsers and edge runtimes.
 
 - **HTML** – Web pages and HTML documents; nav, header, footer, scripts, styles and forms stripped by default
 - **DOCX** – Headings, lists, tables, links, emphasis
-- **Spreadsheets** – XLSX/XLSM, XLS and ODS workbooks to markdown tables, one section per sheet
+- **Spreadsheets** – XLSX/XLSM, XLSB, XLS and ODS workbooks to markdown tables, one section per sheet
 - **Plain text / Markdown** – Text to paragraphs; Markdown normalized through the same IR (raw HTML never passed through)
 - **Format detection** – Content type, then file extension, then magic bytes
 - **URL fetching** – Fetch and extract in one call (`http_client` feature)
@@ -32,11 +32,11 @@ package for browsers and edge runtimes.
 |---|---|---|
 | HTML / XHTML | Supported | `html` (default) |
 | DOCX | Supported | `docx` |
-| XLSX, XLSM, XLS, ODS | Supported | `spreadsheet` |
+| XLSX, XLSM, XLSB, XLS, ODS | Supported | `spreadsheet` |
 | Plain text | Supported | always on |
 | Markdown | Supported | `markdown` |
 | PDF (text layer) | Supported | `pdf` |
-| DOC, PPTX, XLSB | Detected, rejected explicitly | – |
+| DOC, PPTX | Detected, rejected explicitly | – |
 
 ## Quick Start
 

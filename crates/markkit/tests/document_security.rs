@@ -24,6 +24,7 @@ fn hints() -> Vec<DocumentHint<'static>> {
         DocumentHint::content_type(XLSX_CT),
         DocumentHint::content_type("application/vnd.ms-excel"),
         DocumentHint::content_type("application/vnd.oasis.opendocument.spreadsheet"),
+        DocumentHint::content_type("application/vnd.ms-excel.sheet.binary.macroEnabled.12"),
     ]
 }
 
@@ -104,6 +105,57 @@ fn xlsx_zip_bomb_sheet_rejected() {
         .build();
     let err = run(&m, &bytes, XLSX_CT).unwrap_err();
     assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+}
+
+#[cfg(feature = "spreadsheet")]
+#[test]
+fn xlsb_zip_bomb_sheet_rejected() {
+    let mut rows = vec![vec![Cell::S("x")]];
+    rows.extend((0..1).map(|_| vec![Cell::Str("y".repeat(4 * 1024 * 1024))]));
+    let bytes = xlsb(&[Sheet::new("S", rows)]);
+    assert!(bytes.len() < 256 * 1024);
+    let m = Markkit::builder()
+        .max_archive_entry_size(1024 * 1024)
+        .build();
+    let err = m
+        .extract_document_sync(&bytes, DocumentHint::default())
+        .unwrap_err();
+    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+}
+
+#[cfg(feature = "spreadsheet")]
+#[test]
+fn xlsb_huge_declared_dimensions_do_not_allocate() {
+    // BrtWsDim claims A1:XFD1048576; cells are streamed, never a dense grid.
+    let mut sheet = Vec::new();
+    biff12(&mut sheet, 0x0081, &[]);
+    let mut dim = Vec::new();
+    for v in [0u32, 1_048_575, 0, 16_383] {
+        dim.extend_from_slice(&v.to_le_bytes());
+    }
+    biff12(&mut sheet, 0x0094, &dim);
+    biff12(&mut sheet, 0x0091, &[]);
+    for (row, col) in [(0u32, 0u32), (1_048_575, 16_383)] {
+        biff12(&mut sheet, 0x0000, &row.to_le_bytes());
+        let mut c = col.to_le_bytes().to_vec();
+        c.extend_from_slice(&0u32.to_le_bytes());
+        c.extend(wide("far"));
+        biff12(&mut sheet, 0x0006, &c);
+    }
+    biff12(&mut sheet, 0x0092, &[]);
+    let base = xlsb(&[Sheet::new("S", vec![])]);
+    let bytes = rezip(
+        &base,
+        &["xl/worksheets/sheet1.bin"],
+        &[("xl/worksheets/sheet1.bin", &sheet)],
+    );
+    let e = Markkit::builder()
+        .build()
+        .extract_document_sync(&bytes, DocumentHint::default())
+        .unwrap();
+    assert!(e.markdown.contains("far"));
+    assert!(e.markdown.len() < 64 * 1024);
+    assert!(e.warnings.iter().any(|w| w.starts_with("truncated_sheet:")));
 }
 
 #[cfg(feature = "spreadsheet")]
@@ -337,6 +389,19 @@ fn valid_fixtures() -> Vec<Vec<u8>> {
             &[("docProps/core.xml", core)],
         );
         v.push(rezip(&book, &["_rels/.rels"], &[]));
+        v.push(xlsb(&[Sheet::new(
+            "S",
+            vec![vec![Cell::S("a"), Cell::N(1.0)], vec![Cell::B(true)]],
+        )]));
+        for name in ["date", "issues"] {
+            v.push(
+                std::fs::read(format!(
+                    "{}/tests/fixtures/xlsb/{name}.xlsb",
+                    env!("CARGO_MANIFEST_DIR")
+                ))
+                .unwrap(),
+            );
+        }
     }
     v
 }
@@ -397,7 +462,7 @@ proptest! {
     /// Byte flips in valid documents never panic.
     #[test]
     fn mutated_fixtures_never_panic(
-        idx in 0usize..6,
+        idx in 0usize..9,
         flips in proptest::collection::vec((any::<prop::sample::Index>(), any::<u8>()), 1..16),
     ) {
         let fixtures = valid_fixtures();

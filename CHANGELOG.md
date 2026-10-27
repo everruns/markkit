@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- XLSB (Excel binary workbook) support in the `spreadsheet` feature, via a new bounds-checked
+  reader: values, shared strings, dates and durations, hidden-sheet skipping, row/column caps and
+  the workbook title. Previously XLSB returned `UnsupportedFormat`.
 - `markkit mcp`: Model Context Protocol server over stdio exposing the `markkit` tool
   (`tools/list`, `tools/call`). URL fetching keeps the SSRF guard; `--no-url` keeps it offline,
   the `extract` limit flags and `--max-output-chars` bound each call.

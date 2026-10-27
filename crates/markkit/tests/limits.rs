@@ -266,4 +266,21 @@ mod spreadsheet {
         assert!(limit_msg(run(&m, &sheet())).contains("max_output_size"));
         assert!(run(&Markkit::builder().build(), &sheet()).is_ok());
     }
+
+    #[test]
+    fn xlsb_zero_timeout_rejects() {
+        let rows = (0..200)
+            .map(|i| vec![Cell::Str(format!("row {i}")), Cell::N(i as f64)])
+            .collect();
+        let bytes = xlsb(&[Sheet::new("S", rows)]);
+        let hint = DocumentHint::file_name("t.xlsb");
+        let m = Markkit::builder().timeout(Duration::ZERO).build();
+        assert!(limit_msg(m.extract_document_sync(&bytes, hint)).contains("timeout"));
+        assert!(
+            Markkit::builder()
+                .build()
+                .extract_document_sync(&bytes, hint)
+                .is_ok()
+        );
+    }
 }

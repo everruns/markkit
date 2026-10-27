@@ -27,7 +27,7 @@ tags:
 | `crates/markkit/tests/limits.rs` | Every `Limits` field enforced for HTML, DOCX, spreadsheets; small-stack depth ceiling |
 | `crates/markkit/tests/pdf_integration.rs` | PDF text layout, fonts/encodings, forms, page cap |
 | `crates/markkit/tests/pdf_security.rs` | PDF bombs, interpretation budget, encrypted/unverifiable input, malformed PDFs |
-| `crates/markkit/tests/common/` | In-memory DOCX/XLSX/XLS/ODS/PDF fixture builders |
+| `crates/markkit/tests/common/` | In-memory DOCX/XLSX/XLSB/XLS/ODS/PDF fixture builders; `fixtures/xlsb/` holds two real XLSB files from calamine (MIT) |
 | `crates/markkit-cli/tests/cli_integration.rs` | CLI flags and output |
 | `crates/markkit-cli/tests/mcp_integration.rs` | `markkit mcp` stdio session end to end |
 | `crates/markkit/benches/extraction.rs` | Criterion micro-benchmarks |

@@ -224,7 +224,7 @@ the proxy, or use `allow_host`.
 - `html_security::very_long_text_node` (100KB text node)
 - `html_proptest::no_panic_on_arbitrary_input`
 
-### T6: Malicious Office Documents (DOCX / XLSX / XLS / ODS)
+### T6: Malicious Office Documents (DOCX / XLSX / XLSB / XLS / ODS)
 
 **Description**: Crafted containers aimed at exhausting memory/CPU, crashing the
 process, or smuggling content past a human reviewer.
@@ -263,6 +263,12 @@ process, or smuggling content past a human reviewer.
   `panic = "unwind"`, which the workspace release profile uses so the CLI and the
   Python/Node bindings survive a parser panic; embedders building with `abort` lose
   this layer).
+- XLSB is parsed by markkit's own BIFF12 reader, not calamine's (which indexes record
+  buffers and the shared-string table unchecked). Every field read is bounds-checked:
+  record sizes against the part, wide-string lengths with checked arithmetic, shared-string
+  and XF indexes by lookup. Malformed cell records are skipped; a truncated part fails that
+  sheet with `sheet_error`. Cells stream into the capped grid, so `BrtWsDim` claims never
+  allocate. Proptests drive the reader directly, outside `catch_unwind`.
 - XLS `SummaryInformation` title parsing is bounds-checked (1 MiB stream cap, checked
   offsets, 1024-property cap); failures yield no title, never an error.
 
@@ -290,6 +296,10 @@ process, or smuggling content past a human reviewer.
   `spreadsheet_integration::xlsx_sparse_far_cell_does_not_allocate_grid`
 - `docx_billion_laughs_not_expanded`, `docx_external_entity_not_resolved`,
   `docx_deep_nesting_does_not_overflow_stack`
+- `xlsb_zip_bomb_sheet_rejected`, `xlsb_huge_declared_dimensions_do_not_allocate`,
+  `spreadsheet::xlsb::tests::arbitrary_parts_never_panic`,
+  `spreadsheet::xlsb::tests::arbitrary_cell_payloads_never_panic`,
+  `spreadsheet_integration::xlsb_hidden_sheet_skipped_by_default`
 - `spreadsheet::tests::summary_title_rejects_malformed`,
   `spreadsheet_integration::xlsx_malformed_core_properties_do_not_fail_extraction`
 - `truncated_fixtures_never_panic`, `random_bytes_never_panic`,

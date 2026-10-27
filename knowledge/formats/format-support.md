@@ -23,11 +23,13 @@ tags:
 ### Tier 2 (Feature-gated)
 - **DOCX** (`docx`): Word documents via a direct `zip` + `quick-xml` reader (no docx-rs)
 - **XLSX/XLSM, XLS, ODS** (`spreadsheet`): Workbooks to Markdown tables via calamine
+- **XLSB** (`spreadsheet`): Excel binary workbooks via markkit's own bounds-checked BIFF12
+  reader (calamine's XLSB reader panics on malformed records)
 - **Markdown** (`markdown`): Re-parsed with pulldown-cmark into the IR and rendered back (`text/markdown`, `text/x-markdown`, `.md`, `.markdown`, `.mdown`, `.mkd`, `.mkdn`)
 - **PDF** (`pdf`): Text layer via hayro-syntax (pure Rust); no OCR, encrypted PDFs rejected
 
 ### Detected, not supported
-- **DOC** (Word 97-2003 binary), **PPTX**, **XLSB**: explicit `UnsupportedFormat` errors
+- **DOC** (Word 97-2003 binary), **PPTX**: explicit `UnsupportedFormat` errors
 
 ### Tier 3 (Planned)
 - **EPUB**: E-book extraction
@@ -63,7 +65,7 @@ concatenate cleanly); an empty document renders `""`. This is intended and stabl
 |---|---|
 | HTML | `og:title` / JSON-LD / `<title>` (see [HTML Extraction](html-extraction.md)) |
 | DOCX | `docProps/core.xml` `dc:title` (via `_rels/.rels`), else the first `Title`-style paragraph |
-| XLSX | `docProps/core.xml` `dc:title` |
+| XLSX, XLSB | `docProps/core.xml` `dc:title` |
 | ODS | `meta.xml` `dc:title` |
 | XLS | `\u{5}SummaryInformation` property set, `PIDSI_TITLE` (code page aware: 1200 UTF-16, UTF-8, else Latin-1) |
 | PDF | `/Info /Title` (UTF-16BE with BOM, else PDFDocEncoding) |
@@ -134,6 +136,11 @@ numbering through the main part's relationships.
   emits a `truncated_sheet` warning.
 - Hidden / very hidden sheets are skipped with `hidden_sheet_skipped` unless
   `include_hidden_sheets(true)`. Chart, dialog and macro sheets are skipped.
+- XLSB: sheets from `xl/workbook.bin` (`BrtBundleSh`) resolved through
+  `xl/_rels/workbook.bin.rels`; shared strings from `xl/sharedStrings.bin`; dates and
+  durations from the cell XF's number format in `xl/styles.bin` (built-in date ids or custom
+  codes with date/time tokens; `[h]`-style elapsed codes are durations). A missing or
+  truncated sheet part emits `sheet_error` and the other sheets still render.
 - Only cached cell values are read: formulas are not evaluated, VBA/XLM macros are never
   executed or rendered.
 

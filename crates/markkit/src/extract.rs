@@ -230,7 +230,7 @@ impl Markkit {
         .map(|e| e.markdown)
     }
 
-    /// Convert a document (HTML, PDF, DOCX, XLSX/XLS/ODS, plain text, Markdown) to Markdown with metadata.
+    /// Convert a document (HTML, PDF, DOCX, XLSX/XLSB/XLS/ODS, plain text, Markdown) to Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
     /// `hint.file_name`, then magic bytes. Parsing is CPU-bound and runs inline;

@@ -33,7 +33,7 @@
 //!
 //! - **HTML** (`html`, default): Convert HTML to markdown with configurable rules
 //! - **DOCX** (`docx`): Convert Word documents
-//! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLS and ODS workbooks to tables
+//! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLSB, XLS and ODS workbooks to tables
 //! - **Plain text** (always on): `text/plain`, `.txt`
 //! - **Markdown** (`markdown`): `text/markdown`, `.md`, normalized through the IR
 //! - **PDF** (`pdf`): Text layer of PDF documents (no OCR); encrypted PDFs are
