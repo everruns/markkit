@@ -1,7 +1,7 @@
 ---
 type: Subsystem Design
 title: Format Support
-description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet, PDF, plain text and Markdown mapping.
+description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet, PDF, plain text, Markdown and CSV/TSV mapping.
 tags:
   - markkit
   - formats
@@ -10,6 +10,7 @@ tags:
   - pdf
   - detection
   - markdown
+  - csv
 ---
 
 # Format Support
@@ -19,6 +20,7 @@ tags:
 ### Tier 1 (Core)
 - **HTML/XHTML**: Full support via html5ever + scraper (`html` feature, default)
 - **Plain text**: Always on, no dependencies (`text/plain`, `.txt`, `.text`)
+- **CSV / TSV**: Always on, no dependencies (`text/csv`, `application/csv`, `.csv`; `text/tab-separated-values`, `.tsv`, `.tab`)
 
 ### Tier 2 (Feature-gated)
 - **DOCX** (`docx`): Word documents via a direct `zip` + `quick-xml` reader (no docx-rs)
@@ -35,7 +37,6 @@ tags:
 ### Tier 3 (Planned)
 - **EPUB**: E-book extraction
 - **RTF**: Rich text format
-- **CSV/TSV**: Tabular data to markdown tables
 
 ## Bytes-in API
 
@@ -81,7 +82,8 @@ only the Markdown. Parsing is CPU-bound; async callers should use the sync varia
 
 Warning codes: `truncated_sheet`, `hidden_sheet_skipped`, `sheet_error`, `truncated_pdf`,
 `pdf_unmapped_font`, `pdf_no_text`, `invalid_utf8`, `hidden_content_skipped`,
-`hidden_slide_skipped`, `slide_error`.
+`hidden_slide_skipped`, `slide_error`, 
+`malformed_csv`, `truncated_table`.
 
 ## Format Detection
 
@@ -101,11 +103,31 @@ Priority order (`Format::detect`):
    - `%PDF-` within the first 1 KiB → PDF.
    - `<!doctype html`, `<html`, `<head`, `<body` (after BOM/whitespace) → HTML.
 
-Plain text and Markdown are never sniffed: they need a content type or extension, so
+Plain text, Markdown and CSV/TSV are never sniffed: they need a content type or extension, so
 unlabelled bytes stay `UnsupportedFormat` rather than rendering binary as text.
 
 Spreadsheet parsing re-sniffs the container (XLSX vs XLS vs ODS), so a workbook
 mislabelled as another Excel type still parses.
+
+## Custom Parsers
+
+`MarkkitBuilder::parser(p)` registers a `registry::FormatParser`
+(`name`, `formats() -> &[Format]`, `claims(bytes, hint) -> bool`,
+`parse(bytes, &MarkkitBuilder) -> Result<ParsedDocument>`). In
+`parse_document` / `extract_document`, after the `max_input_size` check:
+
+1. first registered parser whose `claims` is true (new formats without a
+   `Format` variant), else
+2. first registered parser listing the detected `Format` (fill PDF/CSV/... or
+   replace a built-in), else
+3. the built-in parser for the detected format.
+
+A panic in a custom parser becomes `Error::Parser`; its errors pass through.
+The deadline is checked when it returns and `max_output_size` bounds the render.
+Transforms run on its IR and the shared renderer produces the Markdown.
+Custom parsers see untrusted bytes and own their resource limits (they get
+the builder, so they can honour the configured ones). `ParsedDocument::new`
+is public for them.
 
 ## DOCX Mapping
 
@@ -225,6 +247,23 @@ Markdown is parsed, not passed through:
 
 Containers nested deeper than `max_nesting_depth` (256) are flattened into the deepest kept container
 (explicit-stack builder, so neither the builder nor the recursive renderer can overflow).
+
+## CSV / TSV Mapping
+
+- Decoded like plain text (BOM, UTF-16, control characters, `invalid_utf8`).
+- One GFM table, no heading. First non-empty record is the header; fully empty records
+  dropped; short rows padded to the widest row.
+- Delimiter: tab for TSV. For CSV, whichever of `,` `;` `\t` `|` occurs most outside quotes
+  in the first record (ties prefer `,`), so European `;` files work.
+- RFC 4180 quoting: quoted fields may span lines, `""` is a literal quote; a quote inside an
+  unquoted field is literal; an unterminated quote takes the rest of the input and emits
+  `malformed_csv`.
+- Cells trimmed and kept raw in the IR; the renderer escapes pipes and flattens line breaks
+  in table context, as for spreadsheet cells. Values are
+  text: no type inference, formulas (`=…`) are plain strings.
+- Caps reuse `max_sheet_rows` (data rows; reading stops at the cap) and `max_sheet_cols`
+  (extra fields are never stored); either emits `truncated_table`. Each record ticks the call's `timeout`.
+- Stats: `rows` (data rows), `tables` (0 or 1).
 
 ## Resource Limits
 

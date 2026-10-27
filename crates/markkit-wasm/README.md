@@ -1,8 +1,8 @@
 # @everruns/markkit-wasm
 
 Markkit compiled to WebAssembly: extract clean Markdown from HTML, DOCX,
-spreadsheets (XLSX/XLSM, XLS, ODS), plain text and Markdown in the **browser
-and any JavaScript runtime**:
+spreadsheets (XLSX/XLSM, XLS, ODS), CSV/TSV, plain text and Markdown in the
+**browser and any JavaScript runtime**:
 edge workers (Cloudflare Workers, Vercel Edge, Deno Deploy), Node, Deno and Bun.
 
 Single-threaded `wasm-bindgen` build: no `SharedArrayBuffer`, no `COOP`/`COEP`

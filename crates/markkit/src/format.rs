@@ -32,8 +32,11 @@ pub enum Format {
     Pptx,
     /// Legacy PowerPoint 97-2003 binary (`.ppt`). Detected but not supported.
     Ppt,
+    /// Comma (or `;` / `|`) separated values (`.csv`).
     Csv,
-    /// Plain text (`text/plain`, `.txt`). Never sniffed from bytes.
+    /// Tab separated values (`.tsv`, `.tab`).
+    Tsv,
+    /// Plain text (`text/plain`, `.txt`). Never sniffed from bytes (nor CSV/TSV/Markdown).
     /// Serialized as `"text"`, same as `as_str`.
     #[serde(rename = "text")]
     PlainText,
@@ -90,6 +93,7 @@ impl Format {
             Format::Pptx => "pptx",
             Format::Ppt => "ppt",
             Format::Csv => "csv",
+            Format::Tsv => "tsv",
             Format::PlainText => "text",
             Format::Markdown => "markdown",
             Format::Unknown => "unknown",
@@ -121,7 +125,9 @@ impl Format {
             Format::Pptx
         } else if ct.contains("ms-powerpoint") {
             Format::Ppt
-        } else if ct.contains("text/csv") {
+        } else if ct.contains("tab-separated-values") {
+            Format::Tsv
+        } else if ct.contains("text/csv") || ct.contains("application/csv") {
             Format::Csv
         } else if ct.contains("text/plain") {
             Format::PlainText
@@ -145,7 +151,8 @@ impl Format {
             "ods" => Format::Ods,
             "pptx" | "pptm" | "ppsx" | "ppsm" | "potx" | "potm" => Format::Pptx,
             "ppt" | "pps" | "pot" => Format::Ppt,
-            "csv" | "tsv" => Format::Csv,
+            "csv" => Format::Csv,
+            "tsv" | "tab" => Format::Tsv,
             "txt" | "text" => Format::PlainText,
             "md" | "markdown" | "mdown" | "mkd" | "mkdn" => Format::Markdown,
             _ => Format::Unknown,

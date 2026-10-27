@@ -41,7 +41,8 @@ that renders as headings, links, code fences or tables).
 - Output is markdown text with no HTML pass-through, enforced at render time by
   `render/escape.rs` for every format (the IR keeps raw text):
   - Text escapes `` ` * [ ] < ~ | ``, `_` at word boundaries, entity-like `&`, a
-    trailing `\` or `!`, and block markers (`# > - + =`, `1.`/`1)`) at line start.
+    trailing `\` or `!`, and block markers at line start: `> - =` always, `#` runs,
+    `+` and `1.`/`1)` only before whitespace or the end of the text run.
     Newlines inside text become spaces.
   - Link schemes allowlisted (`http`, `https`, `mailto`, `tel`, `ftp`, relative);
     image schemes `http`, `https`, relative and raster `data:image/*`. Others are
@@ -112,6 +113,15 @@ All limits live in one `Limits` struct (`crates/markkit/src/limits.rs`,
   conversion, spreadsheet cell loops and renderer. html5ever tokenizing and calamine
   sheet decoding are not interruptible; they are linear in the (capped) input and the
   deadline is checked right after them
+- html5ever's tree builder is quadratic in nesting depth (687 KiB of nested `<div>`s took
+  12.6 s, 292 KiB of nested tables passed 60 s, uninterruptibly). `html::nesting::cap_nesting`
+  drops tags past `max_nesting_depth + 8` before html5ever runs, so parse cost is
+  O(input x cap); 45 MiB of hostile nesting now parses in under 0.5 s
+- Nested tables: rows are taken from the table's direct structure only. A descendant query
+  copied inner rows into every enclosing table, growing output and work 4x per level
+- Tests: `html_security::deep_div_nesting_is_linear`, `deep_unclosed_table_nesting_is_linear`,
+  `nested_table_rows_are_not_duplicated`, `deep_nested_tables_output_is_bounded`,
+  `html::nesting::tests::*`
 - `max_nodes` (default 5 000 000) caps HTML DOM nodes and DOCX XML nodes (summed over parts)
 - wasm32-unknown-unknown has no clock, so `timeout` is not enforced in `@everruns/markkit-wasm`;
   hosts bound time themselves (e.g. terminate the Worker). All other limits apply
@@ -256,8 +266,14 @@ process, or smuggling content past a human reviewer.
   `truncated_sheet` warnings.
 
 #### T6c: Parser crashes on malformed input
-- XLS pre-scan rejects records that trip calamine's unchecked arithmetic (inverted
-  DIMENSIONS, inverted MULRK column ranges, out-of-range sheet offsets).
+- XLS pre-scan rejects records that trip calamine's unchecked reads and arithmetic
+  (inverted or empty DIMENSIONS, inverted or full-range MULRK, out-of-range sheet
+  offsets, truncated globals records, SST strings cut mid-header or followed by an
+  empty CONTINUE, MERGECELLS overruns, short defined-name tokens), following calamine
+  past embedded chart substreams. Formula token streams are neutralised (`cce = 0`;
+  only cached values render). calamine reads a container rebuilt from the exact
+  stream scanned, so its own CFB reader cannot see different bytes.
+- Found and kept fixed by nightly fuzzing ([Fuzzing](fuzzing.md), `xls_biff` target).
 - XML: depth capped at 256, tree built iteratively, unclosed elements tolerated.
 - Parsers run under `catch_unwind` (defence in depth; only effective with
   `panic = "unwind"`, which the workspace release profile uses so the CLI and the
@@ -297,6 +313,9 @@ process, or smuggling content past a human reviewer.
   `xlsx_bomb_in_unreferenced_entry_rejected`, `max_input_size_honoured_for_office_documents`
 - `xls_huge_dimensions_rejected`, `xls_far_apart_cells_rejected`,
   `xls_inverted_dimensions_rejected_not_panicking`, `xls_bad_sheet_offset_rejected`,
+  `xls_truncated_records_rejected_before_calamine`, `xls_records_after_embedded_substream_scanned`,
+  `xls_malformed_formula_tokens_neutralised`, `xls_truncated_formula_record_rejected`,
+  `xls_truncated_defined_name_token_rejected`, `xls_valid_records_still_accepted`,
   `ods_repeated_rows_and_columns_rejected`,
   `spreadsheet_integration::xlsx_sparse_far_cell_does_not_allocate_grid`
 - `docx_billion_laughs_not_expanded`, `docx_external_entity_not_resolved`,
@@ -314,15 +333,17 @@ process, or smuggling content past a human reviewer.
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
   `spreadsheet_integration::xlsm_with_vba_project_extracts_values_only`
 
-### T7: Text and Markdown Input
+### T7: Text, Markdown and CSV Input
 
-**Description**: Plain text or Markdown carrying terminal escapes, NULs, invalid encodings,
+**Description**: Plain text, Markdown or CSV/TSV carrying terminal escapes, NULs, invalid encodings,
 raw HTML (`<script>`, event handlers) or pathological nesting.
 
 **Impact**: Medium -- raw HTML passed through re-introduces T1; deep nesting can crash.
 
 **Mitigations**:
-- Text and Markdown are never sniffed; a content type or extension must select them
+- CSV/TSV reading stops at `max_sheet_rows`; fields past `max_sheet_cols` are never stored
+  (a 5 MB row of commas allocates two cells)
+- Text, Markdown and CSV are never sniffed; a content type or extension must select them
 - Decoding is total: invalid UTF-8/UTF-16 is replaced (U+FFFD) with an `invalid_utf8` warning
 - C0 controls (except tab/newline) and DEL are dropped before parsing
 - Markdown is re-parsed (pulldown-cmark) into the IR; raw HTML is never copied. HTML blocks
@@ -341,6 +362,8 @@ in a `.txt`) is emitted as `Node::Text` and escaped by the renderer (S17), like 
 - `security_input_size_limit`, `security_output_bounded_by_input`
 - `security_text_and_markdown_share_limits` (timeout, `max_nodes`)
 - `security_plain_text_markup_is_escaped`
+- `csv_integration::security_*`: row/column caps, unterminated quotes, control characters,
+  random bytes always yield well-formed table rows
 
 ### T8: Malicious PDFs
 
@@ -428,7 +451,9 @@ at an LLM that consumes the extracted Markdown.
 - HTML: elements with `hidden` (not `until-found`), `aria-hidden="true"`, or an
   inline `style` declaring `display:none`, `visibility:hidden|collapse`,
   `opacity:0` or `font-size:0`; `<template>` always. Applies to list items, table
-  rows and cells too (a hidden cell stays empty to keep column alignment).
+  rows and cells too (a hidden cell stays empty to keep column alignment), and to
+  subtrees flattened past `max_nesting_depth` (the nesting pre-scan checks raw
+  attributes of tags it drops; entity-encoded values there are not decoded).
 - DOCX: runs with direct `w:vanish`; `hidden_content_skipped` warning with a count.
 - Spreadsheets: hidden sheets already skipped (T6e).
 
@@ -437,7 +462,18 @@ positioning, white-on-white via CSS), and `w:vanish` inherited from a character
 style, is not detected.
 
 **Test Coverage**: `hidden_content::*`,
+`html_security::hidden_content_does_not_leak_past_max_depth`,
 `html_integration::exclude_selector_applies_to_list_items_and_table_parts`
+
+### Extension points (embedder code)
+
+Transforms, element rules and custom `FormatParser`s are embedder code or
+configuration, trusted like the host program; untrusted documents cannot
+register them. Untrusted bytes still reach a custom parser, so it owns its own
+limits. markkit keeps its guarantees around it: `max_input_size` is checked
+first, a panic becomes `Error::Parser` (with `panic = "unwind"`), the deadline
+(`limits.timeout`) is checked when it returns, and output goes through the
+shared renderer under `max_output_size` (`tests/registry.rs`).
 
 ## Resource Limits
 
@@ -459,7 +495,7 @@ style, is not detected.
 | PDF decoded total / interpreted content | 256 MiB | `max_pdf_decoded_size(usize)` | Pre-scan; interpretation budget |
 | PDF pages | 10 000 | `max_pdf_pages(usize)` | Page loop (truncate + warn) |
 | PDF form XObject depth | 8 | Hardcoded `MAX_FORM_DEPTH` | `Do` operator |
-| Rows / columns per sheet | 10 000 / 256 | `max_sheet_rows`, `max_sheet_cols` | While collecting cells (truncate + warn) |
+| Rows / columns per sheet or CSV table | 10 000 / 256 | `max_sheet_rows`, `max_sheet_cols` | While collecting cells (truncate + warn) |
 
 ## Malicious Input Categories
 
@@ -506,9 +542,10 @@ style, is not detected.
 | S15 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
 | S16 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
 | S17 | Rendered markdown has no raw HTML, no non-allowlisted link/image scheme, and document text cannot create Markdown structure | `output_safety::*` (pulldown-cmark oracle + proptests) |
-| S18 | Text and Markdown output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*` |
+| S18 | Text, Markdown and CSV/TSV output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*`, `csv_integration::security_*` |
 | S19 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
 | S20 | Hidden content is not rendered by default | `hidden_content::*` |
+| S21 | HTML parse time is linear in input whatever the nesting; flattened deep subtrees never emit non-content (script/style/template) text | `html_security::deep_*_is_linear`, `script_and_style_bodies_do_not_leak_past_max_depth` |
 
 ## See also
 

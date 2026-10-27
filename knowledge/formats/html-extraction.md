@@ -134,12 +134,28 @@ Trimming at render time:
 Limit: `limits.max_nesting_depth` (default 256, clamped to `HARD_MAX_NESTING_DEPTH` = 512)
 
 Behavior at depth limit:
-- `convert_children`: extracts all descendant text via `.text().collect()`, trims, emits as single `Text` node
-- `convert_element`: same -- flattens subtree to trimmed text
-- `collect_inline`: same -- flattens subtree to trimmed text
+- `convert_children`: flattens the subtree to its text (`flat_text`: iterative, skips the
+  content of non-content elements such as `script`, `style`, `template`, `form`, and of
+  hidden elements unless `include_hidden_content`), trims,
+  emits a single `Text` node
+- `convert_element`, `collect_inline`: same
 - Empty text at depth limit -> elided
 
-Prevents stack overflow on adversarial nesting. Tested with 1000 nested `<div>` elements.
+Before html5ever runs, `html::nesting::cap_nesting` pre-scans the raw HTML and drops start
+tags (and paired end tags) that would nest deeper than `max_nesting_depth + 8`, keeping their
+text; non-content elements past the cap, and hidden ones (raw-attribute check with the
+walker's T9 rules, entities not decoded) unless `include_hidden_content`, are dropped whole. html5ever's tree builder is
+quadratic in depth (most start tags scan the open-element stack), so this keeps parsing
+linear. Comments, quoted attributes and raw-text elements are skipped; void and optional-end
+elements (`p`, `li`, `td`, ...) are not counted; table parts close implicitly. Input that
+never reaches the cap is passed through unchanged (no copy).
+
+Tables use direct structure only: header = first `<tr>` of the first direct `<thead>`; body
+= direct `<tr>` children and `<tr>` children of direct `<tbody>` sections. Rows of nested
+tables stay in the nested table.
+
+Prevents stack overflow and super-linear time on adversarial nesting. Tested with 64 000
+nested `<div>`s, 20 000 unclosed nested tables, and script/style past the limit.
 
 ## Exclude Selector Defaults
 

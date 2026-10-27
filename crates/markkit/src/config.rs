@@ -48,6 +48,8 @@ pub struct MarkkitBuilder {
     /// Declarative HTML element rules, tried in order before the built-in
     /// mapping (see [`crate::rules`]).
     pub html_rules: Vec<crate::rules::HtmlRule>,
+    /// Custom format parsers, consulted before the built-ins (see [`crate::registry`]).
+    pub parsers: crate::registry::ParserRegistry,
 }
 
 impl Default for MarkkitBuilder {
@@ -75,6 +77,7 @@ impl Default for MarkkitBuilder {
             transforms: Default::default(),
             main_content: false,
             html_rules: Vec::new(),
+            parsers: Default::default(),
         }
     }
 }
@@ -149,6 +152,13 @@ impl MarkkitBuilder {
     ) -> Self {
         self.html_rules
             .push(crate::rules::HtmlRule::new(selector, action));
+        self
+    }
+
+    /// Register a custom format parser; it runs instead of the built-in one
+    /// for the formats it handles or the inputs it claims.
+    pub fn parser(mut self, p: impl crate::registry::FormatParser + 'static) -> Self {
+        self.parsers.push(p);
         self
     }
 
