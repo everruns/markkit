@@ -134,12 +134,28 @@ Trimming at render time:
 Limit: `limits.max_nesting_depth` (default 256, clamped to `HARD_MAX_NESTING_DEPTH` = 512)
 
 Behavior at depth limit:
-- `convert_children`: extracts all descendant text via `.text().collect()`, trims, emits as single `Text` node
-- `convert_element`: same -- flattens subtree to trimmed text
-- `collect_inline`: same -- flattens subtree to trimmed text
+- `convert_children`: flattens the subtree to its text (`flat_text`: iterative, skips the
+  content of non-content elements such as `script`, `style`, `template`, `form`, and of
+  hidden elements unless `include_hidden_content`), trims,
+  emits a single `Text` node
+- `convert_element`, `collect_inline`: same
 - Empty text at depth limit -> elided
 
-Prevents stack overflow on adversarial nesting. Tested with 1000 nested `<div>` elements.
+Before html5ever runs, `html::nesting::cap_nesting` pre-scans the raw HTML and drops start
+tags (and paired end tags) that would nest deeper than `max_nesting_depth + 8`, keeping their
+text; non-content elements past the cap, and hidden ones (raw-attribute check with the
+walker's T9 rules, entities not decoded) unless `include_hidden_content`, are dropped whole. html5ever's tree builder is
+quadratic in depth (most start tags scan the open-element stack), so this keeps parsing
+linear. Comments, quoted attributes and raw-text elements are skipped; void and optional-end
+elements (`p`, `li`, `td`, ...) are not counted; table parts close implicitly. Input that
+never reaches the cap is passed through unchanged (no copy).
+
+Tables use direct structure only: header = first `<tr>` of the first direct `<thead>`; body
+= direct `<tr>` children and `<tr>` children of direct `<tbody>` sections. Rows of nested
+tables stay in the nested table.
+
+Prevents stack overflow and super-linear time on adversarial nesting. Tested with 64 000
+nested `<div>`s, 20 000 unclosed nested tables, and script/style past the limit.
 
 ## Exclude Selector Defaults
 
@@ -154,6 +170,14 @@ are skipped entirely (no children processed).
 
 Note: `script`, `style`, `noscript` are also in the non-content element list in the parser,
 providing defense-in-depth.
+
+## Hidden Content
+
+Elements a reader never sees are skipped by default (threat model T9): `hidden`
+(except `until-found`), `aria-hidden="true"`, inline `display:none`,
+`visibility:hidden|collapse`, `opacity:0`, `font-size:0`, and `<template>`.
+`include_hidden_content(true)` renders them. Exclude selectors and the hidden check
+also apply to `<li>`, `<tr>`, `<th>` and `<td>`; an excluded cell renders empty.
 
 ## Content Extraction Strategies
 
@@ -176,6 +200,31 @@ providing defense-in-depth.
      full body. Inside the chosen content, unlikely subtrees are dropped as well.
   Headings above the article container (page `<h1>`) are usually outside it; the title is in
   `Extraction::title`. Fixture: `news_page.html` -> `news_page.main.md`.
+
+## Element Rules
+
+`MarkkitBuilder::html_rule(selector, ElementAction)` (or `html_rules` from
+JSON; CLI `--rules file.json`) maps matching elements without code. Rules are
+compiled once per parse; an invalid selector fails with `Error::HtmlParse`.
+They run after `exclude_selectors` and before every built-in mapping
+(including figure, footnote and math handling), in block and inline context;
+the first matching rule wins.
+
+| `action` | Result |
+|----------|--------|
+| `skip` | Element and content dropped |
+| `unwrap` | Element ignored, children converted in place |
+| `heading` (`level`) | `Heading` (level clamped 1-6) from inline content |
+| `paragraph` | `Paragraph` from inline content |
+| `block_quote` (`title?`) | `BlockQuote` of block content, optional `**title**` first line (callouts) |
+| `code_block` (`language?`) | `CodeBlock` from raw text |
+| `inline_code` | `InlineCode` from collapsed text |
+| `bold`, `italic` | Inline emphasis |
+| `text` | Collapsed text only |
+
+Empty results are elided like built-ins. At the nesting limit (`limits.max_nesting_depth`) rules are ignored and
+the subtree is flattened as usual. Rule files are embedder configuration,
+trusted like code; untrusted HTML cannot add rules.
 
 ## Page Metadata
 

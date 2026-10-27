@@ -483,3 +483,191 @@ pub fn rezip(bytes: &[u8], drop: &[&str], add: &[(&str, &[u8])]) -> Vec<u8> {
 pub fn xls(sheets: &[XlsSheet]) -> Vec<u8> {
     xls_from_stream(&biff8_workbook(sheets))
 }
+
+// ─── XLSB (BIFF12 records in an OPC ZIP) ────────────────────────────
+
+/// Append a BIFF12 record (1–2 byte type, 7-bit varint size).
+pub fn biff12(out: &mut Vec<u8>, typ: u16, data: &[u8]) {
+    if typ < 0x80 {
+        out.push(typ as u8);
+    } else {
+        out.push((typ & 0x7F) as u8 | 0x80);
+        out.push((typ >> 7) as u8);
+    }
+    let mut n = data.len();
+    loop {
+        let b = (n & 0x7F) as u8;
+        n >>= 7;
+        if n == 0 {
+            out.push(b);
+            break;
+        }
+        out.push(b | 0x80);
+    }
+    out.extend_from_slice(data);
+}
+
+/// `XLWideString`.
+pub fn wide(s: &str) -> Vec<u8> {
+    let units: Vec<u16> = s.encode_utf16().collect();
+    let mut v = (units.len() as u32).to_le_bytes().to_vec();
+    v.extend(units.iter().flat_map(|u| u.to_le_bytes()));
+    v
+}
+
+/// Worksheet part with inline strings (`BrtCellSt`) and numbers (`BrtCellReal`).
+pub fn xlsb_sheet(rows: &[Vec<Cell>]) -> Vec<u8> {
+    let mut d = Vec::new();
+    biff12(&mut d, 0x0081, &[]); // BrtBeginSheet
+    biff12(&mut d, 0x0094, &[0; 16]); // BrtWsDim
+    biff12(&mut d, 0x0091, &[]); // BrtBeginSheetData
+    for (r, row) in rows.iter().enumerate() {
+        biff12(&mut d, 0x0000, &(r as u32).to_le_bytes());
+        for (c, cell) in row.iter().enumerate() {
+            let mut rec = (c as u32).to_le_bytes().to_vec();
+            rec.extend_from_slice(&0u32.to_le_bytes());
+            match cell {
+                Cell::S(s) => {
+                    rec.extend(wide(s));
+                    biff12(&mut d, 0x0006, &rec);
+                }
+                Cell::Str(s) => {
+                    rec.extend(wide(s));
+                    biff12(&mut d, 0x0006, &rec);
+                }
+                Cell::N(n) => {
+                    rec.extend_from_slice(&n.to_le_bytes());
+                    biff12(&mut d, 0x0005, &rec);
+                }
+                Cell::B(b) => {
+                    rec.push(u8::from(*b));
+                    biff12(&mut d, 0x0004, &rec);
+                }
+                Cell::Empty => {}
+            }
+        }
+    }
+    biff12(&mut d, 0x0092, &[]); // BrtEndSheetData
+    biff12(&mut d, 0x0082, &[]); // BrtEndSheet
+    d
+}
+
+/// Build an XLSB from sheets (hidden sheets honoured), plus extra raw entries.
+pub fn xlsb_with(sheets: &[Sheet], extra: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut wb = Vec::new();
+    biff12(&mut wb, 0x0083, &[]); // BrtBeginBook
+    biff12(&mut wb, 0x008F, &[]); // BrtBeginBundleShs
+    let mut rels = String::new();
+    let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
+    for (i, s) in sheets.iter().enumerate() {
+        let n = i + 1;
+        let mut rec = u32::from(s.hidden).to_le_bytes().to_vec();
+        rec.extend_from_slice(&(n as u32).to_le_bytes());
+        rec.extend(wide(&format!("rId{n}")));
+        rec.extend(wide(&s.name));
+        biff12(&mut wb, 0x009C, &rec);
+        rels.push_str(&format!(r#"<Relationship Id="rId{n}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet{n}.bin"/>"#));
+        entries.push((format!("xl/worksheets/sheet{n}.bin"), xlsb_sheet(&s.rows)));
+    }
+    biff12(&mut wb, 0x0090, &[]); // BrtEndBundleShs
+    biff12(&mut wb, 0x0084, &[]); // BrtEndBook
+    let rels = format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">{rels}</Relationships>"#
+    );
+    let root_rels = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.bin"/></Relationships>"#;
+    let mut all: Vec<(String, Vec<u8>)> = vec![
+        ("_rels/.rels".into(), root_rels.as_bytes().to_vec()),
+        ("xl/workbook.bin".into(), wb),
+        ("xl/_rels/workbook.bin.rels".into(), rels.into_bytes()),
+    ];
+    all.extend(entries);
+    for (n, d) in extra {
+        all.push((n.to_string(), d.to_vec()));
+    }
+    let refs: Vec<(&str, &[u8])> = all
+        .iter()
+        .map(|(n, d)| (n.as_str(), d.as_slice()))
+        .collect();
+    zip_bytes(&refs)
+}
+
+pub fn xlsb(sheets: &[Sheet]) -> Vec<u8> {
+    xlsb_with(sheets, &[])
+}
+
+// ─── PDF ────────────────────────────────────────────────────────────
+
+/// Zlib-compress (for `/FlateDecode` streams).
+pub fn zlib(data: &[u8]) -> Vec<u8> {
+    miniz_oxide::deflate::compress_to_vec_zlib(data, 9)
+}
+
+/// A stream object body: `<< dict /Length n >> stream … endstream`.
+pub fn pdf_stream(dict: &str, data: &[u8]) -> Vec<u8> {
+    let mut out = format!("<< {dict} /Length {} >>\nstream\n", data.len()).into_bytes();
+    out.extend_from_slice(data);
+    out.extend_from_slice(b"\nendstream");
+    out
+}
+
+/// Assemble a PDF from object bodies (object `i + 1` = `objects[i]`) with a
+/// correct xref table. Object 1 must be the catalog.
+pub fn pdf_bytes_with_trailer(objects: &[Vec<u8>], trailer_extra: &str) -> Vec<u8> {
+    let mut out = b"%PDF-1.7\n%\xE2\xE3\xCF\xD3\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, body) in objects.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend(format!("{} 0 obj\n", i + 1).bytes());
+        out.extend_from_slice(body);
+        out.extend_from_slice(b"\nendobj\n");
+    }
+    let xref = out.len();
+    out.extend(format!("xref\n0 {}\n0000000000 65535 f \n", objects.len() + 1).bytes());
+    for off in offsets {
+        out.extend(format!("{off:010} 00000 n \n").bytes());
+    }
+    out.extend(
+        format!(
+            "trailer\n<< /Size {} /Root 1 0 R {trailer_extra} >>\nstartxref\n{xref}\n%%EOF\n",
+            objects.len() + 1
+        )
+        .bytes(),
+    );
+    out
+}
+
+pub fn pdf_bytes(objects: &[Vec<u8>]) -> Vec<u8> {
+    pdf_bytes_with_trailer(objects, "")
+}
+
+/// Single- or multi-page PDF; each page's content uses `/F1` = Helvetica
+/// (WinAnsi). Objects: 1 catalog, 2 pages, 3 font, then (page, content) pairs.
+pub fn pdf_pages(contents: &[&str]) -> Vec<u8> {
+    pdf_pages_with(contents, "/F1 3 0 R", &[])
+}
+
+/// Like [`pdf_pages`] with a custom font resource dict body and extra objects
+/// appended after the pages (numbered from `4 + 2 * contents.len()`).
+pub fn pdf_pages_with(contents: &[&str], fonts: &str, extra: &[Vec<u8>]) -> Vec<u8> {
+    let n = contents.len();
+    let kids: Vec<String> = (0..n).map(|i| format!("{} 0 R", 4 + 2 * i)).collect();
+    let mut objs = vec![
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        format!("<< /Type /Pages /Kids [{}] /Count {n} >>", kids.join(" ")).into_bytes(),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"
+            .to_vec(),
+    ];
+    for (i, c) in contents.iter().enumerate() {
+        objs.push(
+            format!(
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << {fonts} >> /XObject << /X1 {} 0 R >> >> /Contents {} 0 R >>",
+                4 + 2 * n,
+                5 + 2 * i
+            )
+            .into_bytes(),
+        );
+        objs.push(pdf_stream("", c.as_bytes()));
+    }
+    objs.extend(extra.iter().cloned());
+    pdf_bytes(&objs)
+}

@@ -44,6 +44,11 @@ Markkit processes untrusted input from the internet. Key threats:
 - **Mitigation**: Markdown re-parsed into the IR; raw HTML never copied (HTML blocks go through the HTML parser)
 - See [Threat Model](threat-model.md) T7
 
+### TM-PDF: Malicious PDFs
+- **Mitigation**: Every stream decode-checked against size limits before parsing (object streams included); unverifiable filters and encrypted files refused
+- **Mitigation**: Interpretation budget (form XObject reuse), form depth limit, page cap
+- **Residual**: invisible text (OCR layers) is extracted; see [Threat Model](threat-model.md) T8
+
 ### TM-MEM: Memory exhaustion
 - **Mitigation**: Streaming processing where possible
 - **Mitigation**: Memory budgets for large documents

@@ -256,3 +256,49 @@ fn limit_flags_enforced() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("max_output_size"), "stderr: {stderr}");
 }
+
+#[test]
+fn extract_with_rules_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let page = dir.path().join("page.html");
+    std::fs::write(
+        &page,
+        r#"<div class="note">Careful</div><div class="ad">Buy</div>"#,
+    )
+    .unwrap();
+    let rules = dir.path().join("rules.json");
+    std::fs::write(
+        &rules,
+        r#"[{"selector": ".note", "action": "block_quote", "title": "Note"},
+            {"selector": ".ad", "action": "skip"}]"#,
+    )
+    .unwrap();
+
+    let output = markkit_bin()
+        .args(["extract", "--file", page.to_str().unwrap()])
+        .args(["--rules", rules.to_str().unwrap()])
+        .output()
+        .expect("failed to run markkit");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim_end(),
+        "> **Note**\n>\n> Careful"
+    );
+}
+
+#[test]
+fn extract_with_bad_rules_file_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let rules = dir.path().join("rules.json");
+    std::fs::write(&rules, r#"[{"selector": "p", "action": "exec"}]"#).unwrap();
+    let output = markkit_bin()
+        .args(["extract", "--stdin", "--rules", rules.to_str().unwrap()])
+        .output()
+        .expect("failed to run markkit");
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("invalid rules file"));
+}

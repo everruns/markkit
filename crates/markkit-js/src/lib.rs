@@ -52,6 +52,9 @@ pub struct MarkkitOptions {
     pub allowed_hosts: Option<Vec<String>>,
     /// Maximum redirects `extractUrl` follows (default 5).
     pub max_redirects: Option<u32>,
+    pub max_pdf_pages: Option<u32>,
+    pub max_pdf_stream_size: Option<f64>,
+    pub max_pdf_decoded_size: Option<f64>,
 }
 
 /// Format hints for `extractDocument`.
@@ -193,6 +196,15 @@ fn markkit(options: Option<MarkkitOptions>) -> napi::Result<markkit::Markkit> {
     }
     if let Some(v) = o.max_redirects {
         b = b.max_redirects(v as usize);
+    }
+    if let Some(v) = o.max_pdf_pages {
+        b = b.max_pdf_pages(v as usize);
+    }
+    if let Some(v) = o.max_pdf_stream_size {
+        b = b.max_pdf_stream_size(to_u64(v, "maxPdfStreamSize")? as usize);
+    }
+    if let Some(v) = o.max_pdf_decoded_size {
+        b = b.max_pdf_decoded_size(to_u64(v, "maxPdfDecodedSize")? as usize);
     }
     Ok(b.build())
 }

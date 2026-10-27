@@ -45,6 +45,7 @@ test("baseUrl and mainContent options", () => {
 test("invalid numeric options are rejected", () => {
   assert.throws(() => m.extractHtmlSync("<p>x</p>", { maxArchiveTotalSize: -1 }), /invalid options/);
   assert.throws(() => m.extractHtmlSync("<p>x</p>", { maxSpreadsheetCells: 1.5 }), /invalid options/);
+  assert.throws(() => m.extractHtmlSync("<p>x</p>", { maxPdfDecodedSize: -1 }), /invalid options/);
   assert.throws(() => m.extractHtmlSync("<p>x</p>", { timeout: -1 }), /invalid options/);
   assert.throws(() => m.extractHtmlSync("<p>x</p>", { timeout: NaN }), /invalid options/);
 });
@@ -55,7 +56,7 @@ test("extractDocument returns metadata", async () => {
   assert.equal(out.format, "html");
   assert.deepEqual(out.warnings, []);
   assert.equal(out.title ?? null, null);
-  assert.throws(() => m.extractDocumentSync(Buffer.from("%PDF-1.7"), { fileName: "a.pdf" }), /Unsupported/);
+  assert.throws(() => m.extractDocumentSync(Buffer.from("PK"), { fileName: "a.pptx" }), /Unsupported/);
 });
 
 test("extractDocument exposes page metadata", () => {

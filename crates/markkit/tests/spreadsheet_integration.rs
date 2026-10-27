@@ -385,11 +385,148 @@ fn xlsx_without_package_relationships_still_parses() {
     assert_eq!(e.markdown, "## S\n\n| h |\n| --- |\n| v |\n");
 }
 
+// ─── XLSB ───────────────────────────────────────────────────────────
+
+const XLSB_CT: &str = "application/vnd.ms-excel.sheet.binary.macroEnabled.12";
+
+fn fixture(name: &str) -> Vec<u8> {
+    std::fs::read(format!(
+        "{}/tests/fixtures/{name}",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap()
+}
+
 #[test]
 fn xlsb_content_type_is_not_xlsx() {
-    let ct = "application/vnd.ms-excel.sheet.binary.macroEnabled.12";
-    assert_eq!(Format::from_content_type(ct), Format::Xlsb);
+    assert_eq!(Format::from_content_type(XLSB_CT), Format::Xlsb);
     assert_eq!(Format::from_file_name("book.xlsb"), Format::Xlsb);
+}
+
+#[test]
+fn xlsb_generated_workbook() {
+    let bytes = xlsb(&[
+        Sheet::new(
+            "People",
+            vec![
+                vec![S("Name"), S("Age"), S("Member")],
+                vec![S("Ann"), N(30.0), B(true)],
+                vec![S("Bob|Jr"), N(41.5), B(false)],
+            ],
+        ),
+        Sheet::new("Empty", vec![]),
+    ]);
+    for hint in [
+        DocumentHint::default(),
+        DocumentHint::content_type(XLSB_CT),
+        DocumentHint::file_name("book.xlsb"),
+        // Mislabelled: the container is sniffed.
+        DocumentHint::content_type(XLSX_CT),
+    ] {
+        let e = Markkit::builder()
+            .build()
+            .extract_document_sync(&bytes, hint)
+            .unwrap();
+        assert_eq!(e.format, Format::Xlsb, "{hint:?}");
+        assert_eq!(
+            e.markdown,
+            "## People\n\n| Name | Age | Member |\n| --- | --- | --- |\n| Ann | 30 | true |\n| Bob\\|Jr | 41.5 | false |\n"
+        );
+        assert_eq!(e.stats.sheets, Some(1));
+        assert_eq!(e.stats.rows, Some(2));
+    }
+}
+
+#[test]
+fn xlsb_real_workbook_with_dates_and_duration() {
+    let e = extract(&fixture("xlsb/date.xlsb"));
+    assert_eq!(e.format, Format::Xlsb);
+    assert_eq!(
+        e.markdown,
+        "## Sheet1\n\n| 2021-01-01 | 15 |\n| --- | --- |\n| 2021-01-02 | 16 |\n| 255:10:10 | 17 |\n"
+    );
+}
+
+#[test]
+fn xlsb_real_workbook_mixed_types_and_shared_strings() {
+    let e = extract(&fixture("xlsb/issues.xlsb"));
+    assert!(e.warnings.is_empty(), "{:?}", e.warnings);
+    assert!(e.markdown.starts_with(
+        "## datatypes\n\n| 1 |\n| --- |\n| 1.5 |\n| ab |\n| false |\n| test |\n| 2016-10-20 |\n"
+    ));
+    assert!(
+        e.markdown
+            .contains("## issue2\n\n| 1 | a |\n| --- | --- |\n| 2 | b |\n| 3 | c |\n")
+    );
+    assert!(e.markdown.contains("| ☺ |"));
+    assert!(e.markdown.contains("| àâéêèçöïî«» |"));
+    // VBA project is present in the file but never rendered.
+    assert!(!e.markdown.to_lowercase().contains("vba"));
+}
+
+#[test]
+fn xlsb_hidden_sheet_skipped_by_default() {
+    let mut hidden = Sheet::new("Secret", vec![vec![S("h")], vec![S("pw")]]);
+    hidden.hidden = true;
+    let bytes = xlsb(&[Sheet::new("Open", vec![vec![S("h")], vec![S("v")]]), hidden]);
+    let e = extract(&bytes);
+    assert!(!e.markdown.contains("Secret"), "{}", e.markdown);
+    assert!(
+        e.warnings
+            .iter()
+            .any(|w| w.starts_with("hidden_sheet_skipped:"))
+    );
+    let m = Markkit::builder().include_hidden_sheets(true).build();
+    assert!(extract_with(&m, &bytes).markdown.contains("## Secret"));
+}
+
+#[test]
+fn xlsb_caps_and_title() {
+    let rows: Vec<Vec<Cell>> = (0..20).map(|i| vec![N(f64::from(i)); 10]).collect();
+    let core = b"<cp:coreProperties><dc:title>Binary Book</dc:title></cp:coreProperties>";
+    let bytes = xlsb_with(&[Sheet::new("Big", rows)], &[("docProps/core.xml", core)]);
+    let m = Markkit::builder()
+        .max_sheet_rows(3)
+        .max_sheet_cols(2)
+        .build();
+    let e = extract_with(&m, &bytes);
+    assert_eq!(e.title.as_deref(), Some("Binary Book"));
+    assert_eq!(e.stats.rows, Some(3));
+    assert_eq!(
+        e.warnings
+            .iter()
+            .filter(|w| w.starts_with("truncated_sheet:"))
+            .count(),
+        2,
+        "{:?}",
+        e.warnings
+    );
+}
+
+#[test]
+fn xlsb_missing_and_truncated_sheet_parts_warn() {
+    let bytes = xlsb(&[Sheet::new("S", vec![vec![S("h")], vec![S("v")]])]);
+    // Sheet part removed.
+    let gone = rezip(&bytes, &["xl/worksheets/sheet1.bin"], &[]);
+    let e = extract(&gone);
+    assert!(
+        e.warnings.iter().any(|w| w.starts_with("sheet_error:")),
+        "{:?}",
+        e.warnings
+    );
+    // Sheet part cut mid-record (the end records take 6 bytes).
+    let sheet = xlsb_sheet(&[vec![S("h")], vec![S("value")]]);
+    let cut = rezip(
+        &bytes,
+        &["xl/worksheets/sheet1.bin"],
+        &[("xl/worksheets/sheet1.bin", &sheet[..sheet.len() - 8])],
+    );
+    let e = extract(&cut);
+    assert!(
+        e.warnings.iter().any(|w| w.starts_with("sheet_error:")),
+        "{:?}",
+        e.warnings
+    );
 }
 
 // ─── Provenance ──────────────────────────────────────────────────────

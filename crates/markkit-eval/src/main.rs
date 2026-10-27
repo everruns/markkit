@@ -1,22 +1,23 @@
-use anyhow::Result;
-use clap::Parser;
+// markkit-eval: mira eval study host.
+//
+// Advertises markkit's evals to the `mira` CLI over stdio:
+//
+//     mira list --study-bin markkit-eval
+//     mira run --study-bin markkit-eval markkit_extract
+//     mira run --study-bin markkit-eval markkit_extract --tag news --format html --out report.html
+//
+// The `#[eval]` wrappers live in the bin crate so their inventory registrations
+// are guaranteed to link into this binary; the work is in
+// `markkit_eval::mira_study`. See knowledge/operations/eval.md.
 
-#[derive(Parser)]
-#[command(name = "markkit-eval", about = "Evaluate markkit extraction quality")]
-struct Cli {
-    /// Provider (anthropic, openai)
-    #[arg(long, default_value = "anthropic")]
-    provider: String,
+use markkit_eval::mira_study;
+use mira::{Eval, eval};
 
-    /// Evaluation dataset path
-    #[arg(long)]
-    dataset: Option<String>,
+#[eval]
+fn markkit_extract() -> Eval {
+    mira_study::extract_eval()
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let _cli = Cli::parse();
-    // TODO: Implement evaluation harness
-    println!("markkit-eval: evaluation harness not yet implemented");
-    Ok(())
+fn main() -> std::io::Result<()> {
+    mira::Study::registered().serve_blocking()
 }

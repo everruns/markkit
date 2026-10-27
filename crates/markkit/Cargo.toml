@@ -16,7 +16,7 @@ readme = "../../README.md"
 [features]
 default = ["html"]
 html = ["dep:scraper", "dep:html5ever", "dep:ego-tree", "dep:url"]
-pdf = []
+pdf = ["dep:hayro-syntax", "dep:miniz_oxide"]
 docx = ["dep:zip", "dep:quick-xml"]
 spreadsheet = ["dep:calamine", "dep:zip", "dep:quick-xml", "dep:cfb"]
 markdown = ["dep:pulldown-cmark"]
@@ -55,6 +55,10 @@ quick-xml = { workspace = true, optional = true }
 calamine = { workspace = true, optional = true }
 cfb = { workspace = true, optional = true }
 
+# PDF (optional)
+hayro-syntax = { workspace = true, optional = true }
+miniz_oxide = { workspace = true, optional = true }
+
 # Markdown (optional)
 pulldown-cmark = { workspace = true, optional = true }
 
@@ -79,6 +83,7 @@ criterion.workspace = true
 tower = { workspace = true }
 zip = { workspace = true }
 cfb = { workspace = true }
+miniz_oxide = { workspace = true }
 
 [[example]]
 name = "basic"
