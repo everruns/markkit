@@ -41,7 +41,8 @@ that renders as headings, links, code fences or tables).
 - Output is markdown text with no HTML pass-through, enforced at render time by
   `render/escape.rs` for every format (the IR keeps raw text):
   - Text escapes `` ` * [ ] < ~ | ``, `_` at word boundaries, entity-like `&`, a
-    trailing `\` or `!`, and block markers (`# > - + =`, `1.`/`1)`) at line start.
+    trailing `\` or `!`, and block markers at line start: `> - =` always, `#` runs,
+    `+` and `1.`/`1)` only before whitespace or the end of the text run.
     Newlines inside text become spaces.
   - Link schemes allowlisted (`http`, `https`, `mailto`, `tel`, `ftp`, relative);
     image schemes `http`, `https`, relative and raster `data:image/*`. Others are

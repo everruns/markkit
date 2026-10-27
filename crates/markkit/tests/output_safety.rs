@@ -125,6 +125,42 @@ fn line_start_block_markers_are_escaped() {
 }
 
 #[test]
+fn line_start_marker_lookalikes_render_verbatim() {
+    // Not block markers: no whitespace after `#`, `+`, or the ordered `.`/`)`.
+    for s in [
+        "4.6 out of 5 stars",
+        "3.14 is pi",
+        "1)x",
+        "#hashtag",
+        "##tag",
+        "+1 for this",
+        "2024.10.27 release",
+    ] {
+        let md = render(vec![para(vec![text(s)])]);
+        assert_eq!(md, format!("{s}\n"), "{s:?} over-escaped");
+        assert_eq!(block_tags(&md), vec!["Paragraph"], "{s:?} -> {md:?}");
+    }
+}
+
+#[test]
+fn line_start_marker_at_run_end_stays_escaped() {
+    // The next inline node may start with whitespace and complete the marker.
+    for (a, b) in [
+        ("1.", " x"),
+        ("#", " h"),
+        ("##", " h"),
+        ("+", " li"),
+        ("7)", "\tx"),
+    ] {
+        let md = render(vec![para(vec![text(a), text(b)])]);
+        assert_eq!(block_tags(&md), vec!["Paragraph"], "{a:?}+{b:?} -> {md:?}");
+        let md = render(vec![para(vec![text(a)])]);
+        assert_eq!(block_tags(&md), vec!["Paragraph"], "{a:?} -> {md:?}");
+        assert_eq!(visible_text(&md), a, "{a:?} -> {md:?}");
+    }
+}
+
+#[test]
 fn line_start_after_hard_break_is_escaped() {
     let md = render(vec![para(vec![
         text("a"),

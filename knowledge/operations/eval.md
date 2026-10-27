@@ -152,7 +152,7 @@ collapsed to one column and dropped every `<td>`, fixed by IR v2 row-header
   question title and body are dropped (forum 81% default vs 62%).
 - **`main_content` on the wiki page** keeps the TOC, `[edit]` links and
   categories.
-- **Over-escaping** (since #23): a paragraph starting `4.6 out of 5` renders
+- **Over-escaping** (since #23, fixed 2026-10-27): a paragraph starting `4.6 out of 5` renders
   `4\.6 ...`; `4.6` is not an ordered-list marker (needs `4.` + space), so the
   backslash is noise for text consumers (commerce, both modes; before #23
   main_content passed the page).
