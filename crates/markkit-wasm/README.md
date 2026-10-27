@@ -1,7 +1,8 @@
 # @everruns/markkit-wasm
 
-Markkit compiled to WebAssembly: extract clean Markdown from HTML, DOCX and
-spreadsheets (XLSX/XLSM, XLS, ODS) in the **browser and any JavaScript runtime**:
+Markkit compiled to WebAssembly: extract clean Markdown from HTML, DOCX,
+spreadsheets (XLSX/XLSM, XLS, ODS), plain text and Markdown in the **browser
+and any JavaScript runtime**:
 edge workers (Cloudflare Workers, Vercel Edge, Deno Deploy), Node, Deno and Bun.
 
 Single-threaded `wasm-bindgen` build: no `SharedArrayBuffer`, no `COOP`/`COEP`
@@ -37,10 +38,11 @@ console.log(doc.title, doc.format, doc.markdown);
 
 ## Options
 
-`maxInputSize`, `preserveLinks`, `preserveImages`, `includeSelectors`,
+`maxInputSize`, `maxOutputSize`, `maxNodes`, `maxNestingDepth`, `baseUrl`, `mainContent`, `preserveLinks`, `preserveImages`, `includeSelectors`,
 `excludeSelectors` (added to the defaults), `maxArchiveEntries`,
 `maxArchiveEntrySize`, `maxArchiveTotalSize`, `maxSheetRows`, `maxSheetCols`,
-`maxSpreadsheetCells`, `includeHiddenSheets`. Unknown keys throw.
+`maxSpreadsheetCells`, `includeHiddenSheets`. Unknown keys throw. There is no
+`timeout`: wasm has no clock, so bound time in the host (e.g. a Worker timeout).
 
 ## Agent tool
 

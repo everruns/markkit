@@ -364,6 +364,18 @@ fn include_selector() {
 }
 
 #[test]
+fn exclude_selector_applies_to_list_items_and_table_parts() {
+    let html = r#"<ul><li class="ad">AD</li><li>keep</li></ul>
+<table><tr><th>h1</th><th>h2</th></tr><tr class="ad"><td>AD</td><td>AD</td></tr>
+<tr><td class="ad">AD</td><td>cell</td></tr></table>"#;
+    let md = convert_with(html, |b| b.exclude_selector(".ad"));
+    assert!(!md.contains("AD"), "{md}");
+    assert!(md.contains("- keep"), "{md}");
+    // Excluded cell stays as an empty cell so columns keep alignment.
+    assert!(md.contains("|  | cell |"), "{md}");
+}
+
+#[test]
 fn exclude_selector_custom() {
     let html = r#"<p>Keep this</p><div class="ad">Buy stuff</div><p>And this</p>"#;
     let md = convert_with(html, |b| b.exclude_selector(".ad"));
@@ -571,13 +583,14 @@ fn ordered_list_default_start() {
 #[test]
 fn link_empty_url() {
     let md = convert(r#"<p><a href="">text</a></p>"#);
-    assert!(md.contains("[text]()"));
+    // Empty destination is written as `<>` so a title cannot parse as the URL.
+    assert!(md.contains("[text](<>)"), "{md}");
 }
 
 #[test]
 fn image_empty_src() {
     let md = convert(r#"<img src="" alt="x">"#);
-    assert!(md.contains("![x]()"));
+    assert!(md.contains("![x](<>)"), "{md}");
 }
 
 #[test]
@@ -929,20 +942,20 @@ fn sources_do_not_change_markdown() {
 #[test]
 fn mathml_with_tex_annotation() {
     let html = r#"<p>Area <math><semantics><mi>π</mi><annotation encoding="application/x-tex">\pi r^2</annotation></semantics></math> here.</p>"#;
-    assert_eq!(convert(html), "Area $\\pi r^2$ here.\n");
+    assert_eq!(convert(html), "Area $`\\pi r^2`$ here.\n");
 }
 
 #[test]
 fn katex_inline_and_display() {
     let html = r#"<p>Inline <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span>x2</span></span></span>.</p>
     <div class="katex-display"><span class="katex"><span class="katex-mathml"><math display="block"><semantics><annotation encoding="application/x-tex">E = mc^2</annotation></semantics></math></span><span class="katex-html">E=mc2</span></span></div>"#;
-    assert_eq!(convert(html), "Inline $x^2$.\n\n$$\nE = mc^2\n$$\n");
+    assert_eq!(convert(html), "Inline $`x^2`$.\n\n```math\nE = mc^2\n```\n");
 }
 
 #[test]
 fn mathjax_container() {
     let html = r#"<mjx-container class="MathJax" display="true"><mjx-math>visual</mjx-math><mjx-assistive-mml><math display="block"><annotation encoding="application/x-tex">\int f</annotation></math></mjx-assistive-mml></mjx-container>"#;
-    assert_eq!(convert(html), "$$\n\\int f\n$$\n");
+    assert_eq!(convert(html), "```math\n\\int f\n```\n");
 }
 
 #[test]
@@ -955,7 +968,7 @@ fn mathml_without_tex_keeps_text() {
 fn math_dollars_cannot_break_out() {
     let html =
         r#"<p><math><annotation encoding="application/x-tex">a$ **b** $c</annotation></math></p>"#;
-    assert_eq!(convert(html), "$a\\$ **b** \\$c$\n");
+    assert_eq!(convert(html), "$`a$ **b** $c`$\n");
 }
 
 // ─── Transforms ──────────────────────────────────────────────────────
@@ -1027,4 +1040,75 @@ fn transforms_apply_to_extract_document_html() {
         )
         .unwrap();
     assert_eq!(e.markdown, "# x\n");
+}
+
+// ─── Element rules ───────────────────────────────────────────────────
+
+#[test]
+fn element_rules_map_selectors() {
+    use markkit::rules::ElementAction as A;
+    let html = r#"<div class="note"><p>Read this.</p></div>
+        <div class="ad">Buy now</div>
+        <span class="kbd">Ctrl</span>
+        <div class="title">Big title</div>
+        <div class="shell">ls -la
+pwd</div>
+        <section class="wrap"><p>Inner</p></section>
+        <p>Press <span class="key">Enter</span>, <span class="hl">wow</span>.</p>"#;
+    let md = convert_with(html, |b| {
+        b.html_rule(
+            ".note",
+            A::BlockQuote {
+                title: Some("Note".into()),
+            },
+        )
+        .html_rule(".ad", A::Skip)
+        .html_rule(".title", A::Heading { level: 2 })
+        .html_rule(
+            ".shell",
+            A::CodeBlock {
+                language: Some("sh".into()),
+            },
+        )
+        .html_rule(".wrap", A::Unwrap)
+        .html_rule(".key", A::InlineCode)
+        .html_rule(".hl", A::Bold)
+    });
+    assert_eq!(
+        md,
+        "> **Note**\n>\n> Read this.\n\nCtrl\n\n## Big title\n\n```sh\nls -la\npwd\n```\n\nInner\n\nPress `Enter`, **wow**.\n"
+    );
+}
+
+#[test]
+fn first_matching_rule_wins_and_overrides_builtin() {
+    use markkit::rules::ElementAction as A;
+    let md = convert_with("<h1>Title</h1><p>x</p>", |b| {
+        b.html_rule("h1", A::Paragraph).html_rule("h1", A::Skip)
+    });
+    assert_eq!(md, "Title\n\nx\n");
+}
+
+#[test]
+fn invalid_rule_selector_is_an_error() {
+    let m = Markkit::builder()
+        .html_rule("p[", markkit::rules::ElementAction::Skip)
+        .build();
+    let err = m.extract_html_sync("<p>x</p>").unwrap_err();
+    assert!(matches!(err, markkit::Error::HtmlParse(_)), "{err}");
+}
+
+#[test]
+fn rules_load_from_json() {
+    let rules: Vec<markkit::rules::HtmlRule> = serde_json::from_str(
+        r#"[{"selector": ".warn", "action": "block_quote", "title": "Warning"}]"#,
+    )
+    .unwrap();
+    let mut b = Markkit::builder();
+    b.html_rules = rules;
+    let md = b
+        .build()
+        .extract_html_sync(r#"<aside class="warn">Hot</aside>"#)
+        .unwrap();
+    assert_eq!(md, "> **Warning**\n>\n> Hot\n");
 }

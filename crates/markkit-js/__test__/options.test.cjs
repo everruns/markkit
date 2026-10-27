@@ -24,9 +24,30 @@ test("input size limit", () => {
   assert.throws(() => m.extractHtmlSync("<p>too long</p>", { maxInputSize: 4 }), /Resource limit/);
 });
 
+test("resource limit options", () => {
+  const html = "<p>hello world</p>".repeat(200);
+  assert.throws(() => m.extractHtmlSync(html, { maxOutputSize: 100 }), /max_output_size/);
+  assert.throws(() => m.extractHtmlSync(html, { maxNodes: 50 }), /max_nodes/);
+  assert.throws(() => m.extractHtmlSync(html, { timeout: 0 }), /timeout/);
+  assert.ok(m.extractHtmlSync(html, { timeout: 1e300, maxOutputSize: 1 << 20, maxNodes: 10000 }).includes("hello"));
+  const deep = "<blockquote>".repeat(20) + "<p>Deep</p>" + "</blockquote>".repeat(20);
+  assert.ok(!m.extractHtmlSync(deep, { maxNestingDepth: 5 }).includes("> ".repeat(6)));
+});
+
+test("baseUrl and mainContent options", () => {
+  const page = '<body><nav><a href="/n">menu</a></nav><article><h1>T</h1>' + "<p>Long article text, with commas, and more words here.</p>".repeat(8) + '<p><a href="/a">rel</a></p></article><aside>side</aside></body>';
+  const md = m.extractHtmlSync(page, { baseUrl: "https://x.test/d/", mainContent: true });
+  assert.ok(md.includes("(https://x.test/a)"));
+  assert.ok(!md.includes("side"));
+  assert.ok(m.extractHtmlSync(page).includes("side"));
+});
+
 test("invalid numeric options are rejected", () => {
   assert.throws(() => m.extractHtmlSync("<p>x</p>", { maxArchiveTotalSize: -1 }), /invalid options/);
   assert.throws(() => m.extractHtmlSync("<p>x</p>", { maxSpreadsheetCells: 1.5 }), /invalid options/);
+  assert.throws(() => m.extractHtmlSync("<p>x</p>", { maxPdfDecodedSize: -1 }), /invalid options/);
+  assert.throws(() => m.extractHtmlSync("<p>x</p>", { timeout: -1 }), /invalid options/);
+  assert.throws(() => m.extractHtmlSync("<p>x</p>", { timeout: NaN }), /invalid options/);
 });
 
 test("extractDocument returns metadata", async () => {
@@ -35,7 +56,7 @@ test("extractDocument returns metadata", async () => {
   assert.equal(out.format, "html");
   assert.deepEqual(out.warnings, []);
   assert.equal(out.title ?? null, null);
-  assert.throws(() => m.extractDocumentSync(Buffer.from("%PDF-1.7"), { fileName: "a.pdf" }), /Unsupported/);
+  assert.throws(() => m.extractDocumentSync(Buffer.from("PK"), { fileName: "a.pptx" }), /Unsupported/);
 });
 
 test("extractDocument exposes page metadata", () => {

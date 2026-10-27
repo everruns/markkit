@@ -52,6 +52,9 @@ calamine = "0.37"       # Excel/spreadsheet (XLSX/XLS/ODS)
 zip = { version = "9", default-features = false, features = ["deflate"] }  # OOXML/ODF containers; matches calamine's zip
 quick-xml = "0.42"      # DOCX/ODS XML parsing
 cfb = "0.15"            # XLS (OLE2) container pre-scan
+hayro-syntax = { version = "0.8", default-features = false, features = ["std"] }  # PDF object/content parsing (no image decoders)
+miniz_oxide = "0.9"     # Bounded FlateDecode for PDF streams
+pulldown-cmark = { version = "0.13", default-features = false }  # Markdown input; output-safety test oracle
 
 # Logging
 tracing = "0.1"

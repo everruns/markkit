@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - XLSB (Excel binary workbook) support in the `spreadsheet` feature, via a new bounds-checked
   reader: values, shared strings, dates and durations, hidden-sheet skipping, row/column caps and
   the workbook title. Previously XLSB returned `UnsupportedFormat`.
+- `markkit mcp`: Model Context Protocol server over stdio exposing the `markkit` tool
+  (`tools/list`, `tools/call`). URL fetching keeps the SSRF guard; `--no-url` keeps it offline,
+  the `extract` limit flags and `--max-output-chars` bound each call.
+- Plain text input (`text/plain`, `.txt`), always on: paragraphs and hard breaks through the IR,
+  UTF-8/UTF-16 BOM decoding, control characters dropped, `invalid_utf8` warning on lossy decode.
+- Markdown input (`markdown` feature, in `all_formats`; `text/markdown`, `.md`): re-parsed with
+  pulldown-cmark and rendered back, so raw HTML never passes through. Front matter `title:` or the
+  first `# ` heading becomes `Extraction::title`. Available in the CLI, Python, Node and WASM packages; `format` serializes as
+  `"text"` and `"markdown"`.
 - HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
   `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
   canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and
@@ -22,13 +31,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `<figure>`/`<figcaption>` and table spans/alignment. Row-header `<th>` cells in table bodies are
   no longer dropped.
 - `Document.ir_version` (`markkit::ir::IR_VERSION = 2`) is serialized with the IR JSON.
+- PDF extraction (`pdf` feature, on in the CLI `all_formats` build and the Python/Node bindings):
+  the text layer becomes paragraphs, font-size headings and bullet lists, with `/Title` as
+  `Extraction::title` and `stats.pages`. Pure Rust (hayro-syntax), no OCR. Fonts map through
+  `ToUnicode` CMaps, simple-font encodings and `/Differences`. New warnings `truncated_pdf`,
+  `pdf_unmapped_font`, `pdf_no_text`. Encrypted PDFs return `UnsupportedFormat`.
+- `Limits` fields `max_pdf_pages` (10 000), `max_pdf_stream_size` (64 MiB) and
+  `max_pdf_decoded_size` (256 MiB), also on the builder, as CLI flags (`--max-pdf-pages`, ...),
+  Python `Limits(...)` arguments and Node options (`maxPdfPages`, ...). PDF extraction also
+  honours `timeout` and `max_output_size`.
 - Relative URL resolution: links, images and metadata URLs resolve against the new
   `MarkkitBuilder::base_url` (CLI `--base-url`) and the page's `<base href>`; `extract_url` uses
   the final URL after redirects. Absolute and fragment-only URLs are left unchanged.
-- Math: `$tex$` and `$$` blocks from MathML (`application/x-tex` annotation), KaTeX and MathJax output.
+- Math: `` $`tex`$ `` and ` ```math ` blocks from MathML (`application/x-tex` annotation), KaTeX and MathJax output.
 - IR transforms: `MarkkitBuilder::transform(..)` runs `Transform` passes after parsing and before
   rendering, for every format. Built-ins `transform::NormalizeHeadings` and `transform::DropImages`;
   `transform::from_fn` for closures; `Document::visit` / `visit_mut` to walk the tree.
+- Declarative HTML element rules: `MarkkitBuilder::html_rule(".note", ElementAction::BlockQuote { .. })`
+  maps elements by CSS selector to skip / unwrap / heading / paragraph / block quote (with title) /
+  code / emphasis / text, before the built-in mapping. CLI: `markkit extract --rules rules.json`.
 - JSON Schema for the IR at `schema/ir.schema.json`; `json-schema` feature adds `markkit::ir::json_schema()`.
 - Per-block provenance: `MarkkitBuilder::track_sources(true)` records a `Source` on each IR block
   (HTML element XPath, DOCX body block index, spreadsheet sheet and A1 range) for citations.
@@ -51,6 +72,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the article body of a web page, Readability-style, dropping navigation, sidebars, comments, share
   bars and related-link blocks. Off by default; include selectors take precedence; falls back to the
   full page when no article-like block is found.
+- Every resource limit is configurable outside Rust: CLI flags (`--max-output-size`, `--timeout`,
+  `--max-nesting-depth`, `--max-nodes`, archive / sheet / redirect flags; `--max-size` kept as an
+  alias of `--max-input-size`), Python `markkit.Limits(...)` passed as `limits=` to every function,
+  and flat Node.js and WASM option keys (`maxOutputSize`, `maxNodes`, `maxNestingDepth`, plus
+  `timeout` in Node.js).
+- Node.js and WASM options gain `baseUrl` and `mainContent`; Python `extract_html_sync_with_options`
+  gains `base_url=` and `main_content=`, matching the core builder.
 
 ### Security
 
@@ -60,6 +88,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   thousands of rows); `max_nodes` (5 000 000) caps parsed HTML DOM / DOCX XML nodes;
   `max_nesting_depth` (256) is configurable, with a hard ceiling of 512 that keeps deep input off
   the host stack. Violations return `Error::ResourceLimit` naming the limit.
+- PDF decompression bombs: every stream in the file is decoded under the PDF size limits before
+  the parser runs (object streams included), interpreted content is budgeted so reused form
+  XObjects cannot multiply work, and stream filters that cannot be verified are refused.
 
 - `extract_url` (CLI, Python and Node `extract_url` too) now refuses non-public destinations by default:
   loopback, private, link-local / cloud metadata and other reserved addresses, checked on the URL,
@@ -67,6 +98,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (`max_redirects`, default 5), the body is bounded by `max_input_size` while streaming, and the whole
   fetch by `max_processing_secs`. New builder options `allow_private_networks(true)` and `allow_host(..)`;
   refusals return the new `Error::UrlBlocked`.
+- Markdown output is now escaped: text from documents can no longer emit raw HTML (`<img onerror>`),
+  links, emphasis, headings or list markers; code blocks use a fence longer than any backtick run
+  inside. Links with schemes other than `http`, `https`, `mailto`, `tel`, `ftp` or relative URLs
+  (e.g. `javascript:`) and images other than `http`/`https`/relative/raster `data:image/*` are
+  dropped, keeping their text. URLs percent-encode `( ) < > \` and spaces.
+- Markdown structure from documents can no longer break out of its container: code blocks in table
+  cells and headings are flattened to one line, list item bodies are indented by the marker width
+  (nested content under `1.` items now nests correctly), and nested links render as text.
+- The JSON IR of DOCX and spreadsheet tables now holds raw text (pipes were pre-escaped before).
+- Math TeX (taken from page markup) renders as code, GitHub's `` $`tex`$ `` and ` ```math `
+  forms, instead of `$tex$` / `$$`, so it can no longer emit raw HTML or links in plain GFM.
+- Hidden content is skipped by default as a prompt-injection defence: HTML elements with `hidden`,
+  `aria-hidden="true"` or inline `display:none` / `visibility:hidden` / `opacity:0` / `font-size:0`,
+  `<template>`, and DOCX hidden (`w:vanish`) runs (warning `hidden_content_skipped`). Opt back in
+  with `include_hidden_content(true)`.
 
 ### Added
 
@@ -90,6 +136,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `TableCell` (`children`, `colspan`, `rowspan`) with an `alignments` field. Block variants gain a
   `source` field (use `..` in patterns, `Node::paragraph`/`Node::heading` to construct). DOCX `gridSpan` is
   carried as `colspan`.
+- `markkit-eval` is now a [mira](https://github.com/everruns/mira) eval study. `just eval` runs
+  `markkit_extract`, an offline extraction-quality eval over ten realistic HTML pages scored for
+  completeness, accuracy, formatting and noise (needs `cargo install mira-cli`). A `mode` axis
+  compares default extraction with `main_content`; dated results are committed in
+  `crates/markkit-eval/results/`.
 - Design docs moved from `specs/` to an OKF v0.2 knowledge bundle in `knowledge/`, validated in CI.
 - CI workflows declare read-only default permissions and do not persist checkout credentials.
 - CI runs every example; criterion benchmarks run with `just bench-criterion`.
@@ -110,6 +161,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - XLSX packages missing `_rels/.rels` no longer fail inside calamine.
 - Release builds use `panic = "unwind"`, so a parser panic becomes an error instead of aborting the
   CLI or the host Python/Node process.
+- Exclude selectors now apply to `<li>`, `<tr>`, `<th>` and `<td>`; they were ignored there.
 - Indented HTML (most real web pages) now keeps blank lines between blocks; previously
   headings, paragraphs, lists and tables after the first ran together with a leading space
   (`# A\n B` instead of `# A\n\nB`), which also broke headings and tables as markdown.

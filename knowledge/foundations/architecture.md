@@ -54,7 +54,7 @@ are trusted embedder code; the first error aborts and is returned as is
 | `markkit` | Core library – parsing, conversion, API |
 | `markkit-cli` | Command-line tool |
 | `markkit-bench` | Benchmark harness, results committed in `results/` |
-| `markkit-eval` | LLM-based quality evaluation |
+| `markkit-eval` | Extraction-quality eval study (mira) |
 | `markkit-python` | Python bindings (PyO3) |
 | `markkit-js` | Node.js bindings (NAPI-RS) |
 
@@ -68,6 +68,7 @@ Via `MarkkitBuilder`:
 - CSS selectors for include/exclude
 - Link and image preservation
 - Office-document limits (archive entries/sizes, sheet rows/cols, grid cells, hidden sheets)
+- Hidden content (`include_hidden_content`, default off): HTML hidden elements, DOCX hidden runs
 - URL fetch policy (`allow_private_networks`, `allow_host`, `max_redirects`)
 - Base URL for relative links, images and metadata URLs (`base_url`)
 - Provenance (`track_sources`): per-block `Source` in the IR (off by default)

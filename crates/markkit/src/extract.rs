@@ -15,12 +15,14 @@ pub struct Extraction {
     pub markdown: String,
     /// Document title when known: HTML `og:title` / JSON-LD / `<title>`; DOCX
     /// core properties or `Title` style; XLSX `docProps/core.xml`, ODS
-    /// `meta.xml`, XLS `SummaryInformation`.
+    /// `meta.xml`, XLS `SummaryInformation`; PDF `/Info /Title`;
+    /// Markdown front matter `title:` or first `# ` heading.
     pub title: Option<String>,
     /// Format the document was parsed as.
     pub format: Format,
     /// Non-fatal issues, each prefixed with a stable code
-    /// (`truncated_sheet:`, `hidden_sheet_skipped:`, `sheet_error:`).
+    /// (`truncated_sheet:`, `hidden_sheet_skipped:`, `sheet_error:`,
+    /// `truncated_pdf:`, `pdf_unmapped_font:`, `pdf_no_text:`, `invalid_utf8:`).
     pub warnings: Vec<String>,
     /// Format-specific counters.
     pub stats: ExtractionStats,
@@ -65,9 +67,9 @@ pub struct ExtractionStats {
     pub sheets: Option<usize>,
     /// Data rows rendered across all sheets (header rows excluded).
     pub rows: Option<usize>,
-    /// Non-empty paragraphs, headings and list items (DOCX).
+    /// Non-empty paragraphs, headings and list items (DOCX, plain text, Markdown).
     pub paragraphs: Option<usize>,
-    /// Tables (DOCX).
+    /// Tables (DOCX, Markdown).
     pub tables: Option<usize>,
 }
 
@@ -91,10 +93,6 @@ pub struct ParsedDocument {
 }
 
 impl ParsedDocument {
-    #[cfg_attr(
-        not(any(feature = "html", feature = "docx", feature = "spreadsheet")),
-        allow(dead_code)
-    )]
     fn new(document: Document, format: Format) -> Self {
         Self {
             document,
@@ -113,7 +111,13 @@ impl ParsedDocument {
     }
 
     /// [`ParsedDocument::render`] with `max_output_size` and the deadline enforced.
-    #[cfg(any(feature = "html", feature = "docx", feature = "spreadsheet"))]
+    #[cfg(any(
+        feature = "html",
+        feature = "docx",
+        feature = "spreadsheet",
+        feature = "pdf",
+        feature = "markdown"
+    ))]
     fn render_bounded(self, max_output: usize, budget: &Budget) -> crate::Result<Extraction> {
         let markdown = crate::render::MarkdownRenderer::new().render_bounded(
             &self.document,
@@ -138,7 +142,7 @@ impl ParsedDocument {
 /// Run a parser, converting a panic into an error (defence in depth for
 /// third-party parsers; only effective when built with `panic = "unwind"`, which
 /// markkit's own release profile uses).
-#[cfg(any(feature = "docx", feature = "spreadsheet"))]
+#[cfg(any(feature = "docx", feature = "spreadsheet", feature = "pdf"))]
 fn guarded<T>(
     what: &str,
     make_err: fn(String) -> Error,
@@ -226,7 +230,7 @@ impl Markkit {
         .map(|e| e.markdown)
     }
 
-    /// Convert a document (HTML, DOCX, XLSX/XLSB/XLS/ODS) to Markdown with metadata.
+    /// Convert a document (HTML, PDF, DOCX, XLSX/XLSB/XLS/ODS, plain text, Markdown) to Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
     /// `hint.file_name`, then magic bytes. Parsing is CPU-bound and runs inline;
@@ -259,15 +263,27 @@ impl Markkit {
         budget: &Budget,
     ) -> crate::Result<Extraction> {
         let parsed = self.parse_document_with(bytes, hint, budget)?;
-        #[cfg(any(feature = "html", feature = "docx", feature = "spreadsheet"))]
+        #[cfg(any(
+            feature = "html",
+            feature = "docx",
+            feature = "spreadsheet",
+            feature = "pdf",
+            feature = "markdown"
+        ))]
         {
             parsed.render_bounded(self.config.limits.max_output_size, budget)
         }
-        #[cfg(not(any(feature = "html", feature = "docx", feature = "spreadsheet")))]
+        #[cfg(not(any(
+            feature = "html",
+            feature = "docx",
+            feature = "spreadsheet",
+            feature = "pdf",
+            feature = "markdown"
+        )))]
         Ok(parsed.render())
     }
 
-    /// Parse a document (HTML, DOCX, XLSX/XLS/ODS) into the IR without
+    /// Parse a document (HTML, DOCX, XLSX/XLS/ODS, plain text, Markdown) into the IR without
     /// rendering. Same detection and errors as [`Markkit::extract_document`].
     pub async fn parse_document(
         &self,
@@ -296,11 +312,13 @@ impl Markkit {
 
         match Format::detect(bytes, hint) {
             Format::Html => self.parse_html_doc(bytes, budget),
-            Format::Pdf => self.parse_pdf(bytes),
+            Format::Pdf => self.parse_pdf(bytes, budget),
             Format::Docx => self.parse_docx(bytes, budget),
             Format::Xlsx | Format::Xlsb | Format::Xls | Format::Ods => {
                 self.parse_spreadsheet(bytes, budget)
             }
+            Format::PlainText => self.parse_plain_text(bytes, budget),
+            Format::Markdown => self.parse_markdown(bytes, budget),
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
@@ -333,6 +351,37 @@ impl Markkit {
         ))
     }
 
+    fn parse_plain_text(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
+        let decoded = crate::text::decode(bytes);
+        let (mut doc, paragraphs) = crate::text::plain_to_ir(&decoded.text, budget)?;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, Format::PlainText);
+        p.warnings = decoded.warnings;
+        p.stats.paragraphs = Some(paragraphs);
+        Ok(p)
+    }
+
+    #[cfg(feature = "markdown")]
+    fn parse_markdown(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
+        let decoded = crate::text::decode(bytes);
+        let out = crate::markdown::parse(&decoded.text, &self.config, budget)?;
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, Format::Markdown);
+        p.title = out.title;
+        p.warnings = decoded.warnings;
+        p.stats.paragraphs = Some(out.paragraphs);
+        p.stats.tables = Some(out.tables);
+        Ok(p)
+    }
+
+    #[cfg(not(feature = "markdown"))]
+    fn parse_markdown(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
+        Err(Error::UnsupportedFormat(
+            "Markdown support requires the 'markdown' feature".to_string(),
+        ))
+    }
+
     #[cfg(feature = "docx")]
     fn parse_docx(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let out = guarded("DOCX", Error::DocxExtract, || {
@@ -342,6 +391,7 @@ impl Markkit {
         self.config.transforms.apply(&mut doc)?;
         let mut p = ParsedDocument::new(doc, Format::Docx);
         p.title = out.title;
+        p.warnings = out.warnings;
         p.stats.paragraphs = Some(out.paragraphs);
         p.stats.tables = Some(out.tables);
         Ok(p)
@@ -414,14 +464,23 @@ impl Markkit {
         )
     }
 
-    /// PDF extraction is not implemented yet; report it explicitly rather than
-    /// returning an empty (misleading) success.
-    fn parse_pdf(&self, _bytes: &[u8]) -> crate::Result<ParsedDocument> {
-        #[cfg(feature = "pdf")]
-        let msg = "PDF extraction is not implemented yet";
-        #[cfg(not(feature = "pdf"))]
-        let msg = "PDF support requires the 'pdf' feature";
-        Err(Error::UnsupportedFormat(msg.to_string()))
+    #[cfg(feature = "pdf")]
+    fn parse_pdf(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
+        let out = guarded("PDF", Error::PdfExtract, || {
+            crate::pdf::parse(bytes, &self.config, budget)
+        })?;
+        let mut p = ParsedDocument::new(out.doc, Format::Pdf);
+        p.title = out.title;
+        p.warnings = out.warnings;
+        p.stats.pages = Some(out.pages);
+        Ok(p)
+    }
+
+    #[cfg(not(feature = "pdf"))]
+    fn parse_pdf(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
+        Err(Error::UnsupportedFormat(
+            "PDF support requires the 'pdf' feature".to_string(),
+        ))
     }
 
     /// Access the current configuration.

@@ -16,6 +16,9 @@
 //!   and MathJax `<mjx-container>`) maps to `Math` / `MathBlock` using the
 //!   `application/x-tex` annotation; without one, the text content is kept as
 //!   plain text. KaTeX's visual HTML duplicate is dropped.
+//! - Element rules (`MarkkitBuilder::html_rule`, see `crate::rules`) are
+//!   compiled once per parser and tried before the built-in mapping in both
+//!   block and inline context; invalid selectors fail the parse.
 //! - `<figure>` becomes `Figure` only when it has a non-empty `<figcaption>`;
 //!   otherwise it stays a transparent container as before.
 
@@ -29,11 +32,58 @@ use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, Source, TableCell};
 use crate::limits::Budget;
+use crate::rules::ElementAction;
 
 use url::Url;
 
 use super::metadata::PageInfo;
 use super::{readability, urls};
+
+/// Hidden-content policy (threat model T9): an element a reader never sees is
+/// skipped unless `include_hidden_content(true)`. Only signals on the element
+/// itself count (`hidden`, `aria-hidden="true"`, inline `style`); stylesheet and
+/// class-based hiding (`.sr-only`, off-screen positioning) is not detected.
+fn is_hidden(el: &scraper::node::Element) -> bool {
+    if el
+        .attr("hidden")
+        .is_some_and(|v| !v.eq_ignore_ascii_case("until-found"))
+    {
+        return true;
+    }
+    if el
+        .attr("aria-hidden")
+        .is_some_and(|v| v.trim().eq_ignore_ascii_case("true"))
+    {
+        return true;
+    }
+    let Some(style) = el.attr("style") else {
+        return false;
+    };
+    style.split(';').any(|decl| {
+        let Some((prop, value)) = decl.split_once(':') else {
+            return false;
+        };
+        let prop = prop.trim().to_ascii_lowercase();
+        let value = value.to_ascii_lowercase();
+        let value = value.trim().trim_end_matches("!important").trim();
+        match prop.as_str() {
+            "display" => value == "none",
+            "visibility" => value == "hidden" || value == "collapse",
+            "opacity" | "font-size" => {
+                let num = value.trim_end_matches(|c: char| c.is_ascii_alphabetic() || c == '%');
+                num.parse::<f64>().is_ok_and(|n| n == 0.0)
+            }
+            _ => false,
+        }
+    })
+}
+
+/// Outcome of a matching element rule.
+enum RuleHit {
+    Skip,
+    Unwrap,
+    Node(Option<Node>),
+}
 
 /// HTML-spec clamps for table spans.
 const MAX_COLSPAN: u32 = 1000;
@@ -60,11 +110,32 @@ pub struct HtmlParser<'a> {
     sibling_index: RefCell<HashMap<NodeId, usize>>,
     /// Main-content mode: also drop "unlikely" subtrees (sidebars, share bars, ...).
     drop_unlikely: Cell<bool>,
+    /// Compiled element rules, in priority order.
+    rules: Vec<(Selector, ElementAction)>,
+    /// First invalid rule selector, reported by `parse`.
+    rule_error: Option<String>,
+}
+
+/// Compile rule selectors; keep the first invalid one for `parse` to report.
+fn compile_rules(config: &MarkkitBuilder) -> (Vec<(Selector, ElementAction)>, Option<String>) {
+    let mut rules = Vec::with_capacity(config.html_rules.len());
+    let mut rule_error = None;
+    for r in &config.html_rules {
+        match Selector::parse(&r.selector) {
+            Ok(sel) => rules.push((sel, r.action.clone())),
+            Err(e) => {
+                rule_error
+                    .get_or_insert_with(|| format!("invalid rule selector {:?}: {e}", r.selector));
+            }
+        }
+    }
+    (rules, rule_error)
 }
 
 impl<'a> HtmlParser<'a> {
     /// Parser with a fresh per-call budget (deadline starts now).
     pub fn new(config: &'a MarkkitBuilder) -> Self {
+        let (rules, rule_error) = compile_rules(config);
         Self {
             config,
             budget: BudgetRef::Owned(Budget::new(&config.limits)),
@@ -73,10 +144,13 @@ impl<'a> HtmlParser<'a> {
             base: urls::parse_base(config.base_url.as_deref()),
             sibling_index: RefCell::new(HashMap::new()),
             drop_unlikely: Cell::new(false),
+            rules,
+            rule_error,
         }
     }
 
     pub(crate) fn with_budget(config: &'a MarkkitBuilder, budget: &'a Budget) -> Self {
+        let (rules, rule_error) = compile_rules(config);
         Self {
             config,
             budget: BudgetRef::Borrowed(budget),
@@ -85,6 +159,8 @@ impl<'a> HtmlParser<'a> {
             base: urls::parse_base(config.base_url.as_deref()),
             sibling_index: RefCell::new(HashMap::new()),
             drop_unlikely: Cell::new(false),
+            rules,
+            rule_error,
         }
     }
 
@@ -111,6 +187,9 @@ impl<'a> HtmlParser<'a> {
     }
 
     fn parse_dom(&self, dom: &Html) -> Result<Document, Error> {
+        if let Some(e) = &self.rule_error {
+            return Err(Error::HtmlParse(e.clone()));
+        }
         self.for_document(dom).convert_dom(dom)
     }
 
@@ -125,6 +204,8 @@ impl<'a> HtmlParser<'a> {
             sibling_index: RefCell::new(HashMap::new()),
             base: urls::document_base(dom, self.base.clone()),
             drop_unlikely: Cell::new(false),
+            rules: self.rules.clone(),
+            rule_error: None,
         }
     }
 
@@ -229,6 +310,7 @@ impl<'a> HtmlParser<'a> {
     fn is_excluded(&self, el: &scraper::ElementRef<'_>, exclude: &[Selector]) -> bool {
         exclude.iter().any(|sel| sel.matches(el))
             || (self.drop_unlikely.get() && readability::is_unlikely(*el))
+            || (!self.config.include_hidden_content && is_hidden(el.value()))
     }
 
     fn convert_children(
@@ -266,6 +348,21 @@ impl<'a> HtmlParser<'a> {
                     if let Some(el) = scraper::ElementRef::wrap(child) {
                         if self.is_excluded(&el, exclude) {
                             continue;
+                        }
+                        match self.apply_rule(el, exclude, depth + 1) {
+                            Some(RuleHit::Skip) => continue,
+                            Some(RuleHit::Unwrap) => {
+                                self.convert_children(el, exclude, out, depth + 1);
+                                continue;
+                            }
+                            Some(RuleHit::Node(node)) => {
+                                if let Some(mut node) = node {
+                                    self.mark_source(&mut node, el);
+                                    out.push(node);
+                                }
+                                continue;
+                            }
+                            None => {}
                         }
                         let name = el.value().name();
                         // Captions are consumed by the enclosing figure
@@ -319,6 +416,13 @@ impl<'a> HtmlParser<'a> {
                 return None;
             }
             return Some(Node::Text(trimmed.to_string()));
+        }
+
+        match self.apply_rule(el, exclude, depth) {
+            Some(RuleHit::Skip) => return None,
+            Some(RuleHit::Unwrap) => return self.convert_container(el, exclude, depth),
+            Some(RuleHit::Node(node)) => return node,
+            None => {}
         }
 
         if let Some(m) = self.math_wrapper(el) {
@@ -505,9 +609,9 @@ impl<'a> HtmlParser<'a> {
             "hr" => Some(Node::ThematicBreak),
 
             // Skip non-content elements
-            "script" | "style" | "noscript" | "iframe" | "object" | "embed" | "form" | "input"
-            | "button" | "select" | "textarea" | "svg" | "canvas" | "video" | "audio"
-            | "source" | "track" | "map" | "area" => None,
+            "script" | "style" | "noscript" | "template" | "iframe" | "object" | "embed"
+            | "form" | "input" | "button" | "select" | "textarea" | "svg" | "canvas" | "video"
+            | "audio" | "source" | "track" | "map" | "area" => None,
 
             // Unknown element: try to extract inline content
             _ => {
@@ -524,6 +628,83 @@ impl<'a> HtmlParser<'a> {
                 }
             }
         }
+    }
+
+    /// First matching element rule, applied. `None` when no rule matches (or
+    /// at the depth limit, where the built-in flattening takes over).
+    fn apply_rule(
+        &self,
+        el: scraper::ElementRef<'_>,
+        exclude: &[Selector],
+        depth: usize,
+    ) -> Option<RuleHit> {
+        if self.rules.is_empty() || depth >= self.max_depth {
+            return None;
+        }
+        let action = self
+            .rules
+            .iter()
+            .find(|(sel, _)| sel.matches(&el))
+            .map(|(_, a)| a)?;
+        let inline = |wrap: fn(Vec<Node>) -> Node| {
+            let mut children = self.collect_inline(el, exclude, depth);
+            trim_edge_text(&mut children);
+            (!children.is_empty()).then(|| wrap(children))
+        };
+        let text = || {
+            collapse_whitespace(&el.text().collect::<String>())
+                .trim()
+                .to_string()
+        };
+        Some(match action {
+            ElementAction::Skip => RuleHit::Skip,
+            ElementAction::Unwrap => RuleHit::Unwrap,
+            ElementAction::Heading { level } => {
+                let mut children = self.collect_inline(el, exclude, depth);
+                trim_edge_text(&mut children);
+                RuleHit::Node((!children.is_empty()).then(|| Node::heading(*level, children)))
+            }
+            ElementAction::Paragraph => RuleHit::Node(inline(Node::paragraph)),
+            ElementAction::Bold => RuleHit::Node(inline(|children| Node::Bold { children })),
+            ElementAction::Italic => RuleHit::Node(inline(|children| Node::Italic { children })),
+            ElementAction::BlockQuote { title } => {
+                let mut nodes = Vec::new();
+                self.convert_children(el, exclude, &mut nodes, depth);
+                let mut children = normalize_blocks(nodes);
+                if !children.is_empty() && children.iter().all(Node::is_inline) {
+                    trim_edge_text(&mut children);
+                    children = vec![Node::paragraph(children)];
+                }
+                if let Some(t) = title.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+                    children.insert(
+                        0,
+                        Node::paragraph(vec![Node::Bold {
+                            children: vec![Node::Text(t.to_string())],
+                        }]),
+                    );
+                }
+                RuleHit::Node((!children.is_empty()).then_some(Node::BlockQuote {
+                    children,
+                    source: None,
+                }))
+            }
+            ElementAction::CodeBlock { language } => {
+                let code: String = el.text().collect();
+                RuleHit::Node((!code.trim().is_empty()).then(|| Node::CodeBlock {
+                    language: language.clone(),
+                    code,
+                    source: None,
+                }))
+            }
+            ElementAction::InlineCode => {
+                let t = text();
+                RuleHit::Node((!t.is_empty()).then_some(Node::InlineCode(t)))
+            }
+            ElementAction::Text => {
+                let t = text();
+                RuleHit::Node((!t.is_empty()).then_some(Node::Text(t)))
+            }
+        })
     }
 
     /// MathML or a KaTeX / MathJax wrapper around it.
@@ -794,8 +975,19 @@ impl<'a> HtmlParser<'a> {
                         if self.is_excluded(&child_el, exclude) {
                             continue;
                         }
-                        if let Some(node) = self.convert_element(child_el, exclude, depth + 1) {
-                            nodes.push(node);
+                        match self.apply_rule(child_el, exclude, depth + 1) {
+                            Some(RuleHit::Skip) => {}
+                            Some(RuleHit::Unwrap) => {
+                                nodes.extend(self.collect_inline(child_el, exclude, depth + 1));
+                            }
+                            Some(RuleHit::Node(node)) => nodes.extend(node),
+                            None => {
+                                if let Some(node) =
+                                    self.convert_element(child_el, exclude, depth + 1)
+                                {
+                                    nodes.push(node);
+                                }
+                            }
                         }
                     }
                 }
@@ -815,6 +1007,7 @@ impl<'a> HtmlParser<'a> {
         for child in list_el.children() {
             if let Some(el) = scraper::ElementRef::wrap(child)
                 && el.value().name() == "li"
+                && !self.is_excluded(&el, exclude)
             {
                 let mut children = Vec::new();
                 self.convert_children(el, exclude, &mut children, depth + 1);
@@ -874,6 +1067,9 @@ impl<'a> HtmlParser<'a> {
             };
 
         for tr in body_rows {
+            if self.is_excluded(&tr, exclude) {
+                continue;
+            }
             let row = row_cells(tr, &["td", "th"]);
             // A leading all-<th> row is the header.
             if headers.is_empty()
@@ -928,7 +1124,14 @@ impl<'a> HtmlParser<'a> {
                 n.min(MAX_ROWSPAN)
             }
         });
-        TableCell::new(self.collect_inline(cell, exclude, depth + 1)).with_span(colspan, rowspan)
+        // An excluded or hidden cell stays as an empty cell so columns keep
+        // their alignment.
+        let children = if self.is_excluded(&cell, exclude) {
+            Vec::new()
+        } else {
+            self.collect_inline(cell, exclude, depth + 1)
+        };
+        TableCell::new(children).with_span(colspan, rowspan)
     }
 }
 

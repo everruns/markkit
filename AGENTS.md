@@ -16,6 +16,7 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 - Small, incremental PR-sized changes
 - Write failing test before fixing bug
 - All input is untrusted: parsing changes need security tests
+- Breaking changes approved (pre-1.0): change public APIs, IR, CLI and bindings freely when it improves the design; no deprecation shims. Mark `**Breaking:**` in CHANGELOG and update knowledge
 
 ### Knowledge
 
@@ -30,7 +31,7 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 | formats/format-support | Formats, bytes-in API, detection order, DOCX + spreadsheet mapping |
 | integrations/tool-contract | `MarkkitTool` LLM tool (`tool` feature), Everruns toolkit contract |
 | security/security-model | One-page threat/invariant summary |
-| security/threat-model | Threats T1-T6, mitigations, test map, resource limits, invariants S1-S12 |
+| security/threat-model | Threats T1-T9, mitigations, test map, resource limits, invariants S1-S20 |
 | runtimes/python-package | PyO3 `markkit` module, maturin, PyPI |
 | runtimes/wasm-package | wasm-bindgen `@everruns/markkit-wasm`, browser/edge, build + tests |
 | runtimes/node-package | NAPI-RS `@everruns/markkit`, npm, binding parity table |
@@ -40,7 +41,7 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 | operations/maintenance | Maintenance invocation contract + checklist + workflow credential audit |
 | operations/release-process | Agent-driven release, crates.io + PyPI + npm |
 | operations/performance-results | Benchmark harness, metrics, committed results |
-| operations/eval | LLM-as-judge eval design (harness is a stub) |
+| operations/eval | mira eval study: dataset, checks, metrics, baseline |
 
 ### Documentation
 
@@ -86,7 +87,7 @@ just pre-pr        # Pre-PR checks
 | `markkit` | Core extraction library (HTML, DOCX, spreadsheets) |
 | `markkit-cli` | `markkit` CLI |
 | `markkit-bench` | Benchmark harness: ops/s, throughput, allocations; results committed |
-| `markkit-eval` | LLM evaluation harness (stub) |
+| `markkit-eval` | Extraction-quality eval, mira study (`just eval`) |
 | `markkit-python` | Python bindings (PyO3), module `markkit` |
 | `markkit-js` | Node.js bindings (NAPI-RS), package `@everruns/markkit` |
 | `markkit-wasm` | Browser/edge WebAssembly (wasm-bindgen), package `@everruns/markkit-wasm` |

@@ -1076,13 +1076,14 @@ mod tests {
 
     #[tokio::test]
     async fn unsupported_format_is_user_facing() {
-        let encoded = base64::engine::general_purpose::STANDARD.encode("%PDF-1.7");
+        // PPTX is detected but never supported, whatever features are on.
+        let encoded = base64::engine::general_purpose::STANDARD.encode("not a deck");
         let e = tool()
-            .execution(json!({"content_base64": encoded, "file_name": "a.pdf"}))
+            .execution(json!({"content_base64": encoded, "file_name": "a.pptx"}))
             .unwrap()
             .execute()
             .await
-            .expect_err("pdf unsupported");
+            .expect_err("pptx unsupported");
         assert!(e.is_user_facing());
     }
 

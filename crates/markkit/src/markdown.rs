@@ -1,0 +1,668 @@
+//! Markdown input: parse with pulldown-cmark into the IR, render back.
+//!
+//! Decisions:
+//! - Markdown is re-parsed, not passed through, so every output goes through
+//!   the same IR and renderer (and the same output-safety rules). Raw HTML is
+//!   never copied: HTML blocks go through the HTML parser when the `html`
+//!   feature is on (scripts/styles stripped), otherwise they are dropped;
+//!   inline HTML tags are dropped and the text between them kept.
+//! - Extensions map onto IR v2: GFM tables (with column alignment),
+//!   strikethrough, task lists (`ListItem::checked`), footnotes, definition
+//!   lists, YAML front matter. Front matter is not rendered; its `title:`
+//!   becomes the title, otherwise the first level-1 heading.
+//! - Soft line breaks become spaces (paragraphs reflow); hard breaks stay.
+//! - pulldown-cmark is iterative; the IR is built with an explicit stack and
+//!   capped at `limits.max_nesting_depth` open containers. Deeper content is
+//!   flattened into the deepest container so the recursive renderer cannot
+//!   overflow.
+//! - Shares the call's `Budget`: every event ticks the deadline, every start
+//!   tag counts against `max_nodes`, and HTML blocks use the same budget.
+
+use pulldown_cmark::{
+    Alignment as MdAlignment, CodeBlockKind, Event, HeadingLevel, MetadataBlockKind, Options,
+    Parser, Tag,
+};
+
+use crate::config::MarkkitBuilder;
+use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, TableCell};
+use crate::limits::Budget;
+
+/// Parsed Markdown document.
+pub(crate) struct ParsedMarkdown {
+    pub doc: Document,
+    pub title: Option<String>,
+    pub paragraphs: usize,
+    pub tables: usize,
+}
+
+enum Kind {
+    Root,
+    Para,
+    Heading(u8),
+    Quote,
+    List {
+        ordered: bool,
+        start: Option<u64>,
+    },
+    Item,
+    Code {
+        language: Option<String>,
+    },
+    Table {
+        alignments: Vec<Alignment>,
+    },
+    Head,
+    Row,
+    Cell,
+    Em,
+    Strong,
+    Strike,
+    Link {
+        url: String,
+        title: Option<String>,
+    },
+    Image {
+        src: String,
+    },
+    Footnote {
+        label: String,
+    },
+    DefList,
+    DefTerm,
+    DefDesc,
+    Html,
+    Meta,
+    /// Beyond `max_depth` or an unsupported container: children go to the parent.
+    Flat,
+}
+
+struct Frame {
+    kind: Kind,
+    nodes: Vec<Node>,
+    items: Vec<ListItem>,
+    cells: Vec<Vec<Node>>,
+    rows: Vec<Vec<Vec<Node>>>,
+    defs: Vec<DefinitionItem>,
+    /// Task list marker seen in this item.
+    checked: Option<bool>,
+    /// Code, image alt, raw HTML or front matter text.
+    text: String,
+}
+
+impl Frame {
+    fn new(kind: Kind) -> Self {
+        Self {
+            kind,
+            nodes: Vec::new(),
+            items: Vec::new(),
+            cells: Vec::new(),
+            rows: Vec::new(),
+            defs: Vec::new(),
+            checked: None,
+            text: String::new(),
+        }
+    }
+}
+
+/// What a finished frame hands to its parent.
+enum Out {
+    Nodes(Vec<Node>),
+    Item(ListItem),
+    Cell(Vec<Node>),
+    Row(Vec<Vec<Node>>),
+    Head(Vec<Vec<Node>>),
+    Term(Vec<Node>),
+    Desc(Vec<Node>),
+}
+
+struct Builder<'c> {
+    #[cfg_attr(not(feature = "html"), allow(dead_code))]
+    config: &'c MarkkitBuilder,
+    #[cfg_attr(not(feature = "html"), allow(dead_code))]
+    budget: &'c Budget,
+    /// Max open containers kept as structure (`limits.max_nesting_depth`).
+    max_depth: usize,
+    /// First error from a nested parser (HTML block); aborts the parse.
+    error: Option<crate::Error>,
+    stack: Vec<Frame>,
+    meta_title: Option<String>,
+    paragraphs: usize,
+    tables: usize,
+}
+
+/// Parse Markdown text into the IR.
+pub(crate) fn parse(
+    text: &str,
+    config: &MarkkitBuilder,
+    budget: &Budget,
+) -> crate::Result<ParsedMarkdown> {
+    let opts = Options::ENABLE_TABLES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_DEFINITION_LIST
+        | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS;
+    let mut b = Builder {
+        config,
+        budget,
+        max_depth: config.limits.nesting_depth(),
+        error: None,
+        stack: vec![Frame::new(Kind::Root)],
+        meta_title: None,
+        paragraphs: 0,
+        tables: 0,
+    };
+    for event in Parser::new_ext(text, opts) {
+        if budget.expired() {
+            return Err(budget.timeout_error());
+        }
+        if matches!(event, Event::Start(_)) {
+            budget.add_nodes(1)?;
+        }
+        b.event(event);
+        if let Some(e) = b.error.take() {
+            return Err(e);
+        }
+    }
+    while b.stack.len() > 1 {
+        b.end();
+    }
+    if let Some(e) = b.error.take() {
+        return Err(e);
+    }
+    let root = b.stack.pop().map(|f| f.nodes).unwrap_or_default();
+    let title = b.meta_title.or_else(|| first_h1(&root));
+    Ok(ParsedMarkdown {
+        doc: Document::new(root),
+        title,
+        paragraphs: b.paragraphs,
+        tables: b.tables,
+    })
+}
+
+impl Builder<'_> {
+    fn top(&mut self) -> &mut Frame {
+        self.stack.last_mut().expect("root frame")
+    }
+
+    fn event(&mut self, event: Event<'_>) {
+        match event {
+            Event::Start(tag) => self.start(tag),
+            Event::End(_) => self.end(),
+            Event::Text(t) => self.text(&t),
+            Event::Code(c) => self.push(Node::InlineCode(c.into_string())),
+            Event::Html(h) | Event::InlineHtml(h) => {
+                if matches!(self.top().kind, Kind::Html) {
+                    self.top().text.push_str(&h);
+                }
+            }
+            Event::SoftBreak => self.text(" "),
+            Event::HardBreak => self.push(Node::LineBreak),
+            Event::Rule => self.push(Node::ThematicBreak),
+            Event::TaskListMarker(done) => {
+                // Marker belongs to the innermost open item; text fallback when
+                // the item was flattened past `max_depth`.
+                match self
+                    .stack
+                    .iter_mut()
+                    .rev()
+                    .find(|f| matches!(f.kind, Kind::Item))
+                {
+                    Some(item) => item.checked = Some(done),
+                    None => self.text(if done { "[x] " } else { "[ ] " }),
+                }
+            }
+            Event::FootnoteReference(r) => self.push(Node::FootnoteReference {
+                label: r.into_string(),
+            }),
+            Event::InlineMath(m) | Event::DisplayMath(m) => {
+                self.push(Node::InlineCode(m.into_string()))
+            }
+        }
+    }
+
+    fn start(&mut self, tag: Tag<'_>) {
+        let kind = if self.stack.len() > self.max_depth {
+            Kind::Flat
+        } else {
+            match tag {
+                Tag::Paragraph => Kind::Para,
+                Tag::Heading { level, .. } => Kind::Heading(heading_level(level)),
+                Tag::BlockQuote(_) => Kind::Quote,
+                Tag::CodeBlock(kind) => Kind::Code {
+                    language: match kind {
+                        CodeBlockKind::Fenced(info) => info
+                            .split_whitespace()
+                            .next()
+                            .map(|s| s.chars().filter(|c| *c != '`').collect::<String>())
+                            .filter(|s| !s.is_empty()),
+                        CodeBlockKind::Indented => None,
+                    },
+                },
+                Tag::HtmlBlock => Kind::Html,
+                Tag::List(start) => Kind::List {
+                    ordered: start.is_some(),
+                    start,
+                },
+                Tag::Item => Kind::Item,
+                Tag::Table(aligns) => Kind::Table {
+                    alignments: aligns
+                        .into_iter()
+                        .map(|a| match a {
+                            MdAlignment::None => Alignment::None,
+                            MdAlignment::Left => Alignment::Left,
+                            MdAlignment::Center => Alignment::Center,
+                            MdAlignment::Right => Alignment::Right,
+                        })
+                        .collect(),
+                },
+                Tag::TableHead => Kind::Head,
+                Tag::TableRow => Kind::Row,
+                Tag::TableCell => Kind::Cell,
+                Tag::Emphasis => Kind::Em,
+                Tag::Strong => Kind::Strong,
+                Tag::Strikethrough => Kind::Strike,
+                Tag::Link {
+                    dest_url, title, ..
+                } => Kind::Link {
+                    url: dest_url.into_string(),
+                    title: Some(title.into_string()).filter(|t| !t.is_empty()),
+                },
+                Tag::Image { dest_url, .. } => Kind::Image {
+                    src: dest_url.into_string(),
+                },
+                Tag::FootnoteDefinition(label) => Kind::Footnote {
+                    label: label.into_string(),
+                },
+                Tag::DefinitionList => Kind::DefList,
+                Tag::DefinitionListTitle => Kind::DefTerm,
+                Tag::DefinitionListDefinition => Kind::DefDesc,
+                Tag::MetadataBlock(MetadataBlockKind::YamlStyle) => Kind::Meta,
+                _ => Kind::Flat,
+            }
+        };
+        self.stack.push(Frame::new(kind));
+    }
+
+    fn end(&mut self) {
+        if self.stack.len() <= 1 {
+            return;
+        }
+        let f = self.stack.pop().expect("non-root frame");
+        let out = match f.kind {
+            Kind::Root | Kind::Flat => Out::Nodes(f.nodes),
+            Kind::Para => {
+                self.paragraphs += 1;
+                Out::Nodes(vec![Node::paragraph(f.nodes)])
+            }
+            Kind::Heading(level) => {
+                self.paragraphs += 1;
+                Out::Nodes(vec![Node::heading(level, f.nodes)])
+            }
+            Kind::Quote => Out::Nodes(vec![Node::BlockQuote {
+                children: wrap_inline(f.nodes),
+                source: None,
+            }]),
+            Kind::List { ordered, start } => Out::Nodes(vec![Node::List {
+                ordered,
+                start,
+                items: f.items,
+                source: None,
+            }]),
+            Kind::Item => {
+                self.paragraphs += 1;
+                let has_block = f.nodes.iter().any(Node::is_block);
+                let children = if has_block {
+                    wrap_inline(f.nodes)
+                } else {
+                    f.nodes
+                };
+                Out::Item(match f.checked {
+                    Some(done) => ListItem::task(children, done),
+                    None => ListItem::new(children),
+                })
+            }
+            Kind::Code { language } => Out::Nodes(vec![Node::CodeBlock {
+                language,
+                code: f.text,
+                source: None,
+            }]),
+            Kind::Table { alignments } => {
+                self.tables += 1;
+                let cells = |row: Vec<Vec<Node>>| row.into_iter().map(TableCell::new).collect();
+                let mut nodes = vec![Node::Table {
+                    alignments,
+                    headers: cells(f.cells),
+                    rows: f.rows.into_iter().map(cells).collect(),
+                    source: None,
+                }];
+                nodes.extend(f.nodes);
+                Out::Nodes(nodes)
+            }
+            Kind::Head => Out::Head(f.cells),
+            Kind::Row => Out::Row(f.cells),
+            Kind::Cell => Out::Cell(f.nodes),
+            Kind::Em => Out::Nodes(vec![Node::Italic { children: f.nodes }]),
+            Kind::Strong => Out::Nodes(vec![Node::Bold { children: f.nodes }]),
+            Kind::Strike => Out::Nodes(vec![Node::Strikethrough { children: f.nodes }]),
+            Kind::Link { url, title } => Out::Nodes(vec![Node::Link {
+                url,
+                title,
+                children: f.nodes,
+            }]),
+            Kind::Image { src } => Out::Nodes(vec![Node::Image { src, alt: f.text }]),
+            Kind::Footnote { label } => Out::Nodes(vec![Node::FootnoteDefinition {
+                label,
+                children: wrap_inline(f.nodes),
+                source: None,
+            }]),
+            Kind::DefList => {
+                let mut nodes = Vec::new();
+                if !f.defs.is_empty() {
+                    nodes.push(Node::DefinitionList {
+                        items: f.defs,
+                        source: None,
+                    });
+                }
+                nodes.extend(f.nodes);
+                Out::Nodes(nodes)
+            }
+            Kind::DefTerm => Out::Term(f.nodes),
+            Kind::DefDesc => Out::Desc(wrap_inline(f.nodes)),
+            Kind::Html => Out::Nodes(self.html_block(&f.text)),
+            Kind::Meta => {
+                if self.meta_title.is_none() {
+                    self.meta_title = yaml_title(&f.text);
+                }
+                Out::Nodes(Vec::new())
+            }
+        };
+        self.accept(out);
+    }
+
+    /// Hand a finished frame's output to the new top frame.
+    fn accept(&mut self, out: Out) {
+        let parent = self.top();
+        match (&parent.kind, out) {
+            (Kind::List { .. }, Out::Item(item)) => parent.items.push(item),
+            (Kind::List { .. }, Out::Nodes(nodes)) if !nodes.is_empty() => {
+                parent.items.push(ListItem::new(nodes))
+            }
+            (Kind::Head | Kind::Row, Out::Cell(cell)) => parent.cells.push(cell),
+            (Kind::Table { .. }, Out::Head(cells)) => parent.cells = cells,
+            (Kind::Table { .. }, Out::Row(cells)) => parent.rows.push(cells),
+            (Kind::DefList, Out::Term(term)) => parent.defs.push(DefinitionItem::new(term, vec![])),
+            (Kind::DefList, Out::Desc(desc)) => match parent.defs.last_mut() {
+                Some(item) => item.definitions.push(desc),
+                None => parent.defs.push(DefinitionItem::new(vec![], vec![desc])),
+            },
+            (_, Out::Nodes(nodes) | Out::Cell(nodes) | Out::Term(nodes) | Out::Desc(nodes)) => {
+                self.push_all(nodes)
+            }
+            (_, Out::Item(item)) => self.push_all(item.children),
+            (_, Out::Row(cells) | Out::Head(cells)) => {
+                for cell in cells {
+                    self.push_all(cell);
+                    self.push(Node::Text(" ".into()));
+                }
+            }
+        }
+    }
+
+    fn push_all(&mut self, nodes: Vec<Node>) {
+        for n in nodes {
+            self.push(n);
+        }
+    }
+
+    fn push(&mut self, node: Node) {
+        let top = self.top();
+        match top.kind {
+            // Alt text, code and front matter take plain text only.
+            Kind::Image { .. } | Kind::Code { .. } => plain_text(&node, &mut top.text),
+            Kind::Html | Kind::Meta => {}
+            Kind::List { .. } => top.items.push(ListItem::new(vec![node])),
+            Kind::Head | Kind::Row => top.cells.push(vec![node]),
+            _ => top.nodes.push(node),
+        }
+    }
+
+    fn text(&mut self, t: &str) {
+        let top = self.top();
+        match top.kind {
+            Kind::Image { .. } | Kind::Code { .. } | Kind::Meta => top.text.push_str(t),
+            Kind::Html => {}
+            _ => {
+                if let Some(Node::Text(prev)) = top.nodes.last_mut() {
+                    prev.push_str(t);
+                } else {
+                    self.push(Node::Text(t.to_string()));
+                }
+            }
+        }
+    }
+
+    #[cfg(feature = "html")]
+    fn html_block(&mut self, html: &str) -> Vec<Node> {
+        match crate::html::HtmlParser::with_budget(self.config, self.budget).parse(html) {
+            Ok(d) => d.nodes,
+            Err(e) => {
+                self.error.get_or_insert(e);
+                Vec::new()
+            }
+        }
+    }
+
+    #[cfg(not(feature = "html"))]
+    fn html_block(&mut self, _html: &str) -> Vec<Node> {
+        Vec::new()
+    }
+}
+
+fn heading_level(level: HeadingLevel) -> u8 {
+    match level {
+        HeadingLevel::H1 => 1,
+        HeadingLevel::H2 => 2,
+        HeadingLevel::H3 => 3,
+        HeadingLevel::H4 => 4,
+        HeadingLevel::H5 => 5,
+        HeadingLevel::H6 => 6,
+    }
+}
+
+/// Group runs of inline nodes into paragraphs (for containers mixing both).
+fn wrap_inline(nodes: Vec<Node>) -> Vec<Node> {
+    let mut out = Vec::with_capacity(nodes.len());
+    let mut run = Vec::new();
+    for n in nodes {
+        if n.is_block() {
+            if !run.is_empty() {
+                out.push(Node::paragraph(std::mem::take(&mut run)));
+            }
+            out.push(n);
+        } else {
+            run.push(n);
+        }
+    }
+    if !run.is_empty() {
+        out.push(Node::paragraph(run));
+    }
+    out
+}
+
+/// Append the plain text of a node (iteratively; nodes may be nested).
+fn plain_text(node: &Node, out: &mut String) {
+    let mut stack = vec![node];
+    while let Some(n) = stack.pop() {
+        match n {
+            Node::Text(t) | Node::InlineCode(t) => out.push_str(t),
+            Node::CodeBlock { code, .. } => out.push_str(code),
+            Node::Image { alt, .. } => out.push_str(alt),
+            Node::LineBreak => out.push(' '),
+            Node::Heading { children, .. }
+            | Node::Paragraph { children, .. }
+            | Node::BlockQuote { children, .. }
+            | Node::FootnoteDefinition { children, .. }
+            | Node::Figure { children, .. }
+            | Node::Bold { children }
+            | Node::Italic { children }
+            | Node::Strikethrough { children }
+            | Node::Link { children, .. } => stack.extend(children.iter().rev()),
+            Node::List { items, .. } => {
+                stack.extend(items.iter().rev().flat_map(|i| i.children.iter().rev()))
+            }
+            Node::Table { headers, rows, .. } => stack.extend(
+                headers
+                    .iter()
+                    .chain(rows.iter().flatten())
+                    .flat_map(|c| c.children.iter())
+                    .rev(),
+            ),
+            Node::DefinitionList { items, .. } => stack.extend(
+                items
+                    .iter()
+                    .flat_map(|i| i.term.iter().chain(i.definitions.iter().flatten()))
+                    .rev(),
+            ),
+            _ => {}
+        }
+    }
+}
+
+fn first_h1(nodes: &[Node]) -> Option<String> {
+    nodes.iter().find_map(|n| match n {
+        Node::Heading { level: 1, .. } => {
+            let mut t = String::new();
+            plain_text(n, &mut t);
+            let t = t.trim();
+            (!t.is_empty()).then(|| t.to_string())
+        }
+        _ => None,
+    })
+}
+
+/// `title:` from YAML front matter (top-level key, scalar value only).
+fn yaml_title(yaml: &str) -> Option<String> {
+    yaml.lines().find_map(|line| {
+        let v = line.strip_prefix("title:")?.trim();
+        let v = v
+            .strip_prefix('"')
+            .and_then(|v| v.strip_suffix('"'))
+            .or_else(|| v.strip_prefix('\'').and_then(|v| v.strip_suffix('\'')))
+            .unwrap_or(v)
+            .trim();
+        (!v.is_empty()).then(|| v.to_string())
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parsed(src: &str) -> ParsedMarkdown {
+        let cfg = MarkkitBuilder::default();
+        parse(src, &cfg, &Budget::new(&cfg.limits)).unwrap()
+    }
+
+    fn md(src: &str) -> String {
+        let p = parsed(src);
+        crate::render::MarkdownRenderer::new().render(&p.doc)
+    }
+
+    #[test]
+    fn roundtrip_common_blocks() {
+        let src = "# T\n\nSome *em* and **strong** and ~~del~~ `code`.\n\n> quote\n\n- a\n- b\n  1. c\n\n```rust\nfn x() {}\n```\n\n---\n\n[link](http://e.com \"t\") ![alt *x*](i.png)\n";
+        assert_eq!(
+            md(src),
+            "# T\n\nSome *em* and **strong** and ~~del~~ `code`.\n\n> quote\n\n- a\n- b\n  1. c\n\n```rust\nfn x() {}\n```\n\n---\n\n[link](http://e.com \"t\") ![alt x](i.png)\n"
+        );
+    }
+
+    #[test]
+    fn table_and_tasks() {
+        assert_eq!(
+            md("| a | b |\n|---|---|\n| 1 | 2 |\n\n- [x] done\n- [ ] todo\n"),
+            "| a | b |\n| --- | --- |\n| 1 | 2 |\n\n- [x] done\n- [ ] todo\n"
+        );
+    }
+
+    #[test]
+    fn ir_v2_extensions() {
+        let p = parsed(
+            "| l | c | r |\n|:--|:-:|--:|\n| 1 | 2 | 3 |\n\n- [x] done\n\nNote[^n].\n\n[^n]: The note.\n\nTerm\n: Definition\n",
+        );
+        let Node::Table { alignments, .. } = &p.doc.nodes[0] else {
+            panic!("{:?}", p.doc.nodes[0])
+        };
+        assert_eq!(
+            alignments,
+            &[Alignment::Left, Alignment::Center, Alignment::Right]
+        );
+        let Node::List { items, .. } = &p.doc.nodes[1] else {
+            panic!("{:?}", p.doc.nodes[1])
+        };
+        assert_eq!(items[0].checked, Some(true));
+        assert!(
+            p.doc
+                .nodes
+                .iter()
+                .any(|n| matches!(n, Node::FootnoteDefinition { label, .. } if label == "n"))
+        );
+        assert!(
+            p.doc
+                .nodes
+                .iter()
+                .any(|n| matches!(n, Node::DefinitionList { .. }))
+        );
+        let out = crate::render::MarkdownRenderer::new().render(&p.doc);
+        assert!(out.contains("| :--- | :---: | ---: |"), "{out}");
+        assert!(out.contains("- [x] done"), "{out}");
+        assert!(out.contains("Note[^n]."), "{out}");
+        assert!(out.contains("[^n]: The note."), "{out}");
+    }
+
+    #[test]
+    fn soft_breaks_reflow_hard_breaks_kept() {
+        assert_eq!(md("a\nb  \nc\\\nd"), "a b  \nc  \nd\n");
+    }
+
+    #[test]
+    fn titles() {
+        let p = parsed("---\ntitle: \"Doc\"\n---\n\n# H\n");
+        assert_eq!(p.title.as_deref(), Some("Doc"));
+        let p = parsed("## sub\n\n# Real *one*\n");
+        assert_eq!(p.title.as_deref(), Some("Real one"));
+        assert_eq!(parsed("text").title, None);
+    }
+
+    #[test]
+    fn loose_item_with_nested_list() {
+        assert_eq!(md("- a **b**\n  - c\n"), "- a **b**\n  - c\n");
+    }
+
+    #[test]
+    fn deep_nesting_is_flattened() {
+        let depth = crate::Limits::default().nesting_depth();
+        let src = format!("{}x", "> ".repeat(depth * 5));
+        let out = md(&src);
+        assert!(out.trim_end().ends_with('x'));
+        assert!(out.lines().next().unwrap().matches('>').count() <= depth + 1);
+    }
+
+    #[test]
+    fn nesting_depth_follows_limits() {
+        let cfg = MarkkitBuilder::default().limits(crate::Limits::default().max_nesting_depth(3));
+        let out = parse(&"> ".repeat(10), &cfg, &Budget::new(&cfg.limits)).unwrap();
+        let rendered = crate::render::MarkdownRenderer::new().render(&out.doc);
+        assert!(rendered.matches('>').count() <= 4, "{rendered}");
+    }
+
+    #[test]
+    fn max_nodes_is_enforced() {
+        let cfg = MarkkitBuilder::default().limits(crate::Limits::default().max_nodes(10));
+        let err = parse(&"a\n\n".repeat(50), &cfg, &Budget::new(&cfg.limits))
+            .err()
+            .expect("node limit");
+        assert!(matches!(err, crate::Error::ResourceLimit(_)), "{err}");
+    }
+}

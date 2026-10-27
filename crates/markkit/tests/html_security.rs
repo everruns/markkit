@@ -29,19 +29,15 @@ fn xss_event_handler() {
 #[test]
 fn xss_javascript_url() {
     let md = convert(r#"<a href="javascript:alert(1)">Click</a>"#);
-    // Link is rendered but the URL is preserved as-is (consumer's responsibility to sanitize URLs)
-    // The key is no script execution context in markdown
-    assert!(md.contains("Click"));
+    // Script-scheme link dropped, text kept.
+    assert_eq!(md, "Click\n");
 }
 
 #[test]
 fn xss_data_uri_img() {
     let md = convert(r#"<img src="data:text/html,<script>alert(1)</script>" alt="xss">"#);
-    // Image is rendered as markdown image — the data URI is in the URL portion
-    // which is safe in markdown context (no script execution)
-    assert!(md.contains("![xss]"));
-    // The output should not contain raw HTML script tags outside of a URL
-    assert!(!md.starts_with("<script>"));
+    // Non-image data URI: the image is dropped, its alt text kept.
+    assert_eq!(md, "xss\n");
 }
 
 #[test]
@@ -143,7 +139,8 @@ fn self_closing_tags() {
 #[test]
 fn html_entities() {
     let md = convert("<p>5 &gt; 3 &amp; 2 &lt; 4</p>");
-    assert!(md.contains("5 > 3 & 2 < 4"));
+    // `<` is escaped so it cannot open raw HTML when rendered.
+    assert!(md.contains(r"5 > 3 & 2 \< 4"), "{md}");
 }
 
 #[test]
@@ -244,4 +241,29 @@ fn source_tracking_many_siblings_is_linear() {
     assert!(start.elapsed().as_secs() < 20);
     let last = doc.nodes.last().unwrap().source().unwrap();
     assert_eq!(last.path.as_deref(), Some("/html[1]/body[1]/p[200000]"));
+}
+
+#[test]
+fn element_rules_respect_depth_limit() {
+    // Unwrap on every level must not recurse past the nesting limit.
+    let html = "<div>".repeat(5_000) + "deep" + &"</div>".repeat(5_000);
+    let m = Markkit::builder()
+        .html_rule("div", markkit::rules::ElementAction::Unwrap)
+        .build();
+    assert!(m.extract_html_sync(&html).unwrap().contains("deep"));
+}
+
+#[test]
+fn element_rules_cannot_resurrect_stripped_elements() {
+    // Stripping runs before rules: a rule matching <script>/<style> sees nothing.
+    let html = "<p>ok</p><script>alert(1)</script><style>p{}</style>";
+    let m = Markkit::builder()
+        .html_rule("script", markkit::rules::ElementAction::Paragraph)
+        .html_rule(
+            "style",
+            markkit::rules::ElementAction::CodeBlock { language: None },
+        )
+        .build();
+    let md = m.extract_html_sync(html).unwrap();
+    assert_eq!(md, "ok\n");
 }

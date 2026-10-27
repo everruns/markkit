@@ -28,6 +28,7 @@ markkit = { path = "../markkit", default-features = false, features = [
     "html",
     "docx",
     "spreadsheet",
+    "markdown",
     "tool",
 ] }
 wasm-bindgen = "0.2"
