@@ -53,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Declarative HTML element rules: `MarkkitBuilder::html_rule(".note", ElementAction::BlockQuote { .. })`
   maps elements by CSS selector to skip / unwrap / heading / paragraph / block quote (with title) /
   code / emphasis / text, before the built-in mapping. CLI: `markkit extract --rules rules.json`.
+- Pluggable parsers: `MarkkitBuilder::parser(..)` registers a `registry::FormatParser` that handles
+  detected formats (e.g. PDF or CSV) or claims inputs by content, before the built-ins. Its IR goes
+  through transforms and the shared renderer; panics become the new `Error::Parser`.
 - JSON Schema for the IR at `schema/ir.schema.json`; `json-schema` feature adds `markkit::ir::json_schema()`.
 - Per-block provenance: `MarkkitBuilder::track_sources(true)` records a `Source` on each IR block
   (HTML element XPath, DOCX body block index, spreadsheet sheet and A1 range) for citations.

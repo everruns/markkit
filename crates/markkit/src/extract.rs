@@ -94,7 +94,9 @@ pub struct ParsedDocument {
 }
 
 impl ParsedDocument {
-    fn new(document: Document, format: Format) -> Self {
+    /// IR plus format with empty metadata (for custom
+    /// [`crate::registry::FormatParser`]s).
+    pub fn new(document: Document, format: Format) -> Self {
         Self {
             document,
             title: None,
@@ -313,6 +315,10 @@ impl Markkit {
         self.config.limits.check_input(bytes.len())?;
 
         let format = Format::detect(bytes, hint);
+        if let Some(p) = self.config.parsers.select(bytes, hint, format) {
+            return self.parse_custom(p, bytes, budget);
+        }
+
         match format {
             Format::Html => self.parse_html_doc(bytes, budget),
             Format::Pdf => self.parse_pdf(bytes, budget),
@@ -334,6 +340,19 @@ impl Markkit {
                 None => other.to_string(),
             })),
         }
+    }
+
+    fn parse_custom(
+        &self,
+        p: &dyn crate::registry::FormatParser,
+        bytes: &[u8],
+        budget: &Budget,
+    ) -> crate::Result<ParsedDocument> {
+        let mut parsed = guarded(p.name(), Error::Parser, || p.parse(bytes, &self.config))?;
+        // Custom parsers are not interruptible: check the deadline afterwards.
+        budget.check_time()?;
+        self.config.transforms.apply(&mut parsed.document)?;
+        Ok(parsed)
     }
 
     #[cfg(feature = "html")]
