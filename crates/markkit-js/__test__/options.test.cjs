@@ -35,7 +35,7 @@ test("extractDocument returns metadata", async () => {
   assert.equal(out.format, "html");
   assert.deepEqual(out.warnings, []);
   assert.equal(out.title ?? null, null);
-  assert.throws(() => m.extractDocumentSync(Buffer.from("%PDF-1.7"), { fileName: "a.pdf" }), /Unsupported/);
+  assert.throws(() => m.extractDocumentSync(Buffer.from("PK"), { fileName: "a.pptx" }), /Unsupported/);
 });
 
 test("extractDocument exposes page metadata", () => {
