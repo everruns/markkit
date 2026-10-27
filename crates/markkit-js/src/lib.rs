@@ -17,8 +17,17 @@ use napi_derive::napi;
 pub struct MarkkitOptions {
     /// Maximum input size in bytes (default 50 MiB).
     pub max_input_size: Option<u32>,
-    /// Upper bound for `extractUrl` in seconds (default 60).
+    /// Wall-clock budget per call in whole seconds (default 60). Prefer `timeout`.
     pub max_processing_secs: Option<u32>,
+    /// Wall-clock budget per call in seconds, fractions allowed (default 60);
+    /// covers URL fetch, parsing and rendering. Wins over `maxProcessingSecs`.
+    pub timeout: Option<f64>,
+    /// Maximum Markdown output in bytes (default 128 MiB).
+    pub max_output_size: Option<u32>,
+    /// Maximum parsed nodes (default 5 000 000).
+    pub max_nodes: Option<u32>,
+    /// Maximum element nesting (default 256, capped at 512).
+    pub max_nesting_depth: Option<u32>,
     pub preserve_links: Option<bool>,
     pub preserve_images: Option<bool>,
     /// CSS selectors to include (empty = whole document).
@@ -98,6 +107,19 @@ fn to_u64(v: f64, field: &str) -> napi::Result<u64> {
     }
 }
 
+/// Seconds as a JS number; non-negative (values too large for `Duration` mean no deadline).
+fn to_duration(v: f64) -> napi::Result<std::time::Duration> {
+    std::time::Duration::try_from_secs_f64(v).or_else(|_| {
+        if v.is_nan() || v < 0.0 {
+            Err(napi::Error::from_reason(
+                "invalid options: `timeout` must be a non-negative number of seconds",
+            ))
+        } else {
+            Ok(std::time::Duration::MAX)
+        }
+    })
+}
+
 fn markkit(options: Option<MarkkitOptions>) -> napi::Result<markkit::Markkit> {
     let o = options.unwrap_or_default();
     let mut b = markkit::Markkit::builder();
@@ -106,6 +128,18 @@ fn markkit(options: Option<MarkkitOptions>) -> napi::Result<markkit::Markkit> {
     }
     if let Some(v) = o.max_processing_secs {
         b = b.max_processing_secs(v.into());
+    }
+    if let Some(v) = o.timeout {
+        b = b.timeout(to_duration(v)?);
+    }
+    if let Some(v) = o.max_output_size {
+        b = b.max_output_size(v as usize);
+    }
+    if let Some(v) = o.max_nodes {
+        b = b.max_nodes(v as usize);
+    }
+    if let Some(v) = o.max_nesting_depth {
+        b = b.max_nesting_depth(v as usize);
     }
     if let Some(v) = o.preserve_links {
         b = b.preserve_links(v);

@@ -34,7 +34,15 @@ markdown = markkit.extract_html_sync_with_options(
     exclude_selectors=["nav"],
     max_input_size=1_000_000,
 )
+
+# Resource limits: every function takes keyword-only `limits=`
+limits = markkit.Limits(timeout=10.0, max_output_size=8 << 20)
+markdown = markkit.extract_html_sync(html, limits=limits)
 ```
+
+`markkit.Limits` mirrors `markkit::Limits` field for field (`timeout` in float
+seconds); unset arguments keep library defaults and are readable as attributes.
+Invalid values raise `ValueError` / `OverflowError` at construction.
 
 Errors surface as `RuntimeError` carrying the Rust error's `Display` text.
 

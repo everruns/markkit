@@ -6,6 +6,8 @@
 //!   so typos fail loudly instead of silently using defaults.
 //! - Bytes in, Markdown out. No URL fetching in wasm: the host fetches.
 //! - Errors are thrown as `Error` with the Rust `Display` text.
+//! - No `timeout` option: wasm32-unknown-unknown has no clock, so the core
+//!   budget has no deadline here; hosts bound time (Worker timeout, CPU limit).
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -18,6 +20,10 @@ use markkit::{DocumentHint, MarkkitBuilder};
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Options {
     max_input_size: Option<usize>,
+    max_output_size: Option<usize>,
+    max_nodes: Option<usize>,
+    /// Capped at 512.
+    max_nesting_depth: Option<usize>,
     preserve_links: Option<bool>,
     preserve_images: Option<bool>,
     /// Added to the default selector set.
@@ -43,6 +49,9 @@ impl Options {
         }
         set!(
             max_input_size,
+            max_output_size,
+            max_nodes,
+            max_nesting_depth,
             preserve_links,
             preserve_images,
             max_archive_entries,

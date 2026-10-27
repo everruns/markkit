@@ -38,6 +38,15 @@ test("input size limit", () => {
   assert.throws(() => mk.extractHtml("<p>too long</p>"), /Resource limit/);
 });
 
+test("output, node and depth limits", () => {
+  const html = "<p>hello world</p>".repeat(200);
+  assert.throws(() => new Markkit({ maxOutputSize: 100 }).extractHtml(html), /max_output_size/);
+  assert.throws(() => new Markkit({ maxNodes: 50 }).extractHtml(html), /max_nodes/);
+  const deep = "<blockquote>".repeat(20) + "<p>Deep</p>" + "</blockquote>".repeat(20);
+  assert.ok(!new Markkit({ maxNestingDepth: 5 }).extractHtml(deep).includes("> ".repeat(6)));
+  assert.throws(() => new Markkit({ timeout: 1 }), /invalid options/);
+});
+
 test("extractDocument returns metadata", () => {
   const mk = new Markkit();
   const out = mk.extractDocument(new TextEncoder().encode("<p>bytes</p>"), { fileName: "a.html" });

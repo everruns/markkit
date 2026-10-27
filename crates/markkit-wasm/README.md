@@ -37,10 +37,11 @@ console.log(doc.title, doc.format, doc.markdown);
 
 ## Options
 
-`maxInputSize`, `preserveLinks`, `preserveImages`, `includeSelectors`,
+`maxInputSize`, `maxOutputSize`, `maxNodes`, `maxNestingDepth`, `preserveLinks`, `preserveImages`, `includeSelectors`,
 `excludeSelectors` (added to the defaults), `maxArchiveEntries`,
 `maxArchiveEntrySize`, `maxArchiveTotalSize`, `maxSheetRows`, `maxSheetCols`,
-`maxSpreadsheetCells`, `includeHiddenSheets`. Unknown keys throw.
+`maxSpreadsheetCells`, `includeHiddenSheets`. Unknown keys throw. There is no
+`timeout`: wasm has no clock, so bound time in the host (e.g. a Worker timeout).
 
 ## Agent tool
 

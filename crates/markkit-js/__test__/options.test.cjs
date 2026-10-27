@@ -24,9 +24,21 @@ test("input size limit", () => {
   assert.throws(() => m.extractHtmlSync("<p>too long</p>", { maxInputSize: 4 }), /Resource limit/);
 });
 
+test("resource limit options", () => {
+  const html = "<p>hello world</p>".repeat(200);
+  assert.throws(() => m.extractHtmlSync(html, { maxOutputSize: 100 }), /max_output_size/);
+  assert.throws(() => m.extractHtmlSync(html, { maxNodes: 50 }), /max_nodes/);
+  assert.throws(() => m.extractHtmlSync(html, { timeout: 0 }), /timeout/);
+  assert.ok(m.extractHtmlSync(html, { timeout: 1e300, maxOutputSize: 1 << 20, maxNodes: 10000 }).includes("hello"));
+  const deep = "<blockquote>".repeat(20) + "<p>Deep</p>" + "</blockquote>".repeat(20);
+  assert.ok(!m.extractHtmlSync(deep, { maxNestingDepth: 5 }).includes("> ".repeat(6)));
+});
+
 test("invalid numeric options are rejected", () => {
   assert.throws(() => m.extractHtmlSync("<p>x</p>", { maxArchiveTotalSize: -1 }), /invalid options/);
   assert.throws(() => m.extractHtmlSync("<p>x</p>", { maxSpreadsheetCells: 1.5 }), /invalid options/);
+  assert.throws(() => m.extractHtmlSync("<p>x</p>", { timeout: -1 }), /invalid options/);
+  assert.throws(() => m.extractHtmlSync("<p>x</p>", { timeout: NaN }), /invalid options/);
 });
 
 test("extractDocument returns metadata", async () => {

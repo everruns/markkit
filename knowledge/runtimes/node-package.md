@@ -30,9 +30,10 @@ const doc = m.extractDocumentSync(buf, { fileName: 'report.docx' });
 
 Every function takes an optional trailing `options` object (`MarkkitOptions`):
 the camelCase builder fields shared with the [WASM Package](wasm-package.md)
-(`maxInputSize`, `preserveLinks`, `preserveImages`, `includeSelectors`,
+(`maxInputSize`, `maxOutputSize`, `maxNodes`, `maxNestingDepth`, `preserveLinks`, `preserveImages`, `includeSelectors`,
 `excludeSelectors`, archive and sheet limits, `includeHiddenSheets`) plus the URL
-policy fields `maxProcessingSecs`, `allowPrivateNetworks`, `allowedHosts`,
+policy fields `timeout` (seconds, float; whole call), `maxProcessingSecs`
+(whole-second alias, `timeout` wins), `allowPrivateNetworks`, `allowedHosts`,
 `maxRedirects`. Selectors add to the defaults. 64-bit limits arrive as JS numbers
 and must be whole and non-negative. Unlike WASM, unknown keys are ignored
 (napi objects do not report them).
@@ -45,6 +46,7 @@ Errors reject (or throw) with the Rust error's `Display` text as the reason.
 |---|---|---|---|
 | HTML async / sync | yes | yes | sync |
 | HTML with options | `extract_html_sync_with_options` (selectors, size) | all builder options | all builder options |
+| Resource limits (`Limits`) | `limits=markkit.Limits(...)` on every function | flat option keys, incl. `timeout` | flat option keys, no `timeout` (no clock) |
 | URL | yes, defaults only | yes, with URL policy options | no (host fetches) |
 | Bytes | yes | yes | yes |
 | `extract_document` (metadata) | no | yes | yes |

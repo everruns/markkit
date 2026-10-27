@@ -223,7 +223,9 @@ let markkit = Markkit::builder()
     .build();
 ```
 
-Each limit also has a builder setter (`.max_nodes(..)`, `.timeout(..)`, ...).
+Each limit also has a builder setter (`.max_nodes(..)`, `.timeout(..)`, ...), a CLI
+flag (`--max-nodes`, `--timeout`, ...; see `markkit extract --help`), a
+`markkit.Limits(...)` argument in Python and flat option keys in Node.js and WASM.
 Other options: `include_hidden_sheets`, `allow_private_networks`, `allow_host`.
 
 ## Performance

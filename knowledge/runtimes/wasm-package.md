@@ -37,7 +37,8 @@ const tool = new MarkkitTool({ locale, maxOutputChars });
 tool.toolDefinition(); await tool.execute(args);
 ```
 
-Options are camelCase builder fields (`maxInputSize`, `preserveLinks`,
+Options are camelCase builder fields (`maxInputSize`, `maxOutputSize`,
+`maxNodes`, `maxNestingDepth`, `preserveLinks`,
 `preserveImages`, `includeSelectors`, `excludeSelectors`, archive and sheet
 limits, `includeHiddenSheets`). Selectors add to the defaults, as in Python.
 Unknown keys and wrong types throw `invalid options`: values go through
