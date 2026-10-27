@@ -118,7 +118,7 @@ fn security_control_chars_stripped() {
             DocumentHint::file_name(name),
         );
         assert!(!has_control(&e.markdown), "{name}: {:?}", e.markdown);
-        assert_eq!(e.markdown, "safe]0;pwnedtext\n");
+        assert_eq!(e.markdown, "safe\\]0;pwnedtext\n");
     }
 }
 
@@ -258,4 +258,14 @@ fn security_text_and_markdown_share_limits() {
             "{name}: {r:?}"
         );
     }
+}
+
+#[test]
+fn security_plain_text_markup_is_escaped() {
+    let e = extract(
+        b"# not heading\n<img src=x onerror=alert(1)>",
+        DocumentHint::file_name("a.txt"),
+    );
+    assert!(e.markdown.contains("\\<img"), "{:?}", e.markdown);
+    assert!(e.markdown.starts_with("\\#"), "{:?}", e.markdown);
 }

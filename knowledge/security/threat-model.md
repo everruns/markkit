@@ -26,8 +26,9 @@ tags:
 
 ### T1: Injection via Extracted Content
 
-**Description**: Attacker crafts HTML so extracted markdown contains executable content
-(script tags, event handlers, style expressions).
+**Description**: Attacker crafts a document so extracted markdown contains executable
+content (script tags, event handlers, script-scheme links) or spoofed structure (text
+that renders as headings, links, code fences or tables).
 
 **Impact**: High -- downstream consumers may render markdown as HTML, re-introducing XSS.
 
@@ -36,7 +37,26 @@ tags:
 **Mitigations**:
 - Parser strips all `<script>`, `<style>`, `<noscript>`, `<iframe>`, `<object>`, `<embed>`, `<svg>`, `<canvas>` elements
 - Event handler attributes (onclick, onload, etc.) are not preserved -- only `href`, `src`, `alt`, `title`, `class`, `start` attributes are read
-- Output is markdown text with no HTML pass-through
+- Output is markdown text with no HTML pass-through, enforced at render time by
+  `render/escape.rs` for every format (the IR keeps raw text):
+  - Text escapes `` ` * [ ] < ~ | ``, `_` at word boundaries, entity-like `&`, a
+    trailing `\` or `!`, and block markers (`# > - + =`, `1.`/`1)`) at line start.
+    Newlines inside text become spaces.
+  - Link schemes allowlisted (`http`, `https`, `mailto`, `tel`, `ftp`, relative);
+    image schemes `http`, `https`, relative and raster `data:image/*`. Others are
+    dropped, keeping link text / alt text. Whitespace and control characters are
+    ignored for scheme detection (`java\tscript:`).
+  - Destinations percent-encode `( ) < > \` and whitespace and backslash-escape
+    entity-like `&` (`javascript&colon;` cannot decode into a scheme).
+  - Code fences and code spans are one backtick longer than the longest run inside;
+    info strings keep only the first word without backticks; a space separates a
+    code span from a preceding backtick.
+  - Structure cannot break out of its container: block nodes inside inline content
+    (table cells, headings, link text) are flattened to one line; list item bodies
+    are indented by the marker width (`1. ` = 3, `10. ` = 4); a block always starts
+    on its own line after a blank line; hard breaks never produce a blank line;
+    nested links render as text; empty destinations are written `<>`; link titles
+    escape `"`, `\` and `<`.
 - Form elements (`<form>`, `<input>`, `<button>`, `<select>`, `<textarea>`) stripped
 - Page metadata (`Extraction::metadata`): URL fields drop non-`http(s)` schemes
   (`javascript:`, `data:`); values single-line and capped at 2048 chars
@@ -54,7 +74,10 @@ tags:
 - `html_proptest::no_script_tags_in_output`
 - `html_proptest::no_style_tags_in_output`
 - `html_metadata::dangerous_url_schemes_dropped`, `values_are_single_line_and_capped`, `html_proptest::metadata_values_single_line`
-- `html_urls::absolute_dangerous_schemes_pass_through_untouched`, `page_base_cannot_switch_to_local_or_script_scheme`, `invalid_caller_base_ignored`
+- `html_urls::absolute_dangerous_schemes_are_not_resolved`, `page_base_cannot_switch_to_local_or_script_scheme`, `invalid_caller_base_ignored`
+- `output_safety::*`: a pulldown-cmark (GFM) oracle checks no raw HTML, no unsafe
+  destination, block structure and verbatim text, plus proptests over arbitrary text,
+  URLs and code
 
 ### T2: Denial of Service (Resource Exhaustion)
 
@@ -289,9 +312,8 @@ raw HTML (`<script>`, event handlers) or pathological nesting.
 - Explicit-stack IR builder, nesting capped at `max_nesting_depth` (deeper content flattened);
   the call's `timeout` and `max_nodes` budget covers decoding, parsing and HTML blocks
 
-**Residual**: literal text that merely looks like markup (a `<script>` line in a `.txt`, a
-`*` in a CSV cell) is emitted as `Node::Text`; escaping it is the renderer's job, tracked as
-the output-safety initiative, and applies to every format at once.
+**Residual**: none specific to text. Literal text that looks like markup (a `<script>` line
+in a `.txt`) is emitted as `Node::Text` and escaped by the renderer (S17), like every format.
 
 **Test Coverage** (`text_integration`):
 - `security_control_chars_stripped`, `security_arbitrary_bytes_never_panic`
@@ -300,6 +322,7 @@ the output-safety initiative, and applies to every format at once.
 - `security_markdown_deep_nesting_no_stack_overflow`, `security_long_line`
 - `security_input_size_limit`, `security_output_bounded_by_input`
 - `security_text_and_markdown_share_limits` (timeout, `max_nodes`)
+- `security_plain_text_markup_is_escaped`
 
 ### T5: Information Disclosure
 
@@ -338,8 +361,10 @@ the output-safety initiative, and applies to every format at once.
 |----------|---------|----------|
 | XSS script tags | `<script>alert(1)</script>` | Stripped (non-content element) |
 | Event handlers | `<p onclick="...">` | Attribute not read |
-| JavaScript URLs | `<a href="javascript:...">` | URL preserved as-is in markdown (no execution context); never rewritten by base resolution |
-| Data URI payloads | `<img src="data:text/html,...">` | Rendered as markdown image (no execution) |
+| JavaScript URLs | `<a href="javascript:...">` | Link dropped, text kept (scheme allowlist); never rewritten by base resolution |
+| Data URI payloads | `<img src="data:text/html,...">` | Image dropped, alt text kept (only raster `data:image/*` allowed) |
+| Markdown in text | `<p># x *y* &lt;img onerror&gt;</p>` | Escaped; renders as the literal text |
+| Fence breakout | ```` ``` ```` inside `<pre>` | Fence longer than any backtick run in the code |
 | Style expressions | `style="background:url(javascript:...)"` | Attribute not read |
 | Deep nesting | 1000+ nested `<div>` | Flattened to text at `max_nesting_depth` (256) |
 | Huge text nodes | 100KB+ single text node | Passed through (bounded by input limit) |
@@ -374,7 +399,8 @@ the output-safety initiative, and applies to every format at once.
 | S14 | Returned Markdown never exceeds `max_output_size` | `limits::*output_cap*` |
 | S15 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
 | S16 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
-| S17 | Text and Markdown output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*` |
+| S17 | Rendered markdown has no raw HTML, no non-allowlisted link/image scheme, and document text cannot create Markdown structure | `output_safety::*` (pulldown-cmark oracle + proptests) |
+| S18 | Text and Markdown output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*` |
 
 ## See also
 
