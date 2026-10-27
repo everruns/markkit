@@ -38,6 +38,7 @@
 //! - **URL fetching** (`http_client`, default): Fetch and extract from URLs via reqwest
 //! - **Agent tool** (`tool`): `markkit::tool::MarkkitTool`, an LLM tool following the
 //!   Everruns toolkit-library contract (schemas, OpenAI definition, `tower::Service`)
+//! - **JSON Schema** (`json-schema`): `ir::json_schema()` for the serialized IR
 //!
 //! Embedders that do their own fetching can drop reqwest entirely:
 //! `markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }`.
