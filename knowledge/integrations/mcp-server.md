@@ -1,7 +1,7 @@
 ---
 type: Interface Contract
 title: MCP Server
-description: `markkit mcp`, a stdio Model Context Protocol server exposing MarkkitTool, its methods, limits and error mapping.
+description: The markkit mcp stdio Model Context Protocol server exposing MarkkitTool, its methods, limits and error mapping.
 tags:
   - markkit
   - tools
