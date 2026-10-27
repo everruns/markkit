@@ -29,7 +29,10 @@ use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, Source, TableCell};
 
+use url::Url;
+
 use super::metadata::PageInfo;
+use super::urls;
 
 /// Maximum recursion depth for nested elements.
 const MAX_DEPTH: usize = 200;
@@ -42,6 +45,8 @@ pub struct HtmlParser<'a> {
     config: &'a MarkkitBuilder,
     /// Footnote target id (without `#`) -> label, filled by references.
     footnote_labels: RefCell<HashMap<String, String>>,
+    /// Base for relative URLs (caller base, then the document `<base href>`).
+    base: Option<Url>,
     /// Cached 1-based index of an element among same-name element siblings.
     sibling_index: RefCell<HashMap<NodeId, usize>>,
 }
@@ -51,6 +56,7 @@ impl<'a> HtmlParser<'a> {
         Self {
             config,
             footnote_labels: RefCell::new(HashMap::new()),
+            base: urls::parse_base(config.base_url.as_deref()),
             sibling_index: RefCell::new(HashMap::new()),
         }
     }
@@ -63,10 +69,28 @@ impl<'a> HtmlParser<'a> {
     /// Parse an HTML string into a [`Document`] plus page title and metadata.
     pub(crate) fn parse_page(&self, html: &str) -> Result<(Document, PageInfo), Error> {
         let dom = Html::parse_document(html);
-        Ok((self.parse_dom(&dom)?, super::metadata::extract(&dom)))
+        let this = self.for_document(&dom);
+        Ok((
+            this.convert_dom(&dom)?,
+            super::metadata::extract(&dom, this.base.as_ref()),
+        ))
     }
 
     fn parse_dom(&self, dom: &Html) -> Result<Document, Error> {
+        self.for_document(dom).convert_dom(dom)
+    }
+
+    /// Parser whose base includes the document's `<base href>`.
+    fn for_document(&self, dom: &Html) -> Self {
+        Self {
+            config: self.config,
+            footnote_labels: RefCell::new(HashMap::new()),
+            sibling_index: RefCell::new(HashMap::new()),
+            base: urls::document_base(dom, self.base.clone()),
+        }
+    }
+
+    fn convert_dom(&self, dom: &Html) -> Result<Document, Error> {
         let root = dom.root_element();
 
         let content_nodes: Vec<scraper::ElementRef<'_>> =
@@ -389,7 +413,7 @@ impl<'a> HtmlParser<'a> {
                         })
                     };
                 }
-                let url = el.value().attr("href").unwrap_or("").to_string();
+                let url = urls::resolve(self.base.as_ref(), el.value().attr("href").unwrap_or(""));
                 let title = el.value().attr("title").map(|s| s.to_string());
                 let children = self.collect_inline(el, exclude, depth);
                 if children.is_empty() {
@@ -406,7 +430,7 @@ impl<'a> HtmlParser<'a> {
                 if !self.config.preserve_images {
                     return None;
                 }
-                let src = el.value().attr("src").unwrap_or("").to_string();
+                let src = urls::resolve(self.base.as_ref(), el.value().attr("src").unwrap_or(""));
                 let alt = el.value().attr("alt").unwrap_or("").to_string();
                 Some(Node::Image { src, alt })
             }
