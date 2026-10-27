@@ -39,6 +39,7 @@ HTML from the web: malformed markup, complex layouts, embedded scripts, etc.
 | `<li><input type=checkbox>` | `- [x] item` |
 | `<figure>` + `<figcaption>` | content + `*caption*` |
 | footnote refs / sections | `[^1]` / `[^1]: body` |
+| `<math>`, KaTeX, MathJax | `$tex$` / `$$` block |
 | `<em>/<i>` | `*text*` |
 | `<strong>/<b>` | `**text**` |
 | `<del>/<s>` | `~~text~~` |
@@ -74,6 +75,7 @@ HTML from the web: malformed markup, complex layouts, embedded scripts, etc.
 | `<del>`, `<s>`, `<strike>` | `Strikethrough { children }` | Empty -> elided. |
 | `<a href>` | `Link { url, title, children }` | When `preserve_links=false`, unwrapped to children. Empty -> elided. Missing href -> empty string. |
 | `<img>` | `Image { src, alt }` | When `preserve_images=false`, elided entirely. Missing attrs -> empty strings. |
+| `<math>` | `Math { tex }` / `MathBlock { tex }` | TeX from `<annotation encoding="application/x-tex">`; `display="block"` -> block. Same for KaTeX `.katex` (inline) / `.katex-display` (block) and MathJax `<mjx-container display="true">` wrappers, whose visual HTML is dropped. No TeX annotation -> collapsed text content. |
 | footnote `<a>` | `FootnoteReference { label }` | `<a href="#id">` with `data-footnote-ref`, `role=doc-noteref`, or class `footnote-ref`. Label = link text without `[]` (else target id). Back-links (`data-footnote-backref`, `role=doc-backlink`, `.footnote-back[ref]`) dropped. |
 
 ### Transparent Container Elements

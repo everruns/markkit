@@ -920,3 +920,37 @@ fn sources_do_not_change_markdown() {
     let b = convert_with(html, |b| b.track_sources(true));
     assert_eq!(a, b);
 }
+
+// ─── Math ────────────────────────────────────────────────────────────
+
+#[test]
+fn mathml_with_tex_annotation() {
+    let html = r#"<p>Area <math><semantics><mi>π</mi><annotation encoding="application/x-tex">\pi r^2</annotation></semantics></math> here.</p>"#;
+    assert_eq!(convert(html), "Area $\\pi r^2$ here.\n");
+}
+
+#[test]
+fn katex_inline_and_display() {
+    let html = r#"<p>Inline <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span>x2</span></span></span>.</p>
+    <div class="katex-display"><span class="katex"><span class="katex-mathml"><math display="block"><semantics><annotation encoding="application/x-tex">E = mc^2</annotation></semantics></math></span><span class="katex-html">E=mc2</span></span></div>"#;
+    assert_eq!(convert(html), "Inline $x^2$.\n\n$$\nE = mc^2\n$$\n");
+}
+
+#[test]
+fn mathjax_container() {
+    let html = r#"<mjx-container class="MathJax" display="true"><mjx-math>visual</mjx-math><mjx-assistive-mml><math display="block"><annotation encoding="application/x-tex">\int f</annotation></math></mjx-assistive-mml></mjx-container>"#;
+    assert_eq!(convert(html), "$$\n\\int f\n$$\n");
+}
+
+#[test]
+fn mathml_without_tex_keeps_text() {
+    let html = "<p>See <math><mi>a</mi><mo>+</mo><mi>b</mi></math>.</p>";
+    assert_eq!(convert(html), "See a+b.\n");
+}
+
+#[test]
+fn math_dollars_cannot_break_out() {
+    let html =
+        r#"<p><math><annotation encoding="application/x-tex">a$ **b** $c</annotation></math></p>"#;
+    assert_eq!(convert(html), "$a\\$ **b** \\$c$\n");
+}
