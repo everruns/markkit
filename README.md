@@ -12,7 +12,8 @@ Extract clean markdown from any format. Written in Rust.
 
 Markkit converts HTML, Word documents and spreadsheets into well-structured
 markdown, built for feeding untrusted documents to LLMs and agents. It ships as
-a Rust library, a CLI, and native bindings for Python and Node.js.
+a Rust library, a CLI, native bindings for Python and Node.js, and a WebAssembly
+package for browsers and edge runtimes.
 
 ## Features
 
@@ -101,6 +102,15 @@ const fromHtml = await extractHtml('<h1>Hello</h1>');
 const fromUrl = await extractUrl('https://example.com');
 ```
 
+### Browser / edge (WebAssembly)
+
+```javascript
+import { initMarkkit, Markkit } from '@everruns/markkit-wasm';
+
+await initMarkkit();
+const md = new Markkit().extractHtml('<h1>Hello</h1>');
+```
+
 ## Installation
 
 ### Rust
@@ -131,6 +141,16 @@ npm install @everruns/markkit
 ```
 
 Native binary: Linux x64 (glibc).
+
+### Browser / edge (WebAssembly)
+
+```bash
+npm install @everruns/markkit-wasm
+```
+
+Any JS runtime (browsers, Cloudflare Workers, Deno, Bun, Node); no special headers.
+HTML, DOCX and spreadsheets; no URL fetching. See
+[`crates/markkit-wasm/README.md`](crates/markkit-wasm/README.md).
 
 ## Configuration
 

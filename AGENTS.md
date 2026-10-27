@@ -32,6 +32,7 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 | security/security-model | One-page threat/invariant summary |
 | security/threat-model | Threats T1-T6, mitigations, test map, resource limits, invariants S1-S12 |
 | runtimes/python-package | PyO3 `markkit` module, maturin, PyPI |
+| runtimes/wasm-package | wasm-bindgen `@everruns/markkit-wasm`, browser/edge, build + tests |
 | runtimes/node-package | NAPI-RS `@everruns/markkit`, npm, binding parity table |
 | operations/testing | Test layout, categories, CI jobs |
 | operations/documentation | Doc trees and what each must cover |
@@ -44,8 +45,12 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 
 - User docs: `README.md`, `docs/`
 - API reference: rustdoc in `crates/markkit/src/lib.rs` and modules
-- Binding READMEs (`crates/markkit-python/README.md`, `crates/markkit-js/README.md`) ship to PyPI/npm, keep them in sync with exports
+- Binding READMEs (`crates/markkit-python/README.md`, `crates/markkit-js/README.md`, `crates/markkit-wasm/README.md`) ship to PyPI/npm, keep them in sync with exports
 - Durable engineering knowledge: `knowledge/`, never `docs/`
+
+### Shipping
+
+"Ship" / "ship it" / "fix and ship" = landed on `main` via squash-merge, every CI check green on the PR and on the merge commit's `main` run, tested (positive, negative, security where relevant), smoke tested, knowledge/docs/CHANGELOG updated, ready to release. Use the `ship` skill. Not done at push, PR, or auto-merge; done when `main` is green. Red `main` after merge: fix forward immediately. Ship ≠ release: tag/publish only on "Create release" (`knowledge/operations/release-process.md`).
 
 ### Maintenance invocation
 
@@ -82,6 +87,7 @@ just pre-pr        # Pre-PR checks
 | `markkit-eval` | LLM evaluation harness (stub) |
 | `markkit-python` | Python bindings (PyO3), module `markkit` |
 | `markkit-js` | Node.js bindings (NAPI-RS), package `@everruns/markkit` |
+| `markkit-wasm` | Browser/edge WebAssembly (wasm-bindgen), package `@everruns/markkit-wasm` |
 
 ### Rust
 
@@ -99,6 +105,7 @@ just pre-pr        # Pre-PR checks
 5. Update knowledge if behavior or durable facts change; add a `knowledge/log.md` entry
 6. `CHANGELOG.md` Unreleased entry for user-facing changes
 7. CI green before merge; resolve all PR comments
+8. After merge: `main` CI green on the merge commit
 
 ### CI
 
