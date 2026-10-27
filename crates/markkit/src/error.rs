@@ -31,6 +31,10 @@ pub enum Error {
     #[error("Resource limit exceeded: {0}")]
     ResourceLimit(String),
 
+    /// A custom [`crate::registry::FormatParser`] failed or panicked.
+    #[error("Parser error: {0}")]
+    Parser(String),
+
     /// A [`crate::transform::Transform`] failed.
     #[error("Transform error: {0}")]
     Transform(String),

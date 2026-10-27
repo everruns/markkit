@@ -449,6 +449,16 @@ style, is not detected.
 `html_security::hidden_content_does_not_leak_past_max_depth`,
 `html_integration::exclude_selector_applies_to_list_items_and_table_parts`
 
+### Extension points (embedder code)
+
+Transforms, element rules and custom `FormatParser`s are embedder code or
+configuration, trusted like the host program; untrusted documents cannot
+register them. Untrusted bytes still reach a custom parser, so it owns its own
+limits. markkit keeps its guarantees around it: `max_input_size` is checked
+first, a panic becomes `Error::Parser` (with `panic = "unwind"`), the deadline
+(`limits.timeout`) is checked when it returns, and output goes through the
+shared renderer under `max_output_size` (`tests/registry.rs`).
+
 ## Resource Limits
 
 | Resource | Default | Configurable | Enforcement Point |
