@@ -62,7 +62,7 @@ schema:
 examples:
     #!/usr/bin/env bash
     set -euo pipefail
-    for ex in basic custom_selectors configuration ir_access; do
+    for ex in basic custom_selectors configuration ir_access transforms; do
         echo "── example: $ex"
         cargo run -q -p markkit --example "$ex"
     done

@@ -1,5 +1,6 @@
 /// Errors that can occur during markdown extraction.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     #[error("HTML parsing error: {0}")]
     HtmlParse(String),
@@ -29,6 +30,10 @@ pub enum Error {
 
     #[error("Resource limit exceeded: {0}")]
     ResourceLimit(String),
+
+    /// A [`crate::transform::Transform`] failed.
+    #[error("Transform error: {0}")]
+    Transform(String),
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),

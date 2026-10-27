@@ -178,8 +178,7 @@ impl Markkit {
         #[cfg(feature = "html")]
         {
             let budget = Budget::new(&self.config.limits);
-            let parser = crate::html::HtmlParser::with_budget(&self.config, &budget);
-            let doc = parser.parse(html)?;
+            let doc = self.parse_html_with(html, &budget)?;
             crate::render::MarkdownRenderer::new().render_bounded(
                 &doc,
                 self.config.limits.max_output_size,
@@ -196,8 +195,14 @@ impl Markkit {
     #[cfg(feature = "html")]
     pub fn parse_html(&self, html: &str) -> crate::Result<crate::ir::Document> {
         self.config.limits.check_input(html.len())?;
-        let budget = Budget::new(&self.config.limits);
-        crate::html::HtmlParser::with_budget(&self.config, &budget).parse(html)
+        self.parse_html_with(html, &Budget::new(&self.config.limits))
+    }
+
+    #[cfg(feature = "html")]
+    fn parse_html_with(&self, html: &str, budget: &Budget) -> crate::Result<crate::ir::Document> {
+        let mut doc = crate::html::HtmlParser::with_budget(&self.config, budget).parse(html)?;
+        self.config.transforms.apply(&mut doc)?;
+        Ok(doc)
     }
 
     /// Extract markdown from raw bytes, auto-detecting the format.
@@ -308,7 +313,8 @@ impl Markkit {
     fn parse_html_doc(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let text = String::from_utf8_lossy(bytes);
         let parser = crate::html::HtmlParser::with_budget(&self.config, budget);
-        let (doc, page) = parser.parse_page(&text)?;
+        let (mut doc, page) = parser.parse_page(&text)?;
+        self.config.transforms.apply(&mut doc)?;
         let mut p = ParsedDocument::new(doc, Format::Html);
         p.title = page.title;
         p.metadata = page.metadata;
@@ -327,7 +333,9 @@ impl Markkit {
         let out = guarded("DOCX", Error::DocxExtract, || {
             crate::docx::parse(bytes, &self.config, budget)
         })?;
-        let mut p = ParsedDocument::new(out.doc, Format::Docx);
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, Format::Docx);
         p.title = out.title;
         p.stats.paragraphs = Some(out.paragraphs);
         p.stats.tables = Some(out.tables);
@@ -346,7 +354,9 @@ impl Markkit {
         let out = guarded("spreadsheet", Error::SpreadsheetExtract, || {
             crate::spreadsheet::parse(bytes, &self.config, budget)
         })?;
-        let mut p = ParsedDocument::new(out.doc, out.format);
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, out.format);
         p.warnings = out.warnings;
         p.stats.sheets = Some(out.sheets);
         p.stats.rows = Some(out.rows);

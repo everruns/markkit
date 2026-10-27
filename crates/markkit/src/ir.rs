@@ -50,6 +50,29 @@ impl Document {
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
+
+    /// Visit every node, pre-order (parents before children).
+    pub fn visit(&self, f: &mut dyn FnMut(&Node)) {
+        fn walk(nodes: &[Node], f: &mut dyn FnMut(&Node)) {
+            for n in nodes {
+                f(n);
+                n.for_each_child_list_ref(&mut |list| walk(list, f));
+            }
+        }
+        walk(&self.nodes, f);
+    }
+
+    /// Visit every node mutably, pre-order. Children are visited after `f`
+    /// ran on their parent, so `f` may rewrite a subtree before it is walked.
+    pub fn visit_mut(&mut self, f: &mut dyn FnMut(&mut Node)) {
+        fn walk(nodes: &mut [Node], f: &mut dyn FnMut(&mut Node)) {
+            for n in nodes {
+                f(n);
+                n.for_each_child_list(&mut |list| walk(list, f));
+            }
+        }
+        walk(&mut self.nodes, f);
+    }
 }
 
 /// A block-level or inline node in the document tree.
@@ -193,6 +216,90 @@ impl Node {
             | Node::FootnoteDefinition { source, .. }
             | Node::MathBlock { source, .. } => Some(source),
             _ => None,
+        }
+    }
+
+    /// Call `f` on each child list of this node (block or inline children,
+    /// list-item children, table cells, definition terms and bodies,
+    /// figure captions). Leaves have none.
+    pub fn for_each_child_list(&mut self, f: &mut dyn FnMut(&mut Vec<Node>)) {
+        match self {
+            Node::Heading { children, .. }
+            | Node::Paragraph { children, .. }
+            | Node::BlockQuote { children, .. }
+            | Node::FootnoteDefinition { children, .. }
+            | Node::Bold { children }
+            | Node::Italic { children }
+            | Node::Strikethrough { children }
+            | Node::Link { children, .. } => f(children),
+            Node::Figure {
+                children, caption, ..
+            } => {
+                f(children);
+                if let Some(c) = caption {
+                    f(c);
+                }
+            }
+            Node::List { items, .. } => {
+                for item in items {
+                    f(&mut item.children);
+                }
+            }
+            Node::Table { headers, rows, .. } => {
+                for cell in headers.iter_mut().chain(rows.iter_mut().flatten()) {
+                    f(&mut cell.children);
+                }
+            }
+            Node::DefinitionList { items, .. } => {
+                for item in items {
+                    f(&mut item.term);
+                    for d in &mut item.definitions {
+                        f(d);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Read-only [`Node::for_each_child_list`].
+    pub fn for_each_child_list_ref(&self, f: &mut dyn FnMut(&Vec<Node>)) {
+        match self {
+            Node::Heading { children, .. }
+            | Node::Paragraph { children, .. }
+            | Node::BlockQuote { children, .. }
+            | Node::FootnoteDefinition { children, .. }
+            | Node::Bold { children }
+            | Node::Italic { children }
+            | Node::Strikethrough { children }
+            | Node::Link { children, .. } => f(children),
+            Node::Figure {
+                children, caption, ..
+            } => {
+                f(children);
+                if let Some(c) = caption {
+                    f(c);
+                }
+            }
+            Node::List { items, .. } => {
+                for item in items {
+                    f(&item.children);
+                }
+            }
+            Node::Table { headers, rows, .. } => {
+                for cell in headers.iter().chain(rows.iter().flatten()) {
+                    f(&cell.children);
+                }
+            }
+            Node::DefinitionList { items, .. } => {
+                for item in items {
+                    f(&item.term);
+                    for d in &item.definitions {
+                        f(d);
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
