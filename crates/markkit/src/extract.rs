@@ -145,7 +145,6 @@ impl ParsedDocument {
 /// Run a parser, converting a panic into an error (defence in depth for
 /// third-party parsers; only effective when built with `panic = "unwind"`, which
 /// markkit's own release profile uses).
-#[cfg(any(feature = "docx", feature = "spreadsheet", feature = "pdf"))]
 fn guarded<T>(
     what: &str,
     make_err: fn(String) -> Error,
