@@ -15,7 +15,7 @@
 //   LLM judge needed to score.
 // - Targets are key-gated (`ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`), so an
 //   offline run skips every case and stays green. Keys come from Doppler
-//   (`doppler run -- just eval-qa`).
+//   (`doppler run -- just eval-llm`).
 // - Provider/HTTP failures are infra errors (N/A), never scored against the
 //   model or markkit. A markkit extraction failure is scored (empty context).
 
