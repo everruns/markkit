@@ -45,10 +45,11 @@ impl Markkit {
 
 pub struct Extraction {           // #[non_exhaustive]
     pub markdown: String,
-    pub title: Option<String>,    // DOCX core.xml dc:title / Title-style paragraph; PDF /Info /Title
+    pub title: Option<String>,    // HTML og:title / JSON-LD / <title>; DOCX dc:title / Title style; PDF /Info /Title
     pub format: Format,
     pub warnings: Vec<String>,    // "<code>: <message>"
     pub stats: ExtractionStats,   // pages / sheets / rows / paragraphs / tables (Option each)
+    pub metadata: Metadata,       // HTML page metadata, see HTML Extraction; empty otherwise
 }
 ```
 

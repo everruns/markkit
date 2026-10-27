@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
+  `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
+  canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and
+  JSON-LD. `markkit extract --json` includes `format`, `title` and `metadata` for files and stdin.
 - IR v2: footnotes (`[^1]`), definition lists (`Term` / `:   definition`), task lists (`- [x]`),
   figures with captions, table column alignment (`:---:`) and `colspan`/`rowspan` (laid out on a
   grid; GFM has no spans). HTML maps GitHub and Pandoc footnote markup, `<dl>`, checkbox list items,
@@ -22,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `pdf_unmapped_font`, `pdf_no_text`. Encrypted PDFs return `UnsupportedFormat`.
 - Builder limits `max_pdf_pages` (10 000), `max_pdf_stream_size` (64 MiB) and
   `max_pdf_decoded_size` (256 MiB).
+- `tool` feature: `markkit::tool::MarkkitTool`, an LLM agent tool following the Everruns
+  toolkit-library contract (builder, OpenAI tool definition, input/output schemas, `tower::Service`,
+  single-use `ToolExecution`, `en-US`/`uk-UA` text). One call converts a `url`, `html` or base64
+  document to Markdown, with output capped by `max_output_chars`. Example: `examples/agent_tool.rs`.
+- `Markkit::extract_url_document`: `extract_url` with format, title, warnings and stats.
 
 ### Security
 

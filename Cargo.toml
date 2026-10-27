@@ -54,6 +54,11 @@ miniz_oxide = "0.9"     # Bounded FlateDecode for PDF streams
 # Logging
 tracing = "0.1"
 
+# LLM tool contract (markkit `tool` feature)
+tower = { version = "0.5", default-features = false, features = ["util"] }
+futures-core = "0.3"
+base64 = "0.23"
+
 # Python bindings
 pyo3 = { version = "0.30" }
 pyo3-async-runtimes = { version = "0.30", features = ["tokio-runtime"] }

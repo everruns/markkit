@@ -10,7 +10,8 @@ use crate::format::{DocumentHint, Format};
 pub struct Extraction {
     /// Rendered Markdown.
     pub markdown: String,
-    /// Document title when known (DOCX core properties or `Title` style, PDF `/Title`).
+    /// Document title when known (HTML `og:title` / JSON-LD / `<title>`;
+    /// DOCX core properties or `Title` style; PDF `/Info /Title`).
     pub title: Option<String>,
     /// Format the document was parsed as.
     pub format: Format,
@@ -20,6 +21,35 @@ pub struct Extraction {
     pub warnings: Vec<String>,
     /// Format-specific counters.
     pub stats: ExtractionStats,
+    /// Document metadata (HTML `<meta>`, Open Graph, JSON-LD); empty when unknown.
+    pub metadata: Metadata,
+}
+
+/// Document-level metadata. Every field is `None` when absent.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub struct Metadata {
+    /// Summary (`og:description`, `<meta name=description>`, JSON-LD `description`).
+    pub description: Option<String>,
+    /// Author name(s), comma-separated (`<meta name=author>`, JSON-LD `author`).
+    pub author: Option<String>,
+    /// Publication date as written in the source, typically ISO 8601.
+    pub published: Option<String>,
+    /// Content language (`<html lang>`, `Content-Language`, `og:locale`).
+    pub language: Option<String>,
+    /// Canonical URL (`<link rel=canonical>`, `og:url`, JSON-LD `url`).
+    pub canonical_url: Option<String>,
+    /// Site / publisher name (`og:site_name`, JSON-LD `publisher.name`).
+    pub site_name: Option<String>,
+    /// Lead image URL (`og:image`, `twitter:image`, JSON-LD `image`).
+    pub image: Option<String>,
+}
+
+impl Metadata {
+    /// True when no field is set.
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 /// Counters describing the extracted content; `None` when not applicable.
@@ -46,6 +76,7 @@ impl Extraction {
             format,
             warnings: Vec::new(),
             stats: ExtractionStats::default(),
+            metadata: Metadata::default(),
         }
     }
 }
@@ -175,11 +206,7 @@ impl Markkit {
         }
 
         match Format::detect(bytes, hint) {
-            Format::Html => {
-                let text = String::from_utf8_lossy(bytes);
-                let md = self.extract_html_sync(&text)?;
-                Ok(Extraction::new(md, Format::Html))
-            }
+            Format::Html => self.extract_html_document(&String::from_utf8_lossy(bytes)),
             Format::Pdf => self.extract_pdf_sync(bytes),
             Format::Docx => self.extract_docx(bytes),
             Format::Xlsx | Format::Xls | Format::Ods => self.extract_spreadsheet(bytes),
@@ -194,6 +221,23 @@ impl Markkit {
                 None => other.to_string(),
             })),
         }
+    }
+
+    #[cfg(feature = "html")]
+    fn extract_html_document(&self, html: &str) -> crate::Result<Extraction> {
+        let parser = crate::html::HtmlParser::new(&self.config);
+        let (doc, page) = parser.parse_page(html)?;
+        let mut renderer = crate::render::MarkdownRenderer::new();
+        let mut e = Extraction::new(renderer.render(&doc), Format::Html);
+        e.title = page.title;
+        e.metadata = page.metadata;
+        Ok(e)
+    }
+
+    #[cfg(not(feature = "html"))]
+    fn extract_html_document(&self, html: &str) -> crate::Result<Extraction> {
+        self.extract_html_sync(html)
+            .map(|md| Extraction::new(md, Format::Html))
     }
 
     #[cfg(feature = "docx")]
@@ -247,9 +291,22 @@ impl Markkit {
     /// by `max_processing_secs` ([`Error::ResourceLimit`]).
     #[cfg(feature = "http_client")]
     pub async fn extract_url(&self, url: &str) -> crate::Result<String> {
+        self.extract_url_document(url).await.map(|e| e.markdown)
+    }
+
+    /// [`Markkit::extract_url`] with metadata (format, title, warnings, stats).
+    ///
+    /// The response `Content-Type` is the format hint; same URL policy and limits.
+    #[cfg(feature = "http_client")]
+    pub async fn extract_url_document(&self, url: &str) -> crate::Result<Extraction> {
         let fetched = crate::fetch::fetch(url, &self.config).await?;
-        self.extract_bytes(&fetched.bytes, fetched.content_type.as_deref())
-            .await
+        self.extract_document_sync(
+            &fetched.bytes,
+            DocumentHint {
+                content_type: fetched.content_type.as_deref(),
+                file_name: None,
+            },
+        )
     }
 
     #[cfg(feature = "pdf")]

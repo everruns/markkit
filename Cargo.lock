@@ -1223,9 +1223,11 @@ name = "markkit"
 version = "0.1.1"
 dependencies = [
  "anyhow",
+ "base64",
  "calamine",
  "cfb",
  "criterion",
+ "futures-core",
  "hayro-syntax",
  "html5ever",
  "miniz_oxide",
@@ -1238,6 +1240,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tower",
  "tracing",
  "zip",
 ]
