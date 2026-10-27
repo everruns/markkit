@@ -9,6 +9,13 @@
 //!   content goes in its top-left slot, covered slots stay empty. Layout is
 //!   bounded by `MAX_TABLE_GRID_CELLS`; a table whose spans would exceed it is
 //!   laid out ignoring spans (threat model T2, invariant S13).
+//! - Output size and the deadline are checked per block, list item and table
+//!   row (not per byte). Tables pad every row to the widest row, so output can
+//!   be quadratic in input; checking per row keeps any buffer within
+//!   `max_output_size` plus one row. Nested renderers inherit the limits and
+//!   report a trip back to their parent.
+
+use std::time::Instant;
 
 use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, TableCell};
 
@@ -18,29 +25,101 @@ const MAX_TABLE_GRID_CELLS: usize = 1_000_000;
 const MAX_COLSPAN: usize = 1000;
 const MAX_ROWSPAN: usize = 65534;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Trip {
+    Output,
+    Time,
+}
+
 /// Renders a [`Document`] IR into Markdown text.
 pub struct MarkdownRenderer {
     /// Output buffer.
     buf: String,
+    max_output: usize,
+    deadline: Option<Instant>,
+    tripped: Option<Trip>,
 }
 
 impl MarkdownRenderer {
     pub fn new() -> Self {
         Self {
             buf: String::with_capacity(4096),
+            max_output: usize::MAX,
+            deadline: None,
+            tripped: None,
         }
     }
 
-    /// Render a document to a Markdown string.
+    /// Render a document to a Markdown string (no limits; the IR is trusted).
     pub fn render(&mut self, doc: &Document) -> String {
         self.buf.clear();
         self.render_nodes(&doc.nodes, 0);
         normalize_output(&self.buf)
     }
 
+    /// Render with `max_output` bytes and the budget's deadline enforced.
+    #[cfg(any(feature = "html", feature = "docx", feature = "spreadsheet"))]
+    pub(crate) fn render_bounded(
+        &mut self,
+        doc: &Document,
+        max_output: usize,
+        budget: &crate::limits::Budget,
+    ) -> crate::Result<String> {
+        self.max_output = max_output;
+        self.deadline = budget.deadline();
+        self.tripped = None;
+        let out = self.render(doc);
+        match self.tripped {
+            Some(Trip::Time) => Err(budget.timeout_error()),
+            Some(Trip::Output) => Err(output_error(max_output)),
+            None if out.len() > max_output => Err(output_error(max_output)),
+            None => Ok(out),
+        }
+    }
+
+    /// Nested renderer sharing this renderer's limits.
+    fn sub(&self) -> Self {
+        Self {
+            max_output: self.max_output,
+            deadline: self.deadline,
+            ..Self::new()
+        }
+    }
+
+    /// Render block children to normalized Markdown in a nested renderer.
+    fn render_blocks(&mut self, nodes: &[Node], depth: usize) -> String {
+        let mut sub = self.sub();
+        sub.render_nodes(nodes, depth);
+        self.absorb(&sub);
+        normalize_output(&sub.buf)
+    }
+
+    /// Fold a nested renderer's trip into this one.
+    fn absorb(&mut self, sub: &Self) {
+        if self.tripped.is_none() {
+            self.tripped = sub.tripped;
+        }
+    }
+
+    /// True once a limit is hit; rendering then stops at the next check.
+    fn over_limit(&mut self) -> bool {
+        if self.tripped.is_some() {
+            return true;
+        }
+        if self.buf.len() > self.max_output {
+            self.tripped = Some(Trip::Output);
+        } else if self.deadline.is_some_and(|d| Instant::now() >= d) {
+            self.tripped = Some(Trip::Time);
+        }
+        self.tripped.is_some()
+    }
+
     /// Render a slice of nodes.
     fn render_nodes(&mut self, nodes: &[Node], depth: usize) {
         for (i, node) in nodes.iter().enumerate() {
+            if self.over_limit() {
+                return;
+            }
             if i > 0 && node.is_block() && nodes[i - 1].is_block() {
                 self.buf.push('\n');
             }
@@ -80,8 +159,9 @@ impl MarkdownRenderer {
 
             Node::BlockQuote { children, .. } => {
                 let inner = {
-                    let mut sub = MarkdownRenderer::new();
+                    let mut sub = self.sub();
                     sub.render_nodes(children, depth);
+                    self.absorb(&sub);
                     normalize_output(&sub.buf)
                 };
                 for line in inner.lines() {
@@ -153,7 +233,7 @@ impl MarkdownRenderer {
             Node::FootnoteDefinition {
                 label, children, ..
             } => {
-                let inner = render_blocks(children, depth);
+                let inner = self.render_blocks(children, depth);
                 self.buf.push_str("[^");
                 self.buf.push_str(&footnote_label(label));
                 self.buf.push_str("]:");
@@ -179,6 +259,9 @@ impl MarkdownRenderer {
     /// Render a definition list: `Term` line, then `: definition` per definition.
     fn render_definition_list(&mut self, items: &[DefinitionItem], depth: usize) {
         for (i, item) in items.iter().enumerate() {
+            if self.over_limit() {
+                return;
+            }
             if i > 0 {
                 self.buf.push('\n');
             }
@@ -187,7 +270,7 @@ impl MarkdownRenderer {
             trim_trailing_inline(&mut self.buf, start);
             self.buf.push('\n');
             for def in &item.definitions {
-                let inner = render_blocks(def, depth);
+                let inner = self.render_blocks(def, depth);
                 self.buf.push(':');
                 push_hanging(&mut self.buf, &inner, "   ", "    ");
             }
@@ -200,6 +283,9 @@ impl MarkdownRenderer {
         let start_num = start.unwrap_or(1);
 
         for (i, item) in items.iter().enumerate() {
+            if self.over_limit() {
+                return;
+            }
             let marker = if ordered {
                 format!("{}{}. ", indent, start_num + i as u64)
             } else {
@@ -235,8 +321,9 @@ impl MarkdownRenderer {
                                 self.render_list(*sub_ord, *sub_start, sub_items, depth + 1);
                             }
                             _ => {
-                                let mut sub = MarkdownRenderer::new();
+                                let mut sub = self.sub();
                                 sub.render_node(child, depth + 1);
+                                self.absorb(&sub);
                                 let text = sub.buf.trim_end().to_string();
                                 self.buf.push_str(&text);
                                 self.buf.push('\n');
@@ -253,8 +340,9 @@ impl MarkdownRenderer {
                                 self.render_list(*sub_ord, *sub_start, sub_items, depth + 1);
                             }
                             _ => {
-                                let mut sub = MarkdownRenderer::new();
+                                let mut sub = self.sub();
                                 sub.render_node(child, depth + 1);
+                                self.absorb(&sub);
                                 let inner = sub.buf.trim_end().to_string();
                                 let sub_indent = "  ".repeat(depth + 1);
                                 for line in inner.lines() {
@@ -368,6 +456,9 @@ impl MarkdownRenderer {
         }
 
         for (r, row) in grid.iter().enumerate() {
+            if self.over_limit() {
+                return;
+            }
             self.buf.push('|');
             for i in 0..col_count {
                 self.buf.push(' ');
@@ -454,13 +545,6 @@ fn layout_table<'a>(rows: &[&'a [TableCell]], spans: bool) -> Option<Vec<GridRow
     Some(grid)
 }
 
-/// Render block children to normalized Markdown in a fresh renderer.
-fn render_blocks(nodes: &[Node], depth: usize) -> String {
-    let mut sub = MarkdownRenderer::new();
-    sub.render_nodes(nodes, depth);
-    normalize_output(&sub.buf)
-}
-
 /// Append `inner` with `first` before its first line and `rest` before the
 /// other non-blank lines (hanging indent for footnotes / definitions).
 fn push_hanging(buf: &mut String, inner: &str, first: &str, rest: &str) {
@@ -515,6 +599,11 @@ impl Default for MarkdownRenderer {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[cfg(any(feature = "html", feature = "docx", feature = "spreadsheet"))]
+fn output_error(max: usize) -> crate::Error {
+    crate::Error::ResourceLimit(format!("output exceeds max_output_size {max}"))
 }
 
 /// Trim leading and trailing whitespace from inline content rendered since `start`.

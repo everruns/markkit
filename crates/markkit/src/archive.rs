@@ -41,11 +41,11 @@ impl<'a> ZipGuard<'a> {
     /// Open the archive and check the entry count.
     pub fn open(bytes: &'a [u8], config: &MarkkitBuilder) -> Result<Self, ArchiveError> {
         let archive = ZipArchive::new(Cursor::new(bytes))?;
-        if archive.len() > config.max_archive_entries {
+        if archive.len() > config.limits.max_archive_entries {
             return Err(ArchiveError::Limit(format!(
                 "archive has {} entries, limit is {}",
                 archive.len(),
-                config.max_archive_entries
+                config.limits.max_archive_entries
             )));
         }
         let names = archive
@@ -55,8 +55,8 @@ impl<'a> ZipGuard<'a> {
         Ok(Self {
             archive,
             names,
-            max_entry: config.max_archive_entry_size,
-            max_total: config.max_archive_total_size,
+            max_entry: config.limits.max_archive_entry_size,
+            max_total: config.limits.max_archive_total_size,
             total: 0,
         })
     }

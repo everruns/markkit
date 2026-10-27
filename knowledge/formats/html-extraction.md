@@ -131,7 +131,7 @@ Trimming at render time:
 
 ## Depth Limiting
 
-Constant: `MAX_DEPTH = 200`
+Limit: `limits.max_nesting_depth` (default 256, clamped to `HARD_MAX_NESTING_DEPTH` = 512)
 
 Behavior at depth limit:
 - `convert_children`: extracts all descendant text via `.text().collect()`, trims, emits as single `Text` node
@@ -159,7 +159,23 @@ providing defense-in-depth.
 
 - **CSS selectors** (implemented): include/exclude selectors, with the defaults below
 - **Full page** (implemented): no include selector converts the whole body minus excludes
-- **Readability** (planned): article-content detection heuristic, not implemented
+- **Main content** (`main_content(true)`, CLI `--main-content`; off by default): Readability-style
+  scorer in `html/readability.rs`. Include selectors win over it. Algorithm:
+  1. One iterative traversal of `<body>`; subtrees matching exclude selectors or "unlikely"
+     class/id/role (`sidebar`, `comment`, `share`, `related`, `banner`, `cookie`, tokens `ad`/`nav`,
+     roles `navigation`/`complementary`/`dialog`...) are skipped unless the class also says
+     `content`/`article`/`main`/`post`/...
+  2. Paragraph-like blocks (`p`, `pre`, `blockquote`, leaf `div`/`section`/`td`) with >= 25 chars
+     score `1 + commas + min(floor(chars/100), 3)`, credited to parent (1), grandparent (1/2),
+     great-grandparent (1/3). Ancestors start from a tag score (`article`/`main` +10, `div` +5,
+     lists -3, headings -5) plus +-25 for positive/negative class/id words.
+  3. Top 10 by raw score are scaled by `1 - link density` (fragment links count 30%); best wins.
+  4. Winner's siblings are kept when their scaled score >= max(10, 0.2 x winner), or when a
+     `<p>` reads like prose (> 80 chars and link density < 0.25, or a link-free sentence).
+  5. Under 140 chars of chosen text, no candidate, or `<body>` itself winning: fall back to the
+     full body. Inside the chosen content, unlikely subtrees are dropped as well.
+  Headings above the article container (page `<h1>`) are usually outside it; the title is in
+  `Extraction::title`. Fixture: `news_page.html` -> `news_page.main.md`.
 
 ## Page Metadata
 

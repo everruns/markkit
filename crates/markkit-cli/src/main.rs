@@ -50,6 +50,10 @@ enum Commands {
         /// (URLs use the final response URL)
         #[arg(long)]
         base_url: Option<String>,
+
+        /// Keep only the detected main content (article body) of HTML pages
+        #[arg(long)]
+        main_content: bool,
     },
 }
 
@@ -67,6 +71,7 @@ async fn main() -> Result<()> {
             max_size,
             json: output_json,
             base_url,
+            main_content,
         } => {
             let read_stdin = stdin || source.as_deref() == Some("-");
 
@@ -74,7 +79,9 @@ async fn main() -> Result<()> {
                 anyhow::bail!("source is required unless --stdin or \"-\" is used");
             }
 
-            let mut builder = Markkit::builder().max_input_size(max_size);
+            let mut builder = Markkit::builder()
+                .max_input_size(max_size)
+                .main_content(main_content);
 
             for sel in &include_selectors {
                 builder = builder.include_selector(sel);

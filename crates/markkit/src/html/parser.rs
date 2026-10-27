@@ -19,7 +19,7 @@
 //! - `<figure>` becomes `Figure` only when it has a non-empty `<figcaption>`;
 //!   otherwise it stays a transparent container as before.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 use ego_tree::{NodeId, NodeRef};
@@ -28,36 +28,70 @@ use scraper::{Html, Node as HtmlNode, Selector};
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, Source, TableCell};
+use crate::limits::Budget;
 
 use url::Url;
 
 use super::metadata::PageInfo;
-use super::urls;
+use super::{readability, urls};
 
-/// Maximum recursion depth for nested elements.
-const MAX_DEPTH: usize = 200;
 /// HTML-spec clamps for table spans.
 const MAX_COLSPAN: u32 = 1000;
 const MAX_ROWSPAN: u32 = 65534;
 
+enum BudgetRef<'a> {
+    Owned(Budget),
+    Borrowed(&'a Budget),
+}
+
 /// Parses HTML into the canonical IR.
+///
+/// Limits: nesting past `limits.max_nesting_depth` is flattened to text; DOM
+/// node count and the deadline are enforced ([`Error::ResourceLimit`]).
 pub struct HtmlParser<'a> {
     config: &'a MarkkitBuilder,
+    budget: BudgetRef<'a>,
+    max_depth: usize,
     /// Footnote target id (without `#`) -> label, filled by references.
     footnote_labels: RefCell<HashMap<String, String>>,
     /// Base for relative URLs (caller base, then the document `<base href>`).
     base: Option<Url>,
     /// Cached 1-based index of an element among same-name element siblings.
     sibling_index: RefCell<HashMap<NodeId, usize>>,
+    /// Main-content mode: also drop "unlikely" subtrees (sidebars, share bars, ...).
+    drop_unlikely: Cell<bool>,
 }
 
 impl<'a> HtmlParser<'a> {
+    /// Parser with a fresh per-call budget (deadline starts now).
     pub fn new(config: &'a MarkkitBuilder) -> Self {
         Self {
             config,
+            budget: BudgetRef::Owned(Budget::new(&config.limits)),
+            max_depth: config.limits.nesting_depth(),
             footnote_labels: RefCell::new(HashMap::new()),
             base: urls::parse_base(config.base_url.as_deref()),
             sibling_index: RefCell::new(HashMap::new()),
+            drop_unlikely: Cell::new(false),
+        }
+    }
+
+    pub(crate) fn with_budget(config: &'a MarkkitBuilder, budget: &'a Budget) -> Self {
+        Self {
+            config,
+            budget: BudgetRef::Borrowed(budget),
+            max_depth: config.limits.nesting_depth(),
+            footnote_labels: RefCell::new(HashMap::new()),
+            base: urls::parse_base(config.base_url.as_deref()),
+            sibling_index: RefCell::new(HashMap::new()),
+            drop_unlikely: Cell::new(false),
+        }
+    }
+
+    fn budget(&self) -> &Budget {
+        match &self.budget {
+            BudgetRef::Owned(b) => b,
+            BudgetRef::Borrowed(b) => b,
         }
     }
 
@@ -80,33 +114,25 @@ impl<'a> HtmlParser<'a> {
         self.for_document(dom).convert_dom(dom)
     }
 
-    /// Parser whose base includes the document's `<base href>`.
-    fn for_document(&self, dom: &Html) -> Self {
-        Self {
+    /// Parser whose base includes the document's `<base href>`; shares this
+    /// parser's budget.
+    fn for_document(&self, dom: &Html) -> HtmlParser<'_> {
+        HtmlParser {
             config: self.config,
+            budget: BudgetRef::Borrowed(self.budget()),
+            max_depth: self.max_depth,
             footnote_labels: RefCell::new(HashMap::new()),
             sibling_index: RefCell::new(HashMap::new()),
             base: urls::document_base(dom, self.base.clone()),
+            drop_unlikely: Cell::new(false),
         }
     }
 
     fn convert_dom(&self, dom: &Html) -> Result<Document, Error> {
+        // html5ever is not interruptible: check right after it finishes.
+        self.budget().check_time()?;
+        self.budget().add_nodes(dom.tree.nodes().count())?;
         let root = dom.root_element();
-
-        let content_nodes: Vec<scraper::ElementRef<'_>> =
-            if !self.config.include_selectors.is_empty() {
-                let sels: Vec<Selector> = self
-                    .config
-                    .include_selectors
-                    .iter()
-                    .filter_map(|s| Selector::parse(s).ok())
-                    .collect();
-                sels.iter().flat_map(|sel| dom.select(sel)).collect()
-            } else {
-                let body_sel = Selector::parse("body").unwrap();
-                let body: Vec<_> = dom.select(&body_sel).collect();
-                if body.is_empty() { vec![root] } else { body }
-            };
 
         let exclude_selectors: Vec<Selector> = self
             .config
@@ -116,10 +142,42 @@ impl<'a> HtmlParser<'a> {
             .collect();
 
         let mut nodes = Vec::new();
-        for content_root in content_nodes {
-            self.convert_children(content_root, &exclude_selectors, &mut nodes, 0);
+        if !self.config.include_selectors.is_empty() {
+            let sels: Vec<Selector> = self
+                .config
+                .include_selectors
+                .iter()
+                .filter_map(|s| Selector::parse(s).ok())
+                .collect();
+            for content_root in sels.iter().flat_map(|sel| dom.select(sel)) {
+                self.convert_children(content_root, &exclude_selectors, &mut nodes, 0);
+            }
+            return Ok(Document::new(normalize_blocks(nodes)));
+        }
+        // The walk stops early once the deadline passes; report it here.
+        self.budget().check_time()?;
+
+        let body_sel = Selector::parse("body").unwrap();
+        let body = dom.select(&body_sel).next().unwrap_or(root);
+
+        if self.config.main_content
+            && let Some(roots) = readability::main_content(body, &exclude_selectors)
+        {
+            self.drop_unlikely.set(true);
+            for r in roots {
+                if r.whole && !is_transparent_container(r.el.value().name()) {
+                    if let Some(mut node) = self.convert_element(r.el, &exclude_selectors, 1) {
+                        self.mark_source(&mut node, r.el);
+                        nodes.push(node);
+                    }
+                } else {
+                    self.convert_children(r.el, &exclude_selectors, &mut nodes, 0);
+                }
+            }
+            return Ok(Document::new(normalize_blocks(nodes)));
         }
 
+        self.convert_children(body, &exclude_selectors, &mut nodes, 0);
         Ok(Document::new(normalize_blocks(nodes)))
     }
 
@@ -170,6 +228,7 @@ impl<'a> HtmlParser<'a> {
 
     fn is_excluded(&self, el: &scraper::ElementRef<'_>, exclude: &[Selector]) -> bool {
         exclude.iter().any(|sel| sel.matches(el))
+            || (self.drop_unlikely.get() && readability::is_unlikely(*el))
     }
 
     fn convert_children(
@@ -179,7 +238,10 @@ impl<'a> HtmlParser<'a> {
         out: &mut Vec<Node>,
         depth: usize,
     ) {
-        if depth >= MAX_DEPTH {
+        if self.budget().expired() {
+            return;
+        }
+        if depth >= self.max_depth {
             // At max depth, just extract text
             let text: String = parent.text().collect();
             let trimmed = text.trim();
@@ -247,7 +309,10 @@ impl<'a> HtmlParser<'a> {
         exclude: &[Selector],
         depth: usize,
     ) -> Option<Node> {
-        if depth >= MAX_DEPTH {
+        if self.budget().expired() {
+            return None;
+        }
+        if depth >= self.max_depth {
             let text: String = el.text().collect();
             let trimmed = text.trim();
             if trimmed.is_empty() {
@@ -583,7 +648,7 @@ impl<'a> HtmlParser<'a> {
         depth: usize,
         items: &mut Vec<DefinitionItem>,
     ) {
-        if depth >= MAX_DEPTH {
+        if depth >= self.max_depth || self.budget().expired() {
             return;
         }
         for child in el.children().filter_map(scraper::ElementRef::wrap) {
@@ -701,7 +766,10 @@ impl<'a> HtmlParser<'a> {
         depth: usize,
     ) -> Vec<Node> {
         let mut nodes = Vec::new();
-        if depth >= MAX_DEPTH {
+        if self.budget().expired() {
+            return nodes;
+        }
+        if depth >= self.max_depth {
             let text: String = el.text().collect();
             let trimmed = text.trim();
             if !trimmed.is_empty() {

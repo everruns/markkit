@@ -61,14 +61,17 @@ are trusted embedder code; the first error aborts and is returned as is
 ## Configuration
 
 Via `MarkkitBuilder`:
-- Input size limits
-- Processing time limits
+- Resource limits: one `Limits` struct (`limits.rs`, set whole via `.limits(..)` or per
+  field via builder setters): input/output size, timeout, nesting depth (hard max 512),
+  node count, archive, spreadsheet and redirect caps. Violations are
+  `Error::ResourceLimit`; see [Threat Model](../security/threat-model.md) Resource Limits
 - CSS selectors for include/exclude
 - Link and image preservation
 - Office-document limits (archive entries/sizes, sheet rows/cols, grid cells, hidden sheets)
 - URL fetch policy (`allow_private_networks`, `allow_host`, `max_redirects`)
 - Base URL for relative links, images and metadata URLs (`base_url`)
 - Provenance (`track_sources`): per-block `Source` in the IR (off by default)
+- Main-content detection for HTML (`main_content`)
 
 ## Public entry points
 
