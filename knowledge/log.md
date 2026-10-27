@@ -1,5 +1,9 @@
 # Markkit Knowledge Update Log
 
+## 2026-10-27
+
+* **Spreadsheet follow-ups (#11)**: single-row sheets render as data under column letters; XLSX/ODS/XLS titles come from document properties; XLSB content type no longer maps to XLSX; XLSX without `_rels/.rels` parses; trailing-newline output documented as intended; release profile switched to `panic = "unwind"` so `catch_unwind` is effective in markkit's own binaries. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md) T6c.
+
 ## 2026-10-26
 
 * **Relative URLs**: links, images and metadata URLs resolve against `base_url` (or the final `extract_url` response URL) plus `<base href>`. Only scheme-less references change; page bases are limited to `http(s)`. New `extract_url_document`. See [HTML Extraction](formats/html-extraction.md) and [Threat Model](security/threat-model.md) T1.
@@ -14,6 +18,7 @@
 * **IR v2**: footnotes, definition lists, task lists, figures, table alignment and spans; `Document.ir_version` (`IR_VERSION = 2`), `#[non_exhaustive]` IR types, `Node::is_block`/`is_inline`. HTML maps GitHub/Pandoc footnotes, `<dl>`, checkbox items, captioned figures, `colspan`/`rowspan`/alignment and row-header `<th>`. New threat T2e and invariant S13 (span grid budget, footnote label sanitizing). See [IR Specification](foundations/ir.md), [HTML Extraction](formats/html-extraction.md), [Threat Model](security/threat-model.md).
 * **Agent tool**: new [Tool Contract](integrations/tool-contract.md) concept in a new `integrations/` domain. `MarkkitTool` (opt-in `tool` feature) follows the Everruns toolkit-library contract; tool arguments are a new untrusted surface in the [Threat Model](security/threat-model.md).
 * **URL fetch hardening**: T3 SSRF is mitigated. `extract_url` blocks non-public addresses by default (URL, resolver and redirect layers), enforces scheme, allowlist, redirect, body and time limits; new invariant S12 and `url_security` tests. Proxy-resolved names are the documented residual. See [Threat Model](security/threat-model.md) and [Security Model](security/security-model.md).
+* **HTTP client opt-in**: `http_client` dropped from the `markkit` default features; the default build has no reqwest/hyper. CLI and bindings enable it explicitly; CI asserts the default tree stays network-free. See [Threat Model](security/threat-model.md) T3 and [Maintenance](operations/maintenance.md).
 * **Dependency trim**: unused dependencies removed (lockfile shrinks by ~460 lines; the `instant`/`paste` unmaintained advisories and their `deny.toml` ignores are gone with the stub bench deps). quick-xml moves to 0.42, one version shared with calamine; markkit's XML walkers now read `&str` names and values. See [Threat Model](security/threat-model.md) T6d and [Maintenance](operations/maintenance.md).
 * **Inter-block whitespace**: indented HTML lost blank lines between blocks and leaked a leading space into every following line, because whitespace-only text between blocks stayed in the block list as `Text(" ")`. The parser now normalizes block-context lists; golden fixtures, which had recorded the broken output, are regenerated. See [HTML Extraction](formats/html-extraction.md) and [IR Specification](foundations/ir.md).
 * **OKF migration**: `specs/` became this OKF v0.2 bundle, grouped into `foundations/`, `formats/`, `security/`, `runtimes/`, `operations/`. Every concept gained frontmatter and a See also section; `just check-okf` and CI enforce conformance. See [Knowledge Maintenance Contract](knowledge-contract.md).

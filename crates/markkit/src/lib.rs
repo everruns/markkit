@@ -35,12 +35,13 @@
 //! - **DOCX** (`docx`): Convert Word documents
 //! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLS and ODS workbooks to tables
 //! - **PDF** (`pdf`): Planned; currently returns [`Error::UnsupportedFormat`]
-//! - **URL fetching** (`http_client`, default): Fetch and extract from URLs via reqwest
+//! - **URL fetching** (`http_client`, opt-in): Fetch and extract from URLs via reqwest
 //! - **Agent tool** (`tool`): `markkit::tool::MarkkitTool`, an LLM tool following the
 //!   Everruns toolkit-library contract (schemas, OpenAI definition, `tower::Service`)
 //! - **JSON Schema** (`json-schema`): `ir::json_schema()` for the serialized IR
 //!
-//! Embedders that do their own fetching can drop reqwest entirely:
+//! The default build has no network stack; enable `http_client` for
+//! `Markkit::extract_url`. Office formats only, no HTML:
 //! `markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }`.
 
 #[cfg(any(feature = "docx", feature = "spreadsheet"))]
@@ -63,7 +64,8 @@ mod spreadsheet;
 #[cfg(feature = "tool")]
 pub mod tool;
 pub mod transform;
-#[cfg(feature = "docx")]
+#[cfg(any(feature = "docx", feature = "spreadsheet"))]
+#[cfg_attr(not(feature = "docx"), allow(dead_code))] // spreadsheet uses only `find`/`text`
 mod xml;
 
 pub use config::MarkkitBuilder;
