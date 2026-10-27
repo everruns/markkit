@@ -8,16 +8,24 @@ mod common;
 
 use std::time::Duration;
 
-use markkit::{DocumentHint, Error, Limits, Markkit};
+use markkit::{DocumentHint, Error, LimitKind, Limits, Markkit};
 
 #[allow(dead_code)]
 const DOCX_CT: &str = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 #[allow(dead_code)]
 const XLSX_CT: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-fn limit_msg<T: std::fmt::Debug>(r: markkit::Result<T>) -> String {
+/// The exceeded limit; also checks the message names it and `limit_kind` agrees.
+fn limit<T: std::fmt::Debug>(r: markkit::Result<T>) -> LimitKind {
     match r {
-        Err(Error::ResourceLimit(m)) => m,
+        Err(e @ Error::ResourceLimit(_)) => {
+            let Error::ResourceLimit(m) = &e else {
+                unreachable!()
+            };
+            assert_eq!(e.limit_kind(), Some(m.kind));
+            assert!(m.detail.contains(m.kind.as_str()), "{m}");
+            m.kind
+        }
         other => panic!("expected ResourceLimit, got {other:?}"),
     }
 }
@@ -77,7 +85,7 @@ mod html {
     fn output_cap_rejects_large_output() {
         let html = "<p>hello world</p>".repeat(1000);
         let m = Markkit::builder().max_output_size(1000).build();
-        assert!(limit_msg(m.extract_html_sync(&html)).contains("max_output_size"));
+        assert!(limit(m.extract_html_sync(&html)) == LimitKind::MaxOutputSize);
         let m = Markkit::builder().max_output_size(100_000).build();
         assert!(m.extract_html_sync(&html).is_ok());
     }
@@ -92,7 +100,7 @@ mod html {
         );
         let m = Markkit::builder().max_output_size(1 << 20).build();
         let start = std::time::Instant::now();
-        assert!(limit_msg(m.extract_html_sync(&html)).contains("max_output_size"));
+        assert!(limit(m.extract_html_sync(&html)) == LimitKind::MaxOutputSize);
         assert!(start.elapsed() < Duration::from_secs(10));
     }
 
@@ -105,24 +113,24 @@ mod html {
             format!("<ul><li><p>a</p>{table}</li></ul>"),
         ] {
             let m = Markkit::builder().max_output_size(64 * 1024).build();
-            assert!(limit_msg(m.extract_html_sync(&html)).contains("max_output_size"));
+            assert!(limit(m.extract_html_sync(&html)) == LimitKind::MaxOutputSize);
         }
     }
 
     #[test]
     fn zero_timeout_rejects() {
         let m = Markkit::builder().timeout(Duration::ZERO).build();
-        assert!(limit_msg(m.extract_html_sync("<p>x</p>")).contains("timeout"));
+        assert!(limit(m.extract_html_sync("<p>x</p>")) == LimitKind::Timeout);
         let r = m.extract_document_sync(b"<p>x</p>", DocumentHint::content_type("text/html"));
-        assert!(limit_msg(r).contains("timeout"));
+        assert!(limit(r) == LimitKind::Timeout);
     }
 
     #[test]
     fn node_cap_rejects() {
         let html = "<p>a</p>".repeat(1000);
         let m = Markkit::builder().max_nodes(500).build();
-        assert!(limit_msg(m.extract_html_sync(&html)).contains("max_nodes"));
-        assert!(limit_msg(m.parse_html(&html)).contains("max_nodes"));
+        assert!(limit(m.extract_html_sync(&html)) == LimitKind::MaxNodes);
+        assert!(limit(m.parse_html(&html)) == LimitKind::MaxNodes);
         let m = Markkit::builder().max_nodes(10_000).build();
         assert!(m.extract_html_sync(&html).is_ok());
     }
@@ -179,7 +187,7 @@ mod docx {
         let body: String = (0..200).map(|i| para(&format!("p{i}"))).collect();
         let bytes = docx(&body);
         let m = Markkit::builder().max_nodes(100).build();
-        assert!(limit_msg(run(&m, &bytes)).contains("max_nodes"));
+        assert!(limit(run(&m, &bytes)) == LimitKind::MaxNodes);
         assert!(run(&Markkit::builder().build(), &bytes).is_ok());
     }
 
@@ -194,7 +202,7 @@ mod docx {
         let bytes = docx(&body);
         assert!(run(&Markkit::builder().build(), &bytes).is_ok());
         let m = Markkit::builder().max_nesting_depth(8).build();
-        assert!(limit_msg(run(&m, &bytes)).contains("max_nesting_depth"));
+        assert!(limit(run(&m, &bytes)) == LimitKind::MaxNestingDepth);
     }
 
     #[test]
@@ -213,7 +221,7 @@ mod docx {
             .spawn(move || {
                 let m = Markkit::builder().max_nesting_depth(usize::MAX).build();
                 assert!(run(&m, &bytes).unwrap().markdown.contains('x'));
-                assert!(limit_msg(run(&m, &deeper)).contains("max_nesting_depth"));
+                assert!(limit(run(&m, &deeper)) == LimitKind::MaxNestingDepth);
             })
             .unwrap()
             .join()
@@ -224,7 +232,7 @@ mod docx {
     fn zero_timeout_rejects() {
         let bytes = docx(&para("x"));
         let m = Markkit::builder().timeout(Duration::ZERO).build();
-        assert!(limit_msg(run(&m, &bytes)).contains("timeout"));
+        assert!(limit(run(&m, &bytes)) == LimitKind::Timeout);
     }
 
     #[test]
@@ -232,7 +240,7 @@ mod docx {
         let body: String = (0..200).map(|i| para(&format!("paragraph {i}"))).collect();
         let bytes = docx(&body);
         let m = Markkit::builder().max_output_size(500).build();
-        assert!(limit_msg(run(&m, &bytes)).contains("max_output_size"));
+        assert!(limit(run(&m, &bytes)) == LimitKind::MaxOutputSize);
     }
 }
 
@@ -257,13 +265,13 @@ mod spreadsheet {
     #[test]
     fn zero_timeout_rejects() {
         let m = Markkit::builder().timeout(Duration::ZERO).build();
-        assert!(limit_msg(run(&m, &sheet())).contains("timeout"));
+        assert!(limit(run(&m, &sheet())) == LimitKind::Timeout);
     }
 
     #[test]
     fn output_cap_rejects() {
         let m = Markkit::builder().max_output_size(500).build();
-        assert!(limit_msg(run(&m, &sheet())).contains("max_output_size"));
+        assert!(limit(run(&m, &sheet())) == LimitKind::MaxOutputSize);
         assert!(run(&Markkit::builder().build(), &sheet()).is_ok());
     }
 
@@ -275,7 +283,10 @@ mod spreadsheet {
         let bytes = xlsb(&[Sheet::new("S", rows)]);
         let hint = DocumentHint::file_name("t.xlsb");
         let m = Markkit::builder().timeout(Duration::ZERO).build();
-        assert!(limit_msg(m.extract_document_sync(&bytes, hint)).contains("timeout"));
+        assert_eq!(
+            limit(m.extract_document_sync(&bytes, hint)),
+            LimitKind::Timeout
+        );
         assert!(
             Markkit::builder()
                 .build()

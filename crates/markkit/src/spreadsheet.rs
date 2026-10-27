@@ -40,7 +40,7 @@ use crate::error::Error;
 use crate::extract::{Warning, WarningCode};
 use crate::format::Format;
 use crate::ir::{Document, Node, Source, TableCell};
-use crate::limits::Budget;
+use crate::limits::{Budget, LimitExceeded, LimitKind};
 
 mod xlsb;
 
@@ -859,6 +859,10 @@ fn bof_is_biff8(data: &[u8]) -> bool {
 
 /// Scan the workbook stream and return a fresh OLE2 container holding only the
 /// scanned (and formula-neutralised) stream, which is what calamine reads.
+fn cells_error(detail: String) -> Error {
+    LimitExceeded::new(LimitKind::MaxSpreadsheetCells, detail).into()
+}
+
 fn prescan_xls<F: Read + Seek>(
     comp: &mut cfb::CompoundFile<F>,
     config: &MarkkitBuilder,
@@ -875,9 +879,11 @@ fn prescan_xls<F: Read + Seek>(
         .read_to_end(&mut stream)
         .map_err(|e| err(format!("cannot read Workbook stream: {e}")))?;
     if stream.len() as u64 > cap {
-        return Err(Error::ResourceLimit(format!(
-            "XLS Workbook stream exceeds {cap} bytes"
-        )));
+        return Err(LimitExceeded::new(
+            LimitKind::MaxArchiveEntrySize,
+            format!("XLS Workbook stream exceeds {cap} bytes"),
+        )
+        .into());
     }
     // Neutralising rewrites bytes, which can reframe records of an overlapping
     // sheet; rescan until stable. Honest files settle on the second pass.
@@ -921,8 +927,7 @@ fn scan_biff(stream: &[u8], max_cells: u64) -> Result<Vec<usize>, Error> {
             _ => {}
         }
     }
-    let limit =
-        |n: u64| Error::ResourceLimit(format!("XLS grid of {n} cells exceeds limit {max_cells}"));
+    let limit = |n: u64| cells_error(format!("XLS grid of {n} cells exceeds limit {max_cells}"));
     let mut total: u64 = 0;
     let mut edits = Vec::new();
     for pos in offsets {
@@ -1116,7 +1121,7 @@ fn prescan_ods(content: &[u8], max_cells: u64) -> Result<(), Error> {
     let mut total: u64 = 0;
     let check = |total: u64| {
         if total > max_cells {
-            Err(Error::ResourceLimit(format!(
+            Err(cells_error(format!(
                 "ODS grid of at least {total} cells exceeds limit {max_cells}"
             )))
         } else {

@@ -56,7 +56,10 @@ fn archive_err(e: ArchiveError) -> Error {
 
 fn xml_err(part: &str, e: XmlError) -> Error {
     match e {
-        XmlError::Limit(m) => Error::ResourceLimit(format!("{part}: {m}")),
+        XmlError::Limit(m) => Error::ResourceLimit(crate::limits::LimitExceeded::new(
+            m.kind,
+            format!("{part}: {}", m.detail),
+        )),
         XmlError::Invalid(m) => Error::PptxExtract(format!("{part}: {m}")),
     }
 }

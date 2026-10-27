@@ -31,8 +31,10 @@ pub enum Error {
     #[error("Unsupported format: {0}")]
     UnsupportedFormat(String),
 
+    /// A [`Limits`](crate::Limits) value was exceeded; match on
+    /// [`LimitExceeded::kind`](crate::LimitExceeded) (or use [`Error::limit_kind`]).
     #[error("Resource limit exceeded: {0}")]
-    ResourceLimit(String),
+    ResourceLimit(crate::limits::LimitExceeded),
 
     /// A custom [`crate::registry::FormatParser`] failed or panicked.
     #[error("Parser error: {0}")]
@@ -44,4 +46,14 @@ pub enum Error {
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+}
+
+impl Error {
+    /// The exceeded limit, for [`Error::ResourceLimit`].
+    pub fn limit_kind(&self) -> Option<crate::limits::LimitKind> {
+        match self {
+            Error::ResourceLimit(e) => Some(e.kind),
+            _ => None,
+        }
+    }
 }

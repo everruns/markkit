@@ -92,7 +92,9 @@ that renders as headings, links, code fences or tables).
 **Sub-threats**:
 
 All limits live in one `Limits` struct (`crates/markkit/src/limits.rs`,
-`MarkkitBuilder::limits`); violations return `Error::ResourceLimit` naming the limit.
+`MarkkitBuilder::limits`); violations return `Error::ResourceLimit(LimitExceeded { kind, detail })`; `kind` is a
+`LimitKind` named after the `Limits` field (`Error::limit_kind()`), so callers branch on it
+without parsing the message.
 
 #### T2a: Oversized Input
 - Input size checked before parsing against `max_input_size`

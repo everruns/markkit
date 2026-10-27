@@ -258,7 +258,11 @@ struct Interpreter<'c> {
 }
 
 fn limit() -> Error {
-    Error::ResourceLimit("PDF content exceeds max_pdf_decoded_size".into())
+    crate::limits::LimitExceeded::new(
+        crate::limits::LimitKind::MaxPdfDecodedSize,
+        "PDF content exceeds max_pdf_decoded_size",
+    )
+    .into()
 }
 
 fn num(o: Option<&Object<'_>>) -> f32 {

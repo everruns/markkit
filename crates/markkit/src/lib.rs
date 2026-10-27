@@ -92,7 +92,7 @@ pub use extract::{
 };
 pub use format::{DocumentHint, Format};
 pub use ir::Document;
-pub use limits::Limits;
+pub use limits::{LimitExceeded, LimitKind, Limits};
 pub use render::MarkdownRenderer;
 
 /// Result type alias for markkit operations.

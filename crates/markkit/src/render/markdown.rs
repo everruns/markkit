@@ -733,7 +733,11 @@ impl Default for MarkdownRenderer {
     feature = "markdown"
 ))]
 fn output_error(max: usize) -> crate::Error {
-    crate::Error::ResourceLimit(format!("output exceeds max_output_size {max}"))
+    crate::limits::LimitExceeded::new(
+        crate::limits::LimitKind::MaxOutputSize,
+        format!("output exceeds max_output_size {max}"),
+    )
+    .into()
 }
 
 /// Trim leading and trailing whitespace from inline content rendered since `start`.

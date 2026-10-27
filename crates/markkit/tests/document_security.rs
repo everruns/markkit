@@ -6,7 +6,7 @@
 mod common;
 
 use common::*;
-use markkit::{DocumentHint, Error, Markkit, WarningCode};
+use markkit::{DocumentHint, Error, LimitKind, Markkit, WarningCode};
 use proptest::prelude::*;
 
 const DOCX_CT: &str = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -47,7 +47,11 @@ fn docx_zip_bomb_entry_rejected() {
         .max_archive_entry_size(1024 * 1024)
         .build();
     let err = run(&m, &bytes, DOCX_CT).unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert_eq!(
+        err.limit_kind(),
+        Some(LimitKind::MaxArchiveEntrySize),
+        "{err:?}"
+    );
 }
 
 #[cfg(feature = "docx")]
@@ -66,7 +70,11 @@ fn docx_total_decompressed_size_capped() {
         .max_archive_total_size(1024 * 1024)
         .build();
     let err = run(&m, &bytes, DOCX_CT).unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert_eq!(
+        err.limit_kind(),
+        Some(LimitKind::MaxArchiveTotalSize),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -86,7 +94,11 @@ fn archive_entry_count_capped() {
     }
     for ct in types {
         let err = run(&m, &bytes, ct).unwrap_err();
-        assert!(matches!(err, Error::ResourceLimit(_)), "{ct}: {err:?}");
+        assert_eq!(
+            err.limit_kind(),
+            Some(LimitKind::MaxArchiveEntries),
+            "{ct}: {err:?}"
+        );
     }
 }
 
@@ -105,7 +117,11 @@ fn xlsx_zip_bomb_sheet_rejected() {
         .max_archive_entry_size(1024 * 1024)
         .build();
     let err = run(&m, &bytes, XLSX_CT).unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert_eq!(
+        err.limit_kind(),
+        Some(LimitKind::MaxArchiveEntrySize),
+        "{err:?}"
+    );
 }
 
 #[cfg(feature = "spreadsheet")]
@@ -177,7 +193,11 @@ fn xlsx_bomb_in_unreferenced_entry_rejected() {
         .max_archive_entry_size(1024 * 1024)
         .build();
     let err = run(&m, &bytes, XLSX_CT).unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert_eq!(
+        err.limit_kind(),
+        Some(LimitKind::MaxArchiveEntrySize),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -186,7 +206,11 @@ fn max_input_size_honoured_for_office_documents() {
     let m = Markkit::builder().max_input_size(bytes.len() - 1).build();
     for hint in hints() {
         let err = m.extract_document_sync(&bytes, hint).unwrap_err();
-        assert!(matches!(err, Error::ResourceLimit(_)), "{hint:?}: {err:?}");
+        assert_eq!(
+            err.limit_kind(),
+            Some(LimitKind::MaxInputSize),
+            "{hint:?}: {err:?}"
+        );
     }
 }
 
@@ -204,7 +228,11 @@ fn xls_huge_dimensions_rejected() {
     let err = m
         .extract_document_sync(&bytes, DocumentHint::default())
         .unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert_eq!(
+        err.limit_kind(),
+        Some(LimitKind::MaxSpreadsheetCells),
+        "{err:?}"
+    );
 }
 
 #[cfg(feature = "spreadsheet")]
@@ -219,7 +247,11 @@ fn xls_far_apart_cells_rejected() {
     let err = m
         .extract_document_sync(&bytes, DocumentHint::default())
         .unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert_eq!(
+        err.limit_kind(),
+        Some(LimitKind::MaxSpreadsheetCells),
+        "{err:?}"
+    );
 }
 
 #[cfg(feature = "spreadsheet")]
@@ -450,7 +482,11 @@ fn ods_repeated_rows_and_columns_rejected() {
     let err = m
         .extract_document_sync(&bytes, DocumentHint::default())
         .unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert_eq!(
+        err.limit_kind(),
+        Some(LimitKind::MaxSpreadsheetCells),
+        "{err:?}"
+    );
 }
 
 // ─── XML tricks ─────────────────────────────────────────────────────

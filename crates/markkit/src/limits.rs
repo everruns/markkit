@@ -23,7 +23,83 @@
 use std::cell::Cell;
 use std::time::{Duration, Instant};
 
+use serde::{Deserialize, Serialize};
+
 use crate::error::Error;
+
+/// Which [`Limits`] value an input exceeded. Serialized (and displayed) as the
+/// field name (`max_input_size`, `timeout`, ...).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum LimitKind {
+    MaxInputSize,
+    MaxOutputSize,
+    Timeout,
+    MaxNestingDepth,
+    MaxNodes,
+    MaxArchiveEntries,
+    MaxArchiveEntrySize,
+    MaxArchiveTotalSize,
+    MaxSpreadsheetCells,
+    MaxPdfStreamSize,
+    MaxPdfDecodedSize,
+}
+
+impl LimitKind {
+    /// The [`Limits`] field name.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            LimitKind::MaxInputSize => "max_input_size",
+            LimitKind::MaxOutputSize => "max_output_size",
+            LimitKind::Timeout => "timeout",
+            LimitKind::MaxNestingDepth => "max_nesting_depth",
+            LimitKind::MaxNodes => "max_nodes",
+            LimitKind::MaxArchiveEntries => "max_archive_entries",
+            LimitKind::MaxArchiveEntrySize => "max_archive_entry_size",
+            LimitKind::MaxArchiveTotalSize => "max_archive_total_size",
+            LimitKind::MaxSpreadsheetCells => "max_spreadsheet_cells",
+            LimitKind::MaxPdfStreamSize => "max_pdf_stream_size",
+            LimitKind::MaxPdfDecodedSize => "max_pdf_decoded_size",
+        }
+    }
+}
+
+impl std::fmt::Display for LimitKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Payload of [`Error::ResourceLimit`]: the limit hit plus a human-readable
+/// detail. Match on `kind`; `detail` may change. `Display` renders `detail`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct LimitExceeded {
+    pub kind: LimitKind,
+    pub detail: String,
+}
+
+impl LimitExceeded {
+    pub fn new(kind: LimitKind, detail: impl Into<String>) -> Self {
+        Self {
+            kind,
+            detail: detail.into(),
+        }
+    }
+}
+
+impl std::fmt::Display for LimitExceeded {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.detail)
+    }
+}
+
+impl From<LimitExceeded> for Error {
+    fn from(e: LimitExceeded) -> Self {
+        Error::ResourceLimit(e)
+    }
+}
 
 // THREAT[T2b]: recursion depth must stay safe on small host stacks whatever
 // the embedder configures. Measured worst case (nested blockquotes, renderer
@@ -189,10 +265,14 @@ impl Limits {
     /// Reject inputs larger than `max_input_size`.
     pub(crate) fn check_input(&self, len: usize) -> crate::Result<()> {
         if len > self.max_input_size {
-            return Err(Error::ResourceLimit(format!(
-                "input size {len} exceeds max_input_size {}",
-                self.max_input_size
-            )));
+            return Err(LimitExceeded::new(
+                LimitKind::MaxInputSize,
+                format!(
+                    "input size {len} exceeds max_input_size {}",
+                    self.max_input_size
+                ),
+            )
+            .into());
         }
         Ok(())
     }
@@ -318,7 +398,11 @@ impl Budget {
     }
 
     pub fn timeout_error(&self) -> Error {
-        Error::ResourceLimit(format!("processing exceeded timeout of {:?}", self.timeout))
+        LimitExceeded::new(
+            LimitKind::Timeout,
+            format!("processing exceeded timeout of {:?}", self.timeout),
+        )
+        .into()
     }
 
     /// Charge `n` parsed nodes against `max_nodes`.
@@ -327,10 +411,11 @@ impl Budget {
         let total = self.nodes.get().saturating_add(n);
         self.nodes.set(total);
         if total > self.max_nodes {
-            return Err(Error::ResourceLimit(format!(
-                "document has more than max_nodes {} nodes",
-                self.max_nodes
-            )));
+            return Err(LimitExceeded::new(
+                LimitKind::MaxNodes,
+                format!("document has more than max_nodes {} nodes", self.max_nodes),
+            )
+            .into());
         }
         Ok(())
     }

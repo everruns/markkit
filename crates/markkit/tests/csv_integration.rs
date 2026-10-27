@@ -202,7 +202,7 @@ fn security_timeout_applies() {
         .build();
     let r = m.extract_document_sync(b"a,b\n1,2\n", DocumentHint::file_name("a.csv"));
     assert!(
-        matches!(&r, Err(markkit::Error::ResourceLimit(msg)) if msg.contains("timeout")),
+        matches!(&r, Err(e) if e.limit_kind() == Some(markkit::LimitKind::Timeout)),
         "{r:?}"
     );
 }

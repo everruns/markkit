@@ -237,7 +237,7 @@ fn security_text_and_markdown_share_limits() {
             continue;
         }
         assert!(
-            matches!(&r, Err(Error::ResourceLimit(msg)) if msg.contains("timeout")),
+            matches!(&r, Err(e) if e.limit_kind() == Some(markkit::LimitKind::Timeout)),
             "{name}: {r:?}"
         );
     }

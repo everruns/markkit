@@ -26,6 +26,7 @@ use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
+use crate::limits::{LimitExceeded, LimitKind};
 
 /// Fetched body plus its declared content type.
 pub(crate) struct Fetched {
@@ -56,9 +57,11 @@ pub(crate) async fn fetch(url: &str, cfg: &MarkkitBuilder) -> crate::Result<Fetc
         if let Some(len) = response.content_length()
             && len > limit as u64
         {
-            return Ok(Err(Error::ResourceLimit(format!(
-                "response Content-Length {len} exceeds max_input_size {limit}"
-            ))));
+            return Ok(Err(LimitExceeded::new(
+                LimitKind::MaxInputSize,
+                format!("response Content-Length {len} exceeds max_input_size {limit}"),
+            )
+            .into()));
         }
         let content_type = response
             .headers()
@@ -69,9 +72,11 @@ pub(crate) async fn fetch(url: &str, cfg: &MarkkitBuilder) -> crate::Result<Fetc
         let mut bytes = Vec::new();
         while let Some(chunk) = response.chunk().await? {
             if bytes.len() + chunk.len() > limit {
-                return Ok(Err(Error::ResourceLimit(format!(
-                    "response body exceeds max_input_size {limit}"
-                ))));
+                return Ok(Err(LimitExceeded::new(
+                    LimitKind::MaxInputSize,
+                    format!("response body exceeds max_input_size {limit}"),
+                )
+                .into()));
             }
             bytes.extend_from_slice(&chunk);
         }
@@ -90,10 +95,11 @@ pub(crate) async fn fetch(url: &str, cfg: &MarkkitBuilder) -> crate::Result<Fetc
                 return Err(Error::UrlBlocked(reason));
             }
             if e.is_timeout() {
-                return Err(Error::ResourceLimit(format!(
-                    "fetch exceeded timeout of {:?}",
-                    cfg.limits.timeout
-                )));
+                return Err(LimitExceeded::new(
+                    LimitKind::Timeout,
+                    format!("fetch exceeded timeout of {:?}", cfg.limits.timeout),
+                )
+                .into());
             }
             Err(Error::Http(e.to_string()))
         }

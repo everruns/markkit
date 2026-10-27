@@ -217,7 +217,8 @@ markkit = { version = "0.1", features = ["http_client"] }
 ### Resource limits
 
 Every resource an input can drive is bounded by `markkit::Limits`. Defaults are
-generous; violations return `Error::ResourceLimit` naming the limit.
+generous; violations return `Error::ResourceLimit`, whose `LimitKind` (`err.limit_kind()`)
+names the field that was exceeded.
 
 | Limit | Default | Bounds |
 |-------|---------|--------|

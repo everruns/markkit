@@ -138,6 +138,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking:** `Error::ResourceLimit` carries a `LimitExceeded { kind: LimitKind, detail }` instead of
+  a `String`. `LimitKind` names the `Limits` field (`MaxInputSize`, `Timeout`, `MaxArchiveEntrySize`,
+  ...); `Error::limit_kind()` returns it. `ResourceLimit(_)` patterns and the error message are unchanged.
 - **Breaking**: limit fields moved from `MarkkitBuilder` to `MarkkitBuilder::limits`
   (`config().max_input_size` → `config().limits.max_input_size`); `max_processing_secs` field is
   now `limits.timeout: Duration`. Builder setters are unchanged, plus new `timeout`,

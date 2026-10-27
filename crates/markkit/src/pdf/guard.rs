@@ -19,6 +19,8 @@
 
 use hayro_syntax::Filter;
 
+use crate::limits::{LimitExceeded, LimitKind};
+
 /// Raised when a stream would decode past a limit.
 #[derive(Debug)]
 pub(crate) struct Limit(pub String);
@@ -118,11 +120,15 @@ pub(crate) fn prescan(
         let budget = stream_cap.min(total_cap.saturating_sub(total));
         let out = decode(&chain, &bytes[data_start..end], budget).map_err(|_| {
             if budget < stream_cap {
-                PrescanError::Limit(format!(
-                    "PDF streams decode to more than {total_cap} bytes in total"
+                PrescanError::Limit(LimitExceeded::new(
+                    LimitKind::MaxPdfDecodedSize,
+                    format!("PDF streams decode to more than {total_cap} bytes in total (max_pdf_decoded_size)"),
                 ))
             } else {
-                PrescanError::Limit(over(stream_cap).0)
+                PrescanError::Limit(LimitExceeded::new(
+                    LimitKind::MaxPdfStreamSize,
+                    format!("{} (max_pdf_stream_size)", over(stream_cap).0),
+                ))
             }
         })?;
         total += out.len();
@@ -134,7 +140,7 @@ pub(crate) fn prescan(
 pub(crate) enum PrescanError {
     Encrypted,
     Unverifiable,
-    Limit(String),
+    Limit(LimitExceeded),
 }
 
 fn find(hay: &[u8], needle: &[u8]) -> Option<usize> {
