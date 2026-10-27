@@ -88,6 +88,15 @@ All limits live in one `Limits` struct (`crates/markkit/src/limits.rs`,
   conversion, spreadsheet cell loops and renderer. html5ever tokenizing and calamine
   sheet decoding are not interruptible; they are linear in the (capped) input and the
   deadline is checked right after them
+- html5ever's tree builder is quadratic in nesting depth (687 KiB of nested `<div>`s took
+  12.6 s, 292 KiB of nested tables passed 60 s, uninterruptibly). `html::nesting::cap_nesting`
+  drops tags past `max_nesting_depth + 8` before html5ever runs, so parse cost is
+  O(input x cap); 45 MiB of hostile nesting now parses in under 0.5 s
+- Nested tables: rows are taken from the table's direct structure only. A descendant query
+  copied inner rows into every enclosing table, growing output and work 4x per level
+- Tests: `html_security::deep_div_nesting_is_linear`, `deep_unclosed_table_nesting_is_linear`,
+  `nested_table_rows_are_not_duplicated`, `deep_nested_tables_output_is_bounded`,
+  `html::nesting::tests::*`
 - `max_nodes` (default 5 000 000) caps HTML DOM nodes and DOCX XML nodes (summed over parts)
 - wasm32-unknown-unknown has no clock, so `timeout` is not enforced in `@everruns/markkit-wasm`;
   hosts bound time themselves (e.g. terminate the Worker). All other limits apply
@@ -346,6 +355,7 @@ process, or smuggling content past a human reviewer.
 | S14 | Returned Markdown never exceeds `max_output_size` | `limits::*output_cap*` |
 | S15 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
 | S16 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
+| S17 | HTML parse time is linear in input whatever the nesting; flattened deep subtrees never emit non-content (script/style/template) text | `html_security::deep_*_is_linear`, `script_and_style_bodies_do_not_leak_past_max_depth` |
 
 ## See also
 

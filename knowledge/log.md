@@ -2,6 +2,7 @@
 
 ## 2026-10-27
 
+* **Nesting cost**: HTML parsing was quadratic in nesting depth (html5ever) and exponential in nested tables (descendant row selection duplicated inner rows); text flattened past `max_nesting_depth` leaked `<script>`/`<style>` bodies. Fixed with a pre-scan nesting cap, direct-structure table rows and a non-content-aware flattener; new invariant S17. Found by `markkit-bench`. See [HTML Extraction](formats/html-extraction.md) and [Threat Model](security/threat-model.md) T2c.
 * **Spreadsheet follow-ups (#11)**: single-row sheets render as data under column letters; XLSX/ODS/XLS titles come from document properties; XLSB content type no longer maps to XLSX; XLSX without `_rels/.rels` parses; trailing-newline output documented as intended; release profile switched to `panic = "unwind"` so `catch_unwind` is effective in markkit's own binaries. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md) T6c.
 
 ## 2026-10-26

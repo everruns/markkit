@@ -98,6 +98,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- HTML: deeply nested input no longer costs quadratic time. 687 KiB of nested `<div>`s took
+  12.6 s and 292 KiB of unclosed nested tables ran past the 60 s timeout; tags nested past
+  `max_nesting_depth` are now dropped (text kept) before html5ever parses, so both take
+  milliseconds.
+- HTML: rows of nested tables are no longer copied into every enclosing table (output grew 4x
+  per nesting level).
+- HTML: text flattened past `max_nesting_depth` no longer includes `<script>`, `<style>`,
+  `<template>` and other non-content element bodies.
 - Spreadsheets: a sheet with a single row now renders that row as data under Excel column letters
   (`| A | B |`) instead of as a header with no rows.
 - Spreadsheets: `Extraction.title` is filled from document properties (XLSX `docProps/core.xml`,

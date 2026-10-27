@@ -84,6 +84,83 @@ fn deeply_nested_elements() {
     assert!(md.contains("Deep"));
 }
 
+// THREAT[T2c]: html5ever's tree builder is quadratic in nesting depth; the
+// pre-scan nesting cap keeps it linear. Before the cap these took 12.6 s and
+// >60 s in release; a generous budget catches a regression without flaking.
+fn assert_fast(html: &str, what: &str) {
+    let m = Markkit::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build();
+    let start = std::time::Instant::now();
+    m.extract_html_sync(html)
+        .unwrap_or_else(|e| panic!("{what}: {e}"));
+    assert!(
+        start.elapsed() < std::time::Duration::from_secs(20),
+        "{what} took {:?}",
+        start.elapsed()
+    );
+}
+
+#[test]
+fn deep_div_nesting_is_linear() {
+    let n = 64_000;
+    let html = format!("{}<p>Deep</p>{}", "<div>".repeat(n), "</div>".repeat(n));
+    assert_fast(&html, "64k nested divs");
+    assert!(convert(&html).contains("Deep"));
+}
+
+#[test]
+fn deep_unclosed_table_nesting_is_linear() {
+    assert_fast(&"<table><tr><td>".repeat(20_000), "20k nested tables");
+}
+
+#[test]
+fn nested_table_rows_are_not_duplicated() {
+    // Rows of an inner table belong to the inner table only. Selecting rows
+    // with a descendant query duplicated them into every enclosing table:
+    // output (and work) grew 4x per nesting level.
+    let html = "<table><tr><td>".repeat(4) + "needle";
+    let md = convert(&html);
+    assert_eq!(md.matches("needle").count(), 1, "{md}");
+    let two = convert(
+        "<table><tr><td>outer<table><tr><td>inner1</td></tr><tr><td>inner2</td></tr></table></td></tr></table>",
+    );
+    assert_eq!(two.matches("inner1").count(), 1, "{two}");
+    assert_eq!(two.matches("inner2").count(), 1, "{two}");
+}
+
+#[test]
+fn deep_nested_tables_output_is_bounded() {
+    let html = "<table><tr><td>".repeat(30) + "x";
+    let md = convert(&html);
+    assert!(md.len() < 64 * 1024, "output {} bytes", md.len());
+}
+
+#[test]
+fn script_and_style_bodies_do_not_leak_past_max_depth() {
+    // Past max_nesting_depth the subtree is flattened to text; that text must
+    // still skip non-content elements (S1/S2/S7).
+    for depth in [300, 5000] {
+        let html = format!(
+            "{}<p>ok</p><script>SECRET_JS()</script><style>.x{{color:red}}</style><template>tpl</template><p>after</p>{}",
+            "<div>".repeat(depth),
+            "</div>".repeat(depth)
+        );
+        let md = convert(&html);
+        assert!(md.contains("ok") && md.contains("after"), "{depth}: {md}");
+        for bad in [
+            "SECRET_JS",
+            "color:red",
+            "tpl",
+            "<style",
+            "<script",
+            "</div>",
+        ] {
+            assert!(!md.contains(bad), "{depth}: {bad} leaked: {md}");
+        }
+    }
+}
+
 #[test]
 fn very_long_text_node() {
     let text = "a".repeat(100_000);
