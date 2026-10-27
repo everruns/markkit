@@ -57,6 +57,8 @@ pub enum WarningCode {
     MalformedCsv,
     /// A CSV/TSV table exceeded the row/column caps and was cut.
     TruncatedTable,
+    /// An email body part could not be fully decoded (bad charset or transfer encoding).
+    EncodingProblem,
     /// Output was cut to a caller's size limit (agent tool `max_chars`).
     Truncated,
     /// Any other issue, e.g. from a custom [`crate::registry::FormatParser`].
@@ -79,6 +81,7 @@ impl WarningCode {
             WarningCode::InvalidUtf8 => "invalid_utf8",
             WarningCode::MalformedCsv => "malformed_csv",
             WarningCode::TruncatedTable => "truncated_table",
+            WarningCode::EncodingProblem => "encoding_problem",
             WarningCode::Truncated => "truncated",
             WarningCode::Other => "other",
         }
@@ -160,6 +163,8 @@ pub struct ExtractionStats {
     pub tables: Option<usize>,
     /// Non-empty cells rendered (Jupyter notebooks).
     pub cells: Option<usize>,
+    /// Attachments listed (email).
+    pub attachments: Option<usize>,
 }
 
 /// Result of [`Markkit::parse_document`]: the IR plus metadata, not rendered.
@@ -317,7 +322,7 @@ impl Markkit {
     }
 
     /// Convert a document (HTML, PDF, DOCX, PPTX, XLSX/XLSB/XLS/ODS, plain text, Markdown,
-    /// CSV/TSV, Jupyter notebooks) to Markdown with metadata.
+    /// CSV/TSV, Jupyter notebooks, email) to Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
     /// `hint.file_name`, then magic bytes. Parsing is CPU-bound and runs inline;
@@ -396,6 +401,7 @@ impl Markkit {
             Format::Markdown => self.parse_markdown(bytes, budget),
             Format::Csv | Format::Tsv => self.parse_csv(bytes, format, budget),
             Format::Notebook => self.parse_notebook(bytes, budget),
+            Format::Eml => self.parse_email(bytes, budget),
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
@@ -470,6 +476,27 @@ impl Markkit {
         p.stats.rows = Some(out.rows);
         p.stats.tables = Some(out.tables);
         Ok(p)
+    }
+
+    #[cfg(feature = "email")]
+    fn parse_email(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
+        let out = guarded("email", Error::EmailExtract, || {
+            crate::eml::parse(bytes, &self.config, budget)
+        })?;
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, Format::Eml);
+        p.title = out.title;
+        p.warnings = out.warnings;
+        p.stats.attachments = Some(out.attachments);
+        Ok(p)
+    }
+
+    #[cfg(not(feature = "email"))]
+    fn parse_email(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
+        Err(Error::UnsupportedFormat(
+            "email support requires the 'email' feature".to_string(),
+        ))
     }
 
     fn parse_notebook(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {

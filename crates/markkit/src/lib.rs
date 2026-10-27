@@ -36,6 +36,7 @@
 //! - **PPTX** (`pptx`): Convert PowerPoint presentations, one section per slide
 //! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLSB, XLS and ODS workbooks to tables
 //! - **Plain text** (always on): `text/plain`, `.txt`
+//! - **Email** (`email`): `.eml` / `message/rfc822`, headers, body and attachment list
 //! - **Jupyter notebooks** (always on): `.ipynb`, cells and text outputs
 //! - **CSV / TSV** (always on): `text/csv`, `text/tab-separated-values`, `.csv`, `.tsv`, one table
 //! - **Markdown** (`markdown`): `text/markdown`, `.md`, normalized through the IR
@@ -56,6 +57,8 @@ pub mod config;
 mod csv;
 #[cfg(feature = "docx")]
 mod docx;
+#[cfg(feature = "email")]
+mod eml;
 pub mod error;
 pub mod extract;
 #[cfg(feature = "http_client")]

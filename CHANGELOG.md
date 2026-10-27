@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `markkit mcp`: Model Context Protocol server over stdio exposing the `markkit` tool
   (`tools/list`, `tools/call`). URL fetching keeps the SSRF guard; `--no-url` keeps it offline,
   the `extract` limit flags and `--max-output-chars` bound each call.
+- Email input (`email` feature, in `all_formats`; `.eml`, `message/rfc822`): subject as title, From /
+  To / Cc / Date, plain-text body (HTML alternative converted when there is no plain part) and an
+  attachment list. New `Format::Eml`, `Error::EmailExtract`, `ExtractionStats::attachments`, `WarningCode::EncodingProblem`.
 - Jupyter notebook input (`.ipynb`, `application/x-ipynb+json`, nbformat 4), always on: Markdown
   cells, code cells as fenced blocks tagged with the kernel language, text outputs and ANSI-free
   tracebacks; images/HTML outputs skipped. New `Format::Notebook`, `Error::NotebookExtract` and

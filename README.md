@@ -21,6 +21,7 @@ package for browsers and edge runtimes.
 - **DOCX** – Headings, lists, tables, links, emphasis
 - **PPTX** – One section per slide: titles, bullets, tables, links, speaker notes
 - **Spreadsheets** – XLSX/XLSM, XLSB, XLS and ODS workbooks to markdown tables, one section per sheet
+- **Email (EML)** – Subject, sender, recipients, date, body (plain preferred, HTML converted), attachment list
 - **Jupyter notebooks** – Markdown cells, code cells with language, text outputs and tracebacks
 - **CSV / TSV** – One markdown table; `;` and `|` delimiters detected, RFC 4180 quoting
 - **Plain text / Markdown** – Text to paragraphs; Markdown normalized through the same IR (raw HTML never passed through)
@@ -40,6 +41,7 @@ package for browsers and edge runtimes.
 | Plain text | Supported | always on |
 | CSV, TSV | Supported | always on |
 | Jupyter notebooks (ipynb) | Supported | always on |
+| Email (EML) | Supported | `email` |
 | Markdown | Supported | `markdown` |
 | PDF (text layer) | Supported | `pdf` |
 | DOC, PPT | Detected, rejected explicitly | – |
@@ -202,7 +204,8 @@ let markkit = Markkit::builder()
 | `spreadsheet` | No | XLSX/XLSM, XLS, ODS conversion (calamine) |
 | `pdf` | No | PDF text-layer extraction (hayro-syntax, pure Rust) |
 | `markdown` | No | Markdown normalization (pulldown-cmark) |
-| `all_formats` | No | `html`, `pdf`, `docx`, `pptx`, `spreadsheet`, `markdown` |
+| `email` | No | EML conversion (mail-parser) |
+| `all_formats` | No | `html`, `pdf`, `docx`, `pptx`, `spreadsheet`, `markdown`, `email` |
 | `tool` | No | `markkit::tool::MarkkitTool` LLM agent tool (Everruns toolkit contract) |
 | `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
 

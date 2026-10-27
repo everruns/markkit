@@ -19,6 +19,7 @@
 * **HTML memory**: peak heap was about 25x input, mostly scraper's node arena grown by doubling plus four-slot inline node lists for one-node cells. The arena is now pre-sized from a clamped byte scan, inline lists are sized from the child count, and text nodes are no longer copied before whitespace collapsing. See [HTML Extraction](formats/html-extraction.md).
 * **Jupyter notebook input**: always on (serde_json); Markdown cells via the Markdown path, code cells fenced with the kernel language, text outputs kept, rich outputs skipped; shares the call's `Limits` budget. T7/S18 extended. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md).
 * **Limits in minimal builds**: with no format feature, `extract_document` skipped `max_output_size` and the final deadline check, so always-on text/CSV/notebook input ignored them (`csv_integration::security_timeout_applies` failed under `--no-default-features`). Bounded rendering is now unconditional, text decoding is followed by a deadline check, and CI tests `--no-default-features`. S14/S16 hold in every feature set.
+* **Email input**: `email` feature on mail-parser 0.11 (1.0 was two days old and a rewrite, so not adopted yet). Headers folded against line injection; attachments listed, never parsed; shares the call's `Limits` budget. T7/S18 extended. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md).
 
 ## 2026-10-26
 
