@@ -10,6 +10,7 @@ members = [
     "crates/markkit-eval",
     "crates/markkit-python",
     "crates/markkit-js",
+    "crates/markkit-wasm",
 ]
 
 [workspace.package]
@@ -76,3 +77,8 @@ lto = "thin"
 codegen-units = 1
 panic = "abort"
 strip = true
+
+# Browser bundle (crates/markkit-wasm/scripts/build.sh): size over speed.
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
