@@ -26,7 +26,8 @@ markkit.extract_html_sync("<h1>Hello</h1>", limits=limits)
 `Limits` fields: `max_input_size`, `max_output_size`, `timeout` (seconds),
 `max_nesting_depth`, `max_nodes`, `max_archive_entries`, `max_archive_entry_size`,
 `max_archive_total_size`, `max_sheet_rows`, `max_sheet_cols`,
-`max_spreadsheet_cells`, `max_redirects`. Every function accepts `limits=`.
+`max_spreadsheet_cells`, `max_redirects`, `max_pdf_pages`, `max_pdf_stream_size`,
+`max_pdf_decoded_size`. Every function accepts `limits=`.
 
 Publication verifies wheel metadata, installs the actual wheel into a clean
 virtual environment and exercises native extraction before upload.

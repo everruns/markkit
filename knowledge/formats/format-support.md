@@ -1,12 +1,13 @@
 ---
 type: Subsystem Design
 title: Format Support
-description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet, plain text and Markdown mapping.
+description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet, PDF, plain text and Markdown mapping.
 tags:
   - markkit
   - formats
   - docx
   - spreadsheet
+  - pdf
   - detection
   - markdown
 ---
@@ -23,7 +24,7 @@ tags:
 - **DOCX** (`docx`): Word documents via a direct `zip` + `quick-xml` reader (no docx-rs)
 - **XLSX/XLSM, XLS, ODS** (`spreadsheet`): Workbooks to Markdown tables via calamine
 - **Markdown** (`markdown`): Re-parsed with pulldown-cmark into the IR and rendered back (`text/markdown`, `text/x-markdown`, `.md`, `.markdown`, `.mdown`, `.mkd`, `.mkdn`)
-- **PDF** (`pdf`): Planned. Returns `Error::UnsupportedFormat` (never an empty success)
+- **PDF** (`pdf`): Text layer via hayro-syntax (pure Rust); no OCR, encrypted PDFs rejected
 
 ### Detected, not supported
 - **DOC** (Word 97-2003 binary), **PPTX**, **XLSB**: explicit `UnsupportedFormat` errors
@@ -65,6 +66,7 @@ concatenate cleanly); an empty document renders `""`. This is intended and stabl
 | XLSX | `docProps/core.xml` `dc:title` |
 | ODS | `meta.xml` `dc:title` |
 | XLS | `\u{5}SummaryInformation` property set, `PIDSI_TITLE` (code page aware: 1200 UTF-16, UTF-8, else Latin-1) |
+| PDF | `/Info /Title` (UTF-16BE with BOM, else PDFDocEncoding) |
 
 Whitespace is collapsed, titles are capped at 1024 characters, and a missing or
 malformed property part yields `None` without failing the extraction.
@@ -73,7 +75,8 @@ malformed property part yields `None` without failing the extraction.
 only the Markdown. Parsing is CPU-bound; async callers should use the sync variant in
 `spawn_blocking`.
 
-Warning codes: `truncated_sheet`, `hidden_sheet_skipped`, `sheet_error`, `invalid_utf8`.
+Warning codes: `truncated_sheet`, `hidden_sheet_skipped`, `sheet_error`, `truncated_pdf`,
+`pdf_unmapped_font`, `pdf_no_text`, `invalid_utf8`.
 
 ## Format Detection
 
@@ -133,6 +136,36 @@ numbering through the main part's relationships.
 - Only cached cell values are read: formulas are not evaluated, VBA/XLM macros are never
   executed or rendered.
 
+## PDF Mapping
+
+Text layer only (`crates/markkit/src/pdf/`). Layout is reconstructed from glyph positions:
+
+| PDF | Markdown |
+|---|---|
+| `Tj` / `TJ` / `'` / `"` runs on one baseline, moving right | One line; gaps > 0.15 em and `TJ` adjustments < −200 become spaces |
+| Consecutive lines | One paragraph, unless the vertical step exceeds 1.3× the page's most common line pitch, the text moves up (new column), or the size changes by > 15% |
+| `letter-` at line end + lowercase next line; soft hyphen | Joined without the hyphen |
+| Paragraph ≤ 3 lines, ≤ 200 chars, size ≥ 1.2× body size (size with most characters) | Heading; distinct heading sizes, largest first, map to `#`..`######` |
+| Line starting `•`, `●`, `▪`, `◦`, `‣`, `∙`, `■` or `–` + space | Unordered list item (consecutive items merge) |
+| Form XObjects (`Do`) | Followed with their matrix and resources; depth 8, cycles skipped |
+| Pages | Paragraphs never cross pages; no page separators |
+| `/Info /Title` | `Extraction::title` (UTF-16BE / PDFDocEncoding decoded) |
+| `track_sources(true)` | `Source::page` (1-based) on each top-level block |
+| Images, annotations, outlines, form fields | Skipped |
+
+Unicode per font, in order: `ToUnicode` CMap (`bfchar`, `bfrange` incl. arrays, code
+lengths from `codespacerange`); simple fonts: `/Encoding` (WinAnsi, MacRoman, Standard)
++ `/Differences` glyph names (AGL subset, `uniXXXX`, `uXXXX`, `a_b` ligatures, `.suffix`
+stripped); otherwise WinAnsi. Type0 fonts without `ToUnicode` are skipped with
+`pdf_unmapped_font` (no CID guessing). Ligature presentation forms are expanded
+(`ﬁ` → `fi`); control characters are dropped. Text render mode is ignored, so invisible
+OCR layers (mode 3) are extracted. Encrypted documents (an `/Encrypt` key anywhere)
+return `UnsupportedFormat`; a page set with no text emits `pdf_no_text`.
+
+Known gaps (follow-ups): multi-column reading order relies on content-stream order,
+no table detection, no repeated header/footer removal, bold/italic not mapped, numbered
+lists stay paragraphs, rotated text is not re-oriented.
+
 ## Plain Text and Markdown
 
 Shared decoding: UTF-8 (BOM stripped); UTF-16 LE/BE only with a BOM; otherwise lossy UTF-8
@@ -172,8 +205,12 @@ Office formats additionally enforce (see [Threat Model](../security/threat-model
 - `max_spreadsheet_cells` (4 000 000) for the dense grid calamine builds for XLS/ODS
 - XML nesting depth 256 for DOCX parts
 
+PDF additionally enforces (T8): `max_pdf_pages` (10 000; truncate + `truncated_pdf`),
+`max_pdf_stream_size` (64 MiB per decoded stream), `max_pdf_decoded_size` (256 MiB total
+decoded in the pre-scan, and separately the total content interpreted, form reuse included).
+
 ## See also
 
 - [HTML Extraction](html-extraction.md), the Tier 1 path
 - [IR Specification](../foundations/ir.md), the shared output of every parser
-- [Threat Model](../security/threat-model.md), T6 malicious office documents
+- [Threat Model](../security/threat-model.md), T6 malicious office documents, T7 text and Markdown, T8 malicious PDFs

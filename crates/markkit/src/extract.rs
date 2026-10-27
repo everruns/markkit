@@ -15,14 +15,14 @@ pub struct Extraction {
     pub markdown: String,
     /// Document title when known: HTML `og:title` / JSON-LD / `<title>`; DOCX
     /// core properties or `Title` style; XLSX `docProps/core.xml`, ODS
-    /// `meta.xml`, XLS `SummaryInformation`;
+    /// `meta.xml`, XLS `SummaryInformation`; PDF `/Info /Title`;
     /// Markdown front matter `title:` or first `# ` heading.
     pub title: Option<String>,
     /// Format the document was parsed as.
     pub format: Format,
     /// Non-fatal issues, each prefixed with a stable code
     /// (`truncated_sheet:`, `hidden_sheet_skipped:`, `sheet_error:`,
-    /// `invalid_utf8:`).
+    /// `truncated_pdf:`, `pdf_unmapped_font:`, `pdf_no_text:`, `invalid_utf8:`).
     pub warnings: Vec<String>,
     /// Format-specific counters.
     pub stats: ExtractionStats,
@@ -111,7 +111,13 @@ impl ParsedDocument {
     }
 
     /// [`ParsedDocument::render`] with `max_output_size` and the deadline enforced.
-    #[cfg(any(feature = "html", feature = "docx", feature = "spreadsheet"))]
+    #[cfg(any(
+        feature = "html",
+        feature = "docx",
+        feature = "spreadsheet",
+        feature = "pdf",
+        feature = "markdown"
+    ))]
     fn render_bounded(self, max_output: usize, budget: &Budget) -> crate::Result<Extraction> {
         let markdown = crate::render::MarkdownRenderer::new().render_bounded(
             &self.document,
@@ -136,7 +142,7 @@ impl ParsedDocument {
 /// Run a parser, converting a panic into an error (defence in depth for
 /// third-party parsers; only effective when built with `panic = "unwind"`, which
 /// markkit's own release profile uses).
-#[cfg(any(feature = "docx", feature = "spreadsheet"))]
+#[cfg(any(feature = "docx", feature = "spreadsheet", feature = "pdf"))]
 fn guarded<T>(
     what: &str,
     make_err: fn(String) -> Error,
@@ -224,7 +230,7 @@ impl Markkit {
         .map(|e| e.markdown)
     }
 
-    /// Convert a document (HTML, DOCX, XLSX/XLS/ODS, plain text, Markdown) to Markdown with metadata.
+    /// Convert a document (HTML, PDF, DOCX, XLSX/XLS/ODS, plain text, Markdown) to Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
     /// `hint.file_name`, then magic bytes. Parsing is CPU-bound and runs inline;
@@ -257,11 +263,23 @@ impl Markkit {
         budget: &Budget,
     ) -> crate::Result<Extraction> {
         let parsed = self.parse_document_with(bytes, hint, budget)?;
-        #[cfg(any(feature = "html", feature = "docx", feature = "spreadsheet"))]
+        #[cfg(any(
+            feature = "html",
+            feature = "docx",
+            feature = "spreadsheet",
+            feature = "pdf",
+            feature = "markdown"
+        ))]
         {
             parsed.render_bounded(self.config.limits.max_output_size, budget)
         }
-        #[cfg(not(any(feature = "html", feature = "docx", feature = "spreadsheet")))]
+        #[cfg(not(any(
+            feature = "html",
+            feature = "docx",
+            feature = "spreadsheet",
+            feature = "pdf",
+            feature = "markdown"
+        )))]
         Ok(parsed.render())
     }
 
@@ -294,7 +312,7 @@ impl Markkit {
 
         match Format::detect(bytes, hint) {
             Format::Html => self.parse_html_doc(bytes, budget),
-            Format::Pdf => self.parse_pdf(bytes),
+            Format::Pdf => self.parse_pdf(bytes, budget),
             Format::Docx => self.parse_docx(bytes, budget),
             Format::Xlsx | Format::Xlsb | Format::Xls | Format::Ods => {
                 self.parse_spreadsheet(bytes, budget)
@@ -445,14 +463,23 @@ impl Markkit {
         )
     }
 
-    /// PDF extraction is not implemented yet; report it explicitly rather than
-    /// returning an empty (misleading) success.
-    fn parse_pdf(&self, _bytes: &[u8]) -> crate::Result<ParsedDocument> {
-        #[cfg(feature = "pdf")]
-        let msg = "PDF extraction is not implemented yet";
-        #[cfg(not(feature = "pdf"))]
-        let msg = "PDF support requires the 'pdf' feature";
-        Err(Error::UnsupportedFormat(msg.to_string()))
+    #[cfg(feature = "pdf")]
+    fn parse_pdf(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
+        let out = guarded("PDF", Error::PdfExtract, || {
+            crate::pdf::parse(bytes, &self.config, budget)
+        })?;
+        let mut p = ParsedDocument::new(out.doc, Format::Pdf);
+        p.title = out.title;
+        p.warnings = out.warnings;
+        p.stats.pages = Some(out.pages);
+        Ok(p)
+    }
+
+    #[cfg(not(feature = "pdf"))]
+    fn parse_pdf(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
+        Err(Error::UnsupportedFormat(
+            "PDF support requires the 'pdf' feature".to_string(),
+        ))
     }
 
     /// Access the current configuration.

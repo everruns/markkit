@@ -28,6 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `<figure>`/`<figcaption>` and table spans/alignment. Row-header `<th>` cells in table bodies are
   no longer dropped.
 - `Document.ir_version` (`markkit::ir::IR_VERSION = 2`) is serialized with the IR JSON.
+- PDF extraction (`pdf` feature, on in the CLI `all_formats` build and the Python/Node bindings):
+  the text layer becomes paragraphs, font-size headings and bullet lists, with `/Title` as
+  `Extraction::title` and `stats.pages`. Pure Rust (hayro-syntax), no OCR. Fonts map through
+  `ToUnicode` CMaps, simple-font encodings and `/Differences`. New warnings `truncated_pdf`,
+  `pdf_unmapped_font`, `pdf_no_text`. Encrypted PDFs return `UnsupportedFormat`.
+- `Limits` fields `max_pdf_pages` (10 000), `max_pdf_stream_size` (64 MiB) and
+  `max_pdf_decoded_size` (256 MiB), also on the builder, as CLI flags (`--max-pdf-pages`, ...),
+  Python `Limits(...)` arguments and Node options (`maxPdfPages`, ...). PDF extraction also
+  honours `timeout` and `max_output_size`.
 - Relative URL resolution: links, images and metadata URLs resolve against the new
   `MarkkitBuilder::base_url` (CLI `--base-url`) and the page's `<base href>`; `extract_url` uses
   the final URL after redirects. Absolute and fragment-only URLs are left unchanged.
@@ -73,6 +82,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   thousands of rows); `max_nodes` (5 000 000) caps parsed HTML DOM / DOCX XML nodes;
   `max_nesting_depth` (256) is configurable, with a hard ceiling of 512 that keeps deep input off
   the host stack. Violations return `Error::ResourceLimit` naming the limit.
+- PDF decompression bombs: every stream in the file is decoded under the PDF size limits before
+  the parser runs (object streams included), interpreted content is budgeted so reused form
+  XObjects cannot multiply work, and stream filters that cannot be verified are refused.
+
 - `extract_url` (CLI, Python and Node `extract_url` too) now refuses non-public destinations by default:
   loopback, private, link-local / cloud metadata and other reserved addresses, checked on the URL,
   after DNS resolution and on every redirect. Only `http`/`https` are fetched. Redirects are capped

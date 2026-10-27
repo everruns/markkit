@@ -121,6 +121,15 @@ struct LimitArgs {
     /// Maximum redirects followed when fetching a URL [default: 5]
     #[arg(long, value_name = "N")]
     max_redirects: Option<usize>,
+    /// Maximum PDF pages rendered [default: 10000]
+    #[arg(long, value_name = "N")]
+    max_pdf_pages: Option<usize>,
+    /// Maximum decoded size of one PDF stream, bytes [default: 67108864]
+    #[arg(long, value_name = "BYTES")]
+    max_pdf_stream_size: Option<usize>,
+    /// Maximum total decoded PDF content, bytes [default: 268435456]
+    #[arg(long, value_name = "BYTES")]
+    max_pdf_decoded_size: Option<usize>,
 }
 
 impl LimitArgs {
@@ -140,7 +149,10 @@ impl LimitArgs {
             max_sheet_rows,
             max_sheet_cols,
             max_spreadsheet_cells,
-            max_redirects
+            max_redirects,
+            max_pdf_pages,
+            max_pdf_stream_size,
+            max_pdf_decoded_size
         );
         l
     }
@@ -282,6 +294,9 @@ mod tests {
             "--max-sheet-cols=9",
             "--max-spreadsheet-cells=10",
             "--max-redirects=11",
+            "--max-pdf-pages=12",
+            "--max-pdf-stream-size=13",
+            "--max-pdf-decoded-size=14",
         ]);
         let want = Limits::default()
             .max_input_size(1)
@@ -295,7 +310,10 @@ mod tests {
             .max_sheet_rows(8)
             .max_sheet_cols(9)
             .max_spreadsheet_cells(10)
-            .max_redirects(11);
+            .max_redirects(11)
+            .max_pdf_pages(12)
+            .max_pdf_stream_size(13)
+            .max_pdf_decoded_size(14);
         assert_eq!(l, want);
     }
 

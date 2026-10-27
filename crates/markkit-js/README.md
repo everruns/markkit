@@ -39,6 +39,6 @@ rendering; `maxProcessingSecs` is the whole-second form), `maxNodes`, `maxNestin
 `includeSelectors`, `excludeSelectors` (added to the defaults), `maxArchiveEntries`,
 `maxArchiveEntrySize`, `maxArchiveTotalSize`, `maxSheetRows`, `maxSheetCols`,
 `maxSpreadsheetCells`, `includeHiddenSheets`, `allowPrivateNetworks` (trusted URLs only),
-`allowedHosts`, `maxRedirects`.
+`allowedHosts`, `maxRedirects`, `maxPdfPages`, `maxPdfStreamSize`, `maxPdfDecodedSize`.
 
 For browsers and edge runtimes use [`@everruns/markkit-wasm`](https://www.npmjs.com/package/@everruns/markkit-wasm).
