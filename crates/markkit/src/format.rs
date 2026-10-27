@@ -20,6 +20,8 @@ pub enum Format {
     Docx,
     /// Legacy Word 97-2003 binary (`.doc`). Detected but not supported.
     Doc,
+    /// EPUB e-book (`.epub`).
+    Epub,
     /// OpenDocument text (`.odt`, `.ott`).
     Odt,
     /// Office Open XML spreadsheet (`.xlsx`, `.xlsm`, `.xltx`).
@@ -85,6 +87,7 @@ impl<'a> DocumentHint<'a> {
 const OLE2_MAGIC: &[u8] = b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
 const ODS_MIMETYPE: &[u8] = b"mimetypeapplication/vnd.oasis.opendocument.spreadsheet";
 const ODT_MIMETYPE: &[u8] = b"mimetypeapplication/vnd.oasis.opendocument.text";
+const EPUB_MIMETYPE: &[u8] = b"mimetypeapplication/epub+zip";
 
 impl Format {
     /// Short lowercase name (`"docx"`, `"xlsx"`, …).
@@ -95,6 +98,7 @@ impl Format {
             Format::Docx => "docx",
             Format::Doc => "doc",
             Format::Odt => "odt",
+            Format::Epub => "epub",
             Format::Xlsx => "xlsx",
             Format::Xlsb => "xlsb",
             Format::Xls => "xls",
@@ -129,6 +133,8 @@ impl Format {
             Format::Xlsx
         } else if ct.contains("ms-excel") {
             Format::Xls
+        } else if ct.contains("epub") {
+            Format::Epub
         } else if ct.contains("opendocument.text") {
             Format::Odt
         } else if ct.contains("opendocument.spreadsheet") {
@@ -167,6 +173,7 @@ impl Format {
             "xls" | "xlt" => Format::Xls,
             "ods" => Format::Ods,
             "odt" | "ott" => Format::Odt,
+            "epub" => Format::Epub,
             "pptx" | "pptm" | "ppsx" | "ppsm" | "potx" | "potm" => Format::Pptx,
             "ppt" | "pps" | "pot" => Format::Ppt,
             "csv" => Format::Csv,
@@ -243,6 +250,8 @@ fn sniff_zip(bytes: &[u8]) -> Format {
         Format::Ods
     } else if contains(head, ODT_MIMETYPE) {
         Format::Odt
+    } else if contains(head, EPUB_MIMETYPE) {
+        Format::Epub
     } else if contains(bytes, b"word/document") {
         Format::Docx
     } else if contains(bytes, b"xl/workbook.bin") {
@@ -304,6 +313,7 @@ mod tests {
             Format::Notebook,
             Format::Eml,
             Format::Odt,
+            Format::Epub,
             Format::PlainText,
             Format::Markdown,
             Format::Unknown,

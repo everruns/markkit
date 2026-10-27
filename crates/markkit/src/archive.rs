@@ -1,4 +1,4 @@
-//! Bounded ZIP access shared by the DOCX and spreadsheet parsers.
+//! Bounded ZIP access shared by the DOCX, ODT, EPUB and spreadsheet parsers.
 //!
 //! Decision: declared sizes in ZIP headers are attacker-controlled, so limits are
 //! enforced on bytes actually produced by the decompressor (`Read::take`), never on
@@ -66,7 +66,7 @@ impl<'a> ZipGuard<'a> {
     }
 
     /// Names of all entries.
-    #[cfg(feature = "spreadsheet")]
+    #[cfg(any(feature = "spreadsheet", feature = "epub"))]
     pub fn names(&self) -> impl Iterator<Item = &str> {
         self.names.iter().map(String::as_str)
     }

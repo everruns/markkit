@@ -59,6 +59,8 @@ pub enum WarningCode {
     TruncatedTable,
     /// An email body part could not be fully decoded (bad charset or transfer encoding).
     EncodingProblem,
+    /// An EPUB spine item is missing from the manifest or the archive.
+    MissingChapter,
     /// Output was cut to a caller's size limit (agent tool `max_chars`).
     Truncated,
     /// Any other issue, e.g. from a custom [`crate::registry::FormatParser`].
@@ -82,6 +84,7 @@ impl WarningCode {
             WarningCode::MalformedCsv => "malformed_csv",
             WarningCode::TruncatedTable => "truncated_table",
             WarningCode::EncodingProblem => "encoding_problem",
+            WarningCode::MissingChapter => "missing_chapter",
             WarningCode::Truncated => "truncated",
             WarningCode::Other => "other",
         }
@@ -165,6 +168,8 @@ pub struct ExtractionStats {
     pub cells: Option<usize>,
     /// Attachments listed (email).
     pub attachments: Option<usize>,
+    /// Chapters rendered (EPUB).
+    pub chapters: Option<usize>,
 }
 
 /// Result of [`Markkit::parse_document`]: the IR plus metadata, not rendered.
@@ -322,7 +327,7 @@ impl Markkit {
     }
 
     /// Convert a document (HTML, PDF, DOCX, PPTX, ODT, XLSX/XLSB/XLS/ODS, plain text, Markdown,
-    /// CSV/TSV, Jupyter notebooks, email) to Markdown with metadata.
+    /// CSV/TSV, Jupyter notebooks, email, EPUB) to Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
     /// `hint.file_name`, then magic bytes. Parsing is CPU-bound and runs inline;
@@ -403,6 +408,7 @@ impl Markkit {
             Format::Notebook => self.parse_notebook(bytes, budget),
             Format::Eml => self.parse_email(bytes, budget),
             Format::Odt => self.parse_odt(bytes, budget),
+            Format::Epub => self.parse_epub(bytes, budget),
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
@@ -477,6 +483,27 @@ impl Markkit {
         p.stats.rows = Some(out.rows);
         p.stats.tables = Some(out.tables);
         Ok(p)
+    }
+
+    #[cfg(feature = "epub")]
+    fn parse_epub(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
+        let out = guarded("EPUB", Error::EpubExtract, || {
+            crate::epub::parse(bytes, &self.config, budget)
+        })?;
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, Format::Epub);
+        p.title = out.title;
+        p.warnings = out.warnings;
+        p.stats.chapters = Some(out.chapters);
+        Ok(p)
+    }
+
+    #[cfg(not(feature = "epub"))]
+    fn parse_epub(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
+        Err(Error::UnsupportedFormat(
+            "EPUB support requires the 'epub' feature".to_string(),
+        ))
     }
 
     #[cfg(feature = "odt")]
