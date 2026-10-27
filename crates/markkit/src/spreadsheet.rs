@@ -30,7 +30,6 @@ use crate::error::Error;
 use crate::format::Format;
 use crate::ir::{Document, Node, Source, TableCell};
 use crate::limits::Budget;
-use crate::render::escape_table_cell;
 
 pub(crate) struct SheetOutput {
     pub doc: Document,
@@ -349,7 +348,7 @@ impl Grid {
             for (c, v) in cells {
                 let idx = (c - min_col) as usize;
                 if idx < width {
-                    row[idx] = escape_table_cell(v.trim());
+                    row[idx] = v.trim().to_string();
                 }
             }
             row
