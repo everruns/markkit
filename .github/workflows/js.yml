@@ -33,6 +33,8 @@ jobs:
         run: cd crates/markkit-js && npx --no-install napi build --release --platform
       - name: Verify build preserved the patched lockfile
         run: git diff --exit-code -- Cargo.lock
+      - name: Binding tests
+        run: cd crates/markkit-js && node --test __test__/*.test.cjs
       - name: Verify installed npm package
         run: |
           cd crates/markkit-js
