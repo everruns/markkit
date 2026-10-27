@@ -9,10 +9,12 @@ use crate::ir::Document;
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Extraction {
-    /// Rendered Markdown.
+    /// Rendered Markdown. Non-empty output always ends with exactly one `\n`
+    /// (POSIX text convention, safe to concatenate); empty documents render `""`.
     pub markdown: String,
-    /// Document title when known (HTML `og:title` / JSON-LD / `<title>`;
-    /// DOCX core properties or `Title` style).
+    /// Document title when known: HTML `og:title` / JSON-LD / `<title>`; DOCX
+    /// core properties or `Title` style; XLSX `docProps/core.xml`, ODS
+    /// `meta.xml`, XLS `SummaryInformation`.
     pub title: Option<String>,
     /// Format the document was parsed as.
     pub format: Format,
@@ -118,7 +120,8 @@ impl ParsedDocument {
 }
 
 /// Run a parser, converting a panic into an error (defence in depth for
-/// third-party parsers; only effective when built with `panic = "unwind"`).
+/// third-party parsers; only effective when built with `panic = "unwind"`, which
+/// markkit's own release profile uses).
 #[cfg(any(feature = "docx", feature = "spreadsheet"))]
 fn guarded<T>(
     what: &str,
@@ -266,7 +269,9 @@ impl Markkit {
             Format::Html => self.parse_html_doc(bytes),
             Format::Pdf => self.parse_pdf(bytes),
             Format::Docx => self.parse_docx(bytes),
-            Format::Xlsx | Format::Xls | Format::Ods => self.parse_spreadsheet(bytes),
+            Format::Xlsx | Format::Xlsb | Format::Xls | Format::Ods => {
+                self.parse_spreadsheet(bytes)
+            }
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
@@ -328,6 +333,7 @@ impl Markkit {
         let mut doc = out.doc;
         self.config.transforms.apply(&mut doc)?;
         let mut p = ParsedDocument::new(doc, out.format);
+        p.title = out.title;
         p.warnings = out.warnings;
         p.stats.sheets = Some(out.sheets);
         p.stats.rows = Some(out.rows);

@@ -1,5 +1,9 @@
 # Markkit Knowledge Update Log
 
+## 2026-10-27
+
+* **Spreadsheet follow-ups (#11)**: single-row sheets render as data under column letters; XLSX/ODS/XLS titles come from document properties; XLSB content type no longer maps to XLSX; XLSX without `_rels/.rels` parses; trailing-newline output documented as intended; release profile switched to `panic = "unwind"` so `catch_unwind` is effective in markkit's own binaries. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md) T6c.
+
 ## 2026-10-26
 
 * **Relative URLs**: links, images and metadata URLs resolve against `base_url` (or the final `extract_url` response URL) plus `<base href>`. Only scheme-less references change; page bases are limited to `http(s)`. New `extract_url_document`. See [HTML Extraction](formats/html-extraction.md) and [Threat Model](security/threat-model.md) T1.

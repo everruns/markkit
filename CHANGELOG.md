@@ -79,6 +79,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Spreadsheets: a sheet with a single row now renders that row as data under Excel column letters
+  (`| A | B |`) instead of as a header with no rows.
+- Spreadsheets: `Extraction.title` is filled from document properties (XLSX `docProps/core.xml`,
+  ODS `meta.xml`, XLS `SummaryInformation`).
+- `Format::from_content_type` detects XLSB (`application/vnd.ms-excel.sheet.binary.macroEnabled.12`)
+  as the new `Format::Xlsb` instead of `Xlsx`; `.xlsb` files and `xl/workbook.bin` containers too.
+- XLSX packages missing `_rels/.rels` no longer fail inside calamine.
+- Release builds use `panic = "unwind"`, so a parser panic becomes an error instead of aborting the
+  CLI or the host Python/Node process.
 - Indented HTML (most real web pages) now keeps blank lines between blocks; previously
   headings, paragraphs, lists and tables after the first ran together with a leading space
   (`# A\n B` instead of `# A\n\nB`), which also broke headings and tables as markdown.
