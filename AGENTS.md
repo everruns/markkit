@@ -39,6 +39,7 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 | operations/examples | `examples/` contents and requirements |
 | operations/maintenance | Maintenance invocation contract + checklist + workflow credential audit |
 | operations/release-process | Agent-driven release, crates.io + PyPI + npm |
+| operations/performance-results | Benchmark harness, metrics, committed results |
 | operations/eval | LLM-as-judge eval design (harness is a stub) |
 
 ### Documentation
@@ -73,7 +74,8 @@ just lint          # clippy -D warnings
 just check         # fmt + clippy + test + knowledge + scripts + examples
 just check-okf     # knowledge/ OKF conformance
 just examples      # Run every example
-just bench         # Criterion benches (crates/markkit/benches)
+just bench         # Benchmark harness, saves results to crates/markkit-bench/results
+just bench-criterion # Criterion micro-benches (crates/markkit/benches)
 just pre-pr        # Pre-PR checks
 ```
 
@@ -83,7 +85,7 @@ just pre-pr        # Pre-PR checks
 |-------|---------|
 | `markkit` | Core extraction library (HTML, DOCX, spreadsheets) |
 | `markkit-cli` | `markkit` CLI |
-| `markkit-bench` | Benchmark harness (stub; real benches are criterion in `markkit`) |
+| `markkit-bench` | Benchmark harness: ops/s, throughput, allocations; results committed |
 | `markkit-eval` | LLM evaluation harness (stub) |
 | `markkit-python` | Python bindings (PyO3), module `markkit` |
 | `markkit-js` | Node.js bindings (NAPI-RS), package `@everruns/markkit` |
@@ -94,7 +96,7 @@ just pre-pr        # Pre-PR checks
 - Stable Rust, pinned in `rust-toolchain.toml`
 - `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`
 - Licenses/advisories: `cargo deny check` (`deny.toml`), `cargo audit`
-- Format deps stay feature-gated; `docx,spreadsheet` build must not link reqwest/hyper (CI checks)
+- Format deps stay feature-gated; `http_client` opt-in (never default); default and `docx,spreadsheet` builds must not link reqwest/hyper (CI checks)
 
 ### Pre-PR Checklist
 

@@ -920,3 +920,108 @@ fn sources_do_not_change_markdown() {
     let b = convert_with(html, |b| b.track_sources(true));
     assert_eq!(a, b);
 }
+
+// ─── Math ────────────────────────────────────────────────────────────
+
+#[test]
+fn mathml_with_tex_annotation() {
+    let html = r#"<p>Area <math><semantics><mi>π</mi><annotation encoding="application/x-tex">\pi r^2</annotation></semantics></math> here.</p>"#;
+    assert_eq!(convert(html), "Area $\\pi r^2$ here.\n");
+}
+
+#[test]
+fn katex_inline_and_display() {
+    let html = r#"<p>Inline <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span>x2</span></span></span>.</p>
+    <div class="katex-display"><span class="katex"><span class="katex-mathml"><math display="block"><semantics><annotation encoding="application/x-tex">E = mc^2</annotation></semantics></math></span><span class="katex-html">E=mc2</span></span></div>"#;
+    assert_eq!(convert(html), "Inline $x^2$.\n\n$$\nE = mc^2\n$$\n");
+}
+
+#[test]
+fn mathjax_container() {
+    let html = r#"<mjx-container class="MathJax" display="true"><mjx-math>visual</mjx-math><mjx-assistive-mml><math display="block"><annotation encoding="application/x-tex">\int f</annotation></math></mjx-assistive-mml></mjx-container>"#;
+    assert_eq!(convert(html), "$$\n\\int f\n$$\n");
+}
+
+#[test]
+fn mathml_without_tex_keeps_text() {
+    let html = "<p>See <math><mi>a</mi><mo>+</mo><mi>b</mi></math>.</p>";
+    assert_eq!(convert(html), "See a+b.\n");
+}
+
+#[test]
+fn math_dollars_cannot_break_out() {
+    let html =
+        r#"<p><math><annotation encoding="application/x-tex">a$ **b** $c</annotation></math></p>"#;
+    assert_eq!(convert(html), "$a\\$ **b** \\$c$\n");
+}
+
+// ─── Transforms ──────────────────────────────────────────────────────
+
+#[test]
+fn transforms_run_in_order_for_extract_and_parse() {
+    use markkit::transform::{self, NormalizeHeadings};
+    let m = Markkit::builder()
+        .transform(NormalizeHeadings)
+        .transform(transform::from_fn("uppercase", |doc| {
+            doc.visit_mut(&mut |n| {
+                if let markkit::ir::Node::Text(t) = n {
+                    *t = t.to_uppercase();
+                }
+            });
+            Ok(())
+        }))
+        .build();
+    assert_eq!(
+        m.extract_html_sync("<h3>a</h3><h4>b</h4>").unwrap(),
+        "# A\n\n## B\n"
+    );
+    let doc = m.parse_html("<h2>x</h2>").unwrap();
+    assert!(matches!(
+        &doc.nodes[0],
+        markkit::ir::Node::Heading { level: 1, .. }
+    ));
+    assert_eq!(
+        format!("{:?}", m.config().transforms),
+        r#"["normalize-headings", "uppercase"]"#
+    );
+}
+
+#[test]
+fn transform_error_aborts_extraction() {
+    let m = Markkit::builder()
+        .transform(markkit::transform::from_fn("fail", |_| {
+            Err(markkit::Error::Transform("boom".into()))
+        }))
+        .build();
+    let err = m.extract_html_sync("<p>a</p>").unwrap_err();
+    assert!(
+        matches!(err, markkit::Error::Transform(ref m) if m == "boom"),
+        "{err}"
+    );
+}
+
+#[test]
+fn drop_images_transform() {
+    let m = Markkit::builder()
+        .transform(markkit::transform::DropImages)
+        .build();
+    assert_eq!(
+        m.extract_html_sync(r#"<p><img src="a.png"></p><p>t <img src="b.png"></p>"#)
+            .unwrap(),
+        "t\n"
+    );
+}
+
+#[test]
+fn transforms_apply_to_extract_document_html() {
+    let m = Markkit::builder()
+        .transform(markkit::transform::NormalizeHeadings)
+        .build();
+    let e = m
+        .extract_document_sync(
+            b"<h2>x</h2>",
+            markkit::DocumentHint::content_type("text/html"),
+        )
+        .unwrap();
+    assert_eq!(e.markdown, "# x\n");
+}

@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
   `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
   canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and
-  JSON-LD. `markkit extract --json` includes `format`, `title` and `metadata` for files and stdin.
+  JSON-LD. `markkit extract --json` includes `format`, `title` and `metadata`.
 - IR v2: footnotes (`[^1]`), definition lists (`Term` / `:   definition`), task lists (`- [x]`),
   figures with captions, table column alignment (`:---:`) and `colspan`/`rowspan` (laid out on a
   grid; GFM has no spans). HTML maps GitHub and Pandoc footnote markup, `<dl>`, checkbox list items,
@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `pdf_unmapped_font`, `pdf_no_text`. Encrypted PDFs return `UnsupportedFormat`.
 - Builder limits `max_pdf_pages` (10 000), `max_pdf_stream_size` (64 MiB) and
   `max_pdf_decoded_size` (256 MiB).
+- Relative URL resolution: links, images and metadata URLs resolve against the new
+  `MarkkitBuilder::base_url` (CLI `--base-url`) and the page's `<base href>`; `extract_url` uses
+  the final URL after redirects. Absolute and fragment-only URLs are left unchanged.
+- Math: `$tex$` and `$$` blocks from MathML (`application/x-tex` annotation), KaTeX and MathJax output.
+- IR transforms: `MarkkitBuilder::transform(..)` runs `Transform` passes after parsing and before
+  rendering, for every format. Built-ins `transform::NormalizeHeadings` and `transform::DropImages`;
+  `transform::from_fn` for closures; `Document::visit` / `visit_mut` to walk the tree.
+- JSON Schema for the IR at `schema/ir.schema.json`; `json-schema` feature adds `markkit::ir::json_schema()`.
 - Per-block provenance: `MarkkitBuilder::track_sources(true)` records a `Source` on each IR block
   (HTML element XPath, DOCX body block index, spreadsheet sheet and A1 range) for citations.
 - `Markkit::parse_document` / `parse_document_sync` return the IR plus metadata (`ParsedDocument`)
@@ -37,7 +45,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `@everruns/markkit-wasm`: browser / edge WebAssembly package (`crates/markkit-wasm`), single-threaded,
   no special headers. `Markkit` class (HTML, DOCX, XLSX/XLS/ODS with validated camelCase options) and
   `MarkkitTool`. Built by `crates/markkit-wasm/scripts/build.sh`, published by `publish-wasm.yml`.
+- Node (`@everruns/markkit`): every function takes an optional trailing `options` object with all
+  builder settings (selectors, links/images, input, archive and sheet limits) and the URL policy
+  (`allowPrivateNetworks`, `allowedHosts`, `maxRedirects`, `maxProcessingSecs`). New
+  `extractDocument` / `extractDocumentSync` return Markdown with title, format, warnings, stats and
+  page metadata.
 - `Markkit::extract_url_document`: `extract_url` with format, title, warnings and stats.
+- Main-content detection: `MarkkitBuilder::main_content(true)` (CLI `--main-content`) keeps only
+  the article body of a web page, Readability-style, dropping navigation, sidebars, comments, share
+  bars and related-link blocks. Off by default; include selectors take precedence; falls back to the
+  full page when no article-like block is found.
 
 ### Security
 
@@ -52,8 +69,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   fetch by `max_processing_secs`. New builder options `allow_private_networks(true)` and `allow_host(..)`;
   refusals return the new `Error::UrlBlocked`.
 
+### Added
+
+- `markkit-bench` harness (`just bench`): per-case latency, ops/s, throughput, heap allocations and
+  peak heap, plus process peak RSS, over a generated HTML/DOCX/XLSX/ODS corpus. Runs are saved as
+  JSON + Markdown in `crates/markkit-bench/results/` and committed.
+
 ### Changed
 
+- **Breaking (features):** `http_client` is no longer a default feature; the default build pulls in
+  no HTTP/TLS stack. Library users calling `extract_url` add `features = ["http_client"]`. The CLI and
+  the Python/Node packages still enable it, so their `extract_url` is unchanged.
+- **Breaking:** `Error` is `#[non_exhaustive]` (new `Error::Transform`); matches need a `_` arm.
 - **Breaking (IR API):** `Node`, `Document`, `ListItem` and the new IR structs are `#[non_exhaustive]`;
   matches need a `_` arm and structs are built with constructors. `Node::Table` cells are now
   `TableCell` (`children`, `colspan`, `rowspan`) with an `alignments` field. Block variants gain a
@@ -61,7 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   carried as `colspan`.
 - Design docs moved from `specs/` to an OKF v0.2 knowledge bundle in `knowledge/`, validated in CI.
 - CI workflows declare read-only default permissions and do not persist checkout credentials.
-- CI runs every example; `just bench` now runs the criterion benchmarks.
+- CI runs every example; criterion benchmarks run with `just bench-criterion`.
 - README, SECURITY and binding docs corrected: Python module is `markkit`.
 - Dependencies: drop unused `async-trait`, `futures`, `regex`, `unicode-segmentation`, `encoding_rs`,
   `base64`, `mime`, `lol_html` (core) and `tracing-subscriber`, plus unused deps of the CLI, bindings
@@ -70,6 +97,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Spreadsheets: a sheet with a single row now renders that row as data under Excel column letters
+  (`| A | B |`) instead of as a header with no rows.
+- Spreadsheets: `Extraction.title` is filled from document properties (XLSX `docProps/core.xml`,
+  ODS `meta.xml`, XLS `SummaryInformation`).
+- `Format::from_content_type` detects XLSB (`application/vnd.ms-excel.sheet.binary.macroEnabled.12`)
+  as the new `Format::Xlsb` instead of `Xlsx`; `.xlsb` files and `xl/workbook.bin` containers too.
+- XLSX packages missing `_rels/.rels` no longer fail inside calamine.
+- Release builds use `panic = "unwind"`, so a parser panic becomes an error instead of aborting the
+  CLI or the host Python/Node process.
 - Indented HTML (most real web pages) now keeps blank lines between blocks; previously
   headings, paragraphs, lists and tables after the first ran together with a leading space
   (`# A\n B` instead of `# A\n\nB`), which also broke headings and tables as markdown.

@@ -1,4 +1,7 @@
-# Benchmark tool for measuring markkit extraction performance
+# Benchmark harness for markkit extraction.
+# Measures latency, ops/sec, throughput and heap allocations per case and saves
+# JSON + Markdown reports to results/ (committed, like bashkit-bench).
+# Usage: cargo run -p markkit-bench --release -- [options]
 
 [package]
 name = "markkit-bench"
@@ -7,11 +10,20 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 description = "Benchmark tool for markkit markdown extraction"
+publish = false
 
 [[bin]]
 name = "markkit-bench"
 path = "src/main.rs"
 
 [dependencies]
+# No http_client: the harness is offline and must not link reqwest/hyper.
+markkit = { path = "../markkit", default-features = false, features = ["html", "docx", "spreadsheet"] }
+zip = { workspace = true }
+serde.workspace = true
+serde_json.workspace = true
 clap.workspace = true
 anyhow.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

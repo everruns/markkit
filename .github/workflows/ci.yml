@@ -78,6 +78,10 @@ jobs:
         run: cargo test --workspace --all-features
       - name: Run tests (office formats, no HTTP client)
         run: |
+          if cargo tree -p markkit -e normal | grep -E 'reqwest|hyper'; then
+            echo "HTTP client leaked into the default feature set"
+            exit 1
+          fi
           cargo test -p markkit --no-default-features --features docx,spreadsheet
           if cargo tree -p markkit --no-default-features --features docx,spreadsheet -e normal | grep -E 'reqwest|hyper'; then
             echo "HTTP client leaked into the docx,spreadsheet feature set"
@@ -85,7 +89,7 @@ jobs:
           fi
       - name: Run examples
         run: |
-          for ex in basic custom_selectors configuration ir_access; do
+          for ex in basic custom_selectors configuration ir_access transforms; do
             cargo run -q -p markkit --example "$ex"
           done
           cargo run -q -p markkit --features tool --example agent_tool

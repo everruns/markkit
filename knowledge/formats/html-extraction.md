@@ -39,6 +39,7 @@ HTML from the web: malformed markup, complex layouts, embedded scripts, etc.
 | `<li><input type=checkbox>` | `- [x] item` |
 | `<figure>` + `<figcaption>` | content + `*caption*` |
 | footnote refs / sections | `[^1]` / `[^1]: body` |
+| `<math>`, KaTeX, MathJax | `$tex$` / `$$` block |
 | `<em>/<i>` | `*text*` |
 | `<strong>/<b>` | `**text**` |
 | `<del>/<s>` | `~~text~~` |
@@ -74,6 +75,7 @@ HTML from the web: malformed markup, complex layouts, embedded scripts, etc.
 | `<del>`, `<s>`, `<strike>` | `Strikethrough { children }` | Empty -> elided. |
 | `<a href>` | `Link { url, title, children }` | When `preserve_links=false`, unwrapped to children. Empty -> elided. Missing href -> empty string. |
 | `<img>` | `Image { src, alt }` | When `preserve_images=false`, elided entirely. Missing attrs -> empty strings. |
+| `<math>` | `Math { tex }` / `MathBlock { tex }` | TeX from `<annotation encoding="application/x-tex">`; `display="block"` -> block. Same for KaTeX `.katex` (inline) / `.katex-display` (block) and MathJax `<mjx-container display="true">` wrappers, whose visual HTML is dropped. No TeX annotation -> collapsed text content. |
 | footnote `<a>` | `FootnoteReference { label }` | `<a href="#id">` with `data-footnote-ref`, `role=doc-noteref`, or class `footnote-ref`. Label = link text without `[]` (else target id). Back-links (`data-footnote-backref`, `role=doc-backlink`, `.footnote-back[ref]`) dropped. |
 
 ### Transparent Container Elements
@@ -157,7 +159,23 @@ providing defense-in-depth.
 
 - **CSS selectors** (implemented): include/exclude selectors, with the defaults below
 - **Full page** (implemented): no include selector converts the whole body minus excludes
-- **Readability** (planned): article-content detection heuristic, not implemented
+- **Main content** (`main_content(true)`, CLI `--main-content`; off by default): Readability-style
+  scorer in `html/readability.rs`. Include selectors win over it. Algorithm:
+  1. One iterative traversal of `<body>`; subtrees matching exclude selectors or "unlikely"
+     class/id/role (`sidebar`, `comment`, `share`, `related`, `banner`, `cookie`, tokens `ad`/`nav`,
+     roles `navigation`/`complementary`/`dialog`...) are skipped unless the class also says
+     `content`/`article`/`main`/`post`/...
+  2. Paragraph-like blocks (`p`, `pre`, `blockquote`, leaf `div`/`section`/`td`) with >= 25 chars
+     score `1 + commas + min(floor(chars/100), 3)`, credited to parent (1), grandparent (1/2),
+     great-grandparent (1/3). Ancestors start from a tag score (`article`/`main` +10, `div` +5,
+     lists -3, headings -5) plus +-25 for positive/negative class/id words.
+  3. Top 10 by raw score are scaled by `1 - link density` (fragment links count 30%); best wins.
+  4. Winner's siblings are kept when their scaled score >= max(10, 0.2 x winner), or when a
+     `<p>` reads like prose (> 80 chars and link density < 0.25, or a link-free sentence).
+  5. Under 140 chars of chosen text, no candidate, or `<body>` itself winning: fall back to the
+     full body. Inside the chosen content, unlikely subtrees are dropped as well.
+  Headings above the article container (page `<h1>`) are usually outside it; the title is in
+  `Extraction::title`. Fixture: `news_page.html` -> `news_page.main.md`.
 
 ## Page Metadata
 
@@ -181,9 +199,22 @@ JSON-LD nodes are the top-level value, array members and `@graph` members; artic
 `@type`s (`Article`, `NewsArticle`, `BlogPosting`, ...) are consulted first.
 
 Untrusted-input rules: values are whitespace-collapsed, control characters dropped,
-capped at 2048 chars. URL fields keep only `http(s)` or scheme-less (relative, not yet
-resolved) values. JSON-LD: first 16 scripts, each at most 1 MiB, at most 256 nodes;
+capped at 2048 chars. URL fields keep only `http(s)` or scheme-less values; the latter
+are resolved like links (below). JSON-LD: first 16 scripts, each at most 1 MiB, at most 256 nodes;
 serde_json's 128-level recursion limit bounds nesting; invalid JSON is ignored.
+
+## Relative URL Resolution
+
+`html/urls.rs`. Applies to `Link.url`, `Image.src`, `metadata.canonical_url`, `metadata.image`.
+
+- Base: `MarkkitBuilder::base_url` (CLI `--base-url`); `extract_url` / `extract_url_document`
+  use the final response URL after redirects. The first `<base href>` resolves on top of it.
+- Caller base must parse and be able to act as a base (`data:`, `javascript:` cannot), else
+  ignored. Page `<base href>` accepted only when the result is `http(s)` (no `file:` rebasing
+  by untrusted markup); a relative `<base>` without a caller base is ignored.
+- Rewritten: scheme-less references only (`x.png`, `../a`, `/r`, `//cdn/x`, `?q`).
+- Untouched, byte-for-byte: absolute URLs of any scheme (incl. `javascript:`, `data:`,
+  `mailto:`), empty, fragment-only `#id`. No base → nothing changes.
 
 ## Edge Cases
 
@@ -191,7 +222,7 @@ serde_json's 128-level recursion limit bounds nesting; invalid JSON is ignored.
 - Tables within tables: outer table parsed; inner table content may appear as text
 - Inline SVG: stripped entirely (non-content element)
 - Data URIs: preserved as-is in `src`/`href` attributes (no execution in markdown)
-- Relative URLs: preserved as-is (no resolution)
+- Relative URLs: resolved only when a base is known, see Relative URL Resolution
 - Character encoding: `String::from_utf8_lossy` for byte input; html5ever handles encoding within HTML
 - Null bytes: replaced with U+FFFD by html5ever
 - Unclosed/mismatched tags: html5ever auto-repairs per HTML5 spec

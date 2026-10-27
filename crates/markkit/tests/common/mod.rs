@@ -416,13 +416,68 @@ pub fn biff8_workbook(sheets: &[XlsSheet]) -> Vec<u8> {
 
 /// Wrap a workbook stream into an OLE2 compound file.
 pub fn xls_from_stream(stream: &[u8]) -> Vec<u8> {
+    ole2(&[("/Workbook", stream)])
+}
+
+/// Build an OLE2 compound file from `(path, data)` streams.
+pub fn ole2(streams: &[(&str, &[u8])]) -> Vec<u8> {
     let mut comp = cfb::CompoundFile::create(Cursor::new(Vec::new())).unwrap();
-    {
-        let mut s = comp.create_stream("/Workbook").unwrap();
-        s.write_all(stream).unwrap();
+    for (path, data) in streams {
+        let mut s = comp.create_stream(path).unwrap();
+        s.write_all(data).unwrap();
     }
     comp.flush().unwrap();
     comp.into_inner().into_inner()
+}
+
+/// `\u{5}SummaryInformation` property set with a code page and a VT_LPSTR title.
+pub fn summary_information(codepage: u16, title: &[u8]) -> Vec<u8> {
+    let mut value = title.to_vec();
+    value.push(0);
+    let mut set = Vec::new();
+    for v in [
+        0u32,
+        2,
+        1,
+        24,
+        2,
+        32,
+        2,
+        u32::from(codepage),
+        0x1E,
+        value.len() as u32,
+    ] {
+        set.extend_from_slice(&v.to_le_bytes());
+    }
+    set.extend_from_slice(&value);
+    let mut d = vec![0u8; 48];
+    d[0..2].copy_from_slice(&0xFFFEu16.to_le_bytes());
+    d[24..28].copy_from_slice(&1u32.to_le_bytes());
+    d[44..48].copy_from_slice(&48u32.to_le_bytes());
+    d.extend_from_slice(&set);
+    d
+}
+
+/// Rebuild a ZIP without the `drop` entries and with `add` appended.
+pub fn rezip(bytes: &[u8], drop: &[&str], add: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
+    let mut entries = Vec::new();
+    for i in 0..zip.len() {
+        let mut f = zip.by_index(i).unwrap();
+        let name = f.name().unwrap().to_string();
+        if drop.contains(&name.as_str()) {
+            continue;
+        }
+        let mut data = Vec::new();
+        std::io::Read::read_to_end(&mut f, &mut data).unwrap();
+        entries.push((name, data));
+    }
+    let mut refs: Vec<(&str, &[u8])> = entries
+        .iter()
+        .map(|(n, d)| (n.as_str(), d.as_slice()))
+        .collect();
+    refs.extend_from_slice(add);
+    zip_bytes(&refs)
 }
 
 pub fn xls(sheets: &[XlsSheet]) -> Vec<u8> {

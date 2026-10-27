@@ -40,6 +40,8 @@ tags:
 - Form elements (`<form>`, `<input>`, `<button>`, `<select>`, `<textarea>`) stripped
 - Page metadata (`Extraction::metadata`): URL fields drop non-`http(s)` schemes
   (`javascript:`, `data:`); values single-line and capped at 2048 chars
+- URL resolution rewrites only scheme-less references, so absolute URLs reach the output
+  unchanged; a page `<base href>` cannot rebase onto non-`http(s)` schemes
 
 **Test Coverage**:
 - `html_security::xss_script_tag`
@@ -52,6 +54,7 @@ tags:
 - `html_proptest::no_script_tags_in_output`
 - `html_proptest::no_style_tags_in_output`
 - `html_metadata::dangerous_url_schemes_dropped`, `values_are_single_line_and_capped`, `html_proptest::metadata_values_single_line`
+- `html_urls::absolute_dangerous_schemes_pass_through_untouched`, `page_base_cannot_switch_to_local_or_script_scheme`, `invalid_caller_base_ignored`
 
 ### T2: Denial of Service (Resource Exhaustion)
 
@@ -94,6 +97,12 @@ tags:
 - Tests: `html_metadata::deeply_nested_json_ld_does_not_overflow`,
   `oversized_json_ld_skipped`, `many_json_ld_scripts_bounded`, `malformed_json_ld_ignored`
 
+#### T2g: Main-Content Scoring
+- One iterative DOM traversal (no recursion); scored paragraphs are leaf blocks, so text
+  measurement is linear; link density only for the top 10 candidates and the winner's siblings
+- Tests: `html_main_content::deep_nesting_does_not_overflow`, `many_paragraphs_stay_linear`,
+  `many_sibling_containers_stay_bounded`, `non_content_elements_still_stripped`
+
 **Test Coverage**:
 - `html_security::deeply_nested_elements`
 - `html_security::very_long_text_node`
@@ -110,8 +119,8 @@ tags:
 
 **Impact**: High -- access to internal infrastructure.
 
-**Likelihood**: Medium -- `extract_url()` exists whenever `http_client` is enabled,
-and `http_client` is a **default** feature.
+**Likelihood**: Medium -- `extract_url()` exists only when the opt-in `http_client`
+feature is enabled (off by default; the CLI and Python/Node bindings enable it).
 
 **Status**: Mitigated (`crates/markkit/src/fetch.rs`).
 
@@ -205,7 +214,11 @@ process, or smuggling content past a human reviewer.
   DIMENSIONS, inverted MULRK column ranges, out-of-range sheet offsets).
 - XML: depth capped at 256, tree built iteratively, unclosed elements tolerated.
 - Parsers run under `catch_unwind` (defence in depth; only effective with
-  `panic = "unwind"` -- the workspace release profile uses `abort`).
+  `panic = "unwind"`, which the workspace release profile uses so the CLI and the
+  Python/Node bindings survive a parser panic; embedders building with `abort` lose
+  this layer).
+- XLS `SummaryInformation` title parsing is bounds-checked (1 MiB stream cap, checked
+  offsets, 1024-property cap); failures yield no title, never an error.
 
 #### T6d: XML entity attacks (billion laughs, XXE)
 - quick-xml never expands DTD-declared or external entities; such references are dropped.
@@ -231,6 +244,8 @@ process, or smuggling content past a human reviewer.
   `spreadsheet_integration::xlsx_sparse_far_cell_does_not_allocate_grid`
 - `docx_billion_laughs_not_expanded`, `docx_external_entity_not_resolved`,
   `docx_deep_nesting_does_not_overflow_stack`
+- `spreadsheet::tests::summary_title_rejects_malformed`,
+  `spreadsheet_integration::xlsx_malformed_core_properties_do_not_fail_extraction`
 - `truncated_fixtures_never_panic`, `random_bytes_never_panic`,
   `random_container_bytes_never_panic`, `mutated_fixtures_never_panic`
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
@@ -335,7 +350,7 @@ decompression or content amplification, crashing the parser, or hiding text.
 |----------|---------|----------|
 | XSS script tags | `<script>alert(1)</script>` | Stripped (non-content element) |
 | Event handlers | `<p onclick="...">` | Attribute not read |
-| JavaScript URLs | `<a href="javascript:...">` | URL preserved as-is in markdown (no execution context) |
+| JavaScript URLs | `<a href="javascript:...">` | URL preserved as-is in markdown (no execution context); never rewritten by base resolution |
 | Data URI payloads | `<img src="data:text/html,...">` | Rendered as markdown image (no execution) |
 | Style expressions | `style="background:url(javascript:...)"` | Attribute not read |
 | Deep nesting | 1000+ nested `<div>` | Flattened to text at depth 200 |
@@ -349,6 +364,7 @@ decompression or content amplification, crashing the parser, or hiding text.
 | SVG with scripts | `<svg onload="...">` | SVG element stripped entirely |
 | iframe injection | `<iframe src="evil">` | iframe stripped entirely |
 | Form injection | `<form><input>` | Form elements stripped |
+| Base hijack | `<base href="file:///etc/">` | Ignored: page base must resolve to `http(s)` |
 
 ## Security Invariants
 

@@ -1,0 +1,759 @@
+{
+  "$defs": {
+    "Alignment": {
+      "description": "Horizontal alignment of a table column.",
+      "enum": [
+        "None",
+        "Left",
+        "Center",
+        "Right"
+      ],
+      "type": "string"
+    },
+    "DefinitionItem": {
+      "description": "One term of a [`Node::DefinitionList`] with its definitions.",
+      "properties": {
+        "definitions": {
+          "description": "Each definition is a list of block (or inline) nodes.",
+          "items": {
+            "items": {
+              "$ref": "#/$defs/Node"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "term": {
+          "description": "Inline content of the term.",
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "term",
+        "definitions"
+      ],
+      "type": "object"
+    },
+    "ListItem": {
+      "description": "A single item in a list.",
+      "properties": {
+        "checked": {
+          "description": "Task-list state: `Some(true)` checked, `Some(false)` unchecked, `None` plain item.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "children": {
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "children"
+      ],
+      "type": "object"
+    },
+    "Node": {
+      "description": "A block-level or inline node in the document tree.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Heading with level 1–6.",
+          "properties": {
+            "Heading": {
+              "properties": {
+                "children": {
+                  "items": {
+                    "$ref": "#/$defs/Node"
+                  },
+                  "type": "array"
+                },
+                "level": {
+                  "format": "uint8",
+                  "maximum": 255,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Source"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "level",
+                "children"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Heading"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Paragraph containing inline content.",
+          "properties": {
+            "Paragraph": {
+              "properties": {
+                "children": {
+                  "items": {
+                    "$ref": "#/$defs/Node"
+                  },
+                  "type": "array"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Source"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "children"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Paragraph"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Ordered or unordered list.",
+          "properties": {
+            "List": {
+              "properties": {
+                "items": {
+                  "items": {
+                    "$ref": "#/$defs/ListItem"
+                  },
+                  "type": "array"
+                },
+                "ordered": {
+                  "type": "boolean"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Source"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "start": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "ordered",
+                "items"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "List"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Block quotation.",
+          "properties": {
+            "BlockQuote": {
+              "properties": {
+                "children": {
+                  "items": {
+                    "$ref": "#/$defs/Node"
+                  },
+                  "type": "array"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Source"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "children"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "BlockQuote"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Fenced code block.",
+          "properties": {
+            "CodeBlock": {
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "language": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Source"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "code"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "CodeBlock"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Table with optional header row.",
+          "properties": {
+            "Table": {
+              "properties": {
+                "alignments": {
+                  "description": "Per-column alignment; missing entries mean [`Alignment::None`].",
+                  "items": {
+                    "$ref": "#/$defs/Alignment"
+                  },
+                  "type": "array"
+                },
+                "headers": {
+                  "items": {
+                    "$ref": "#/$defs/TableCell"
+                  },
+                  "type": "array"
+                },
+                "rows": {
+                  "items": {
+                    "items": {
+                      "$ref": "#/$defs/TableCell"
+                    },
+                    "type": "array"
+                  },
+                  "type": "array"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Source"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "headers",
+                "rows"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Table"
+          ],
+          "type": "object"
+        },
+        {
+          "const": "ThematicBreak",
+          "description": "Horizontal rule / thematic break.",
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Definition list (`<dl>`): terms with one or more definitions.",
+          "properties": {
+            "DefinitionList": {
+              "properties": {
+                "items": {
+                  "items": {
+                    "$ref": "#/$defs/DefinitionItem"
+                  },
+                  "type": "array"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Source"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "items"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "DefinitionList"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Figure: block content with an optional inline caption.",
+          "properties": {
+            "Figure": {
+              "properties": {
+                "caption": {
+                  "items": {
+                    "$ref": "#/$defs/Node"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "children": {
+                  "items": {
+                    "$ref": "#/$defs/Node"
+                  },
+                  "type": "array"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Source"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "children"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Figure"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Display math (TeX source).",
+          "properties": {
+            "MathBlock": {
+              "properties": {
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Source"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tex": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tex"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "MathBlock"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Footnote body, referenced by [`Node::FootnoteReference`] with the same label.",
+          "properties": {
+            "FootnoteDefinition": {
+              "properties": {
+                "children": {
+                  "items": {
+                    "$ref": "#/$defs/Node"
+                  },
+                  "type": "array"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Source"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "label",
+                "children"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "FootnoteDefinition"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Plain text.",
+          "properties": {
+            "Text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Text"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Bold / strong emphasis.",
+          "properties": {
+            "Bold": {
+              "properties": {
+                "children": {
+                  "items": {
+                    "$ref": "#/$defs/Node"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "children"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Bold"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Italic / emphasis.",
+          "properties": {
+            "Italic": {
+              "properties": {
+                "children": {
+                  "items": {
+                    "$ref": "#/$defs/Node"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "children"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Italic"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Strikethrough.",
+          "properties": {
+            "Strikethrough": {
+              "properties": {
+                "children": {
+                  "items": {
+                    "$ref": "#/$defs/Node"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "children"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Strikethrough"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Inline code.",
+          "properties": {
+            "InlineCode": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "InlineCode"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Hyperlink.",
+          "properties": {
+            "Link": {
+              "properties": {
+                "children": {
+                  "items": {
+                    "$ref": "#/$defs/Node"
+                  },
+                  "type": "array"
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url",
+                "children"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Link"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Image.",
+          "properties": {
+            "Image": {
+              "properties": {
+                "alt": {
+                  "type": "string"
+                },
+                "src": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "src",
+                "alt"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Image"
+          ],
+          "type": "object"
+        },
+        {
+          "const": "LineBreak",
+          "description": "Hard line break.",
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Footnote marker pointing at a [`Node::FootnoteDefinition`].",
+          "properties": {
+            "FootnoteReference": {
+              "properties": {
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "FootnoteReference"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Inline math (TeX source).",
+          "properties": {
+            "Math": {
+              "properties": {
+                "tex": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tex"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Math"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Source": {
+      "description": "Provenance of a block: where in the input it came from.\n\nOnly the fields meaningful for the input format are set. Recorded when\n[`crate::MarkkitBuilder::track_sources`] is enabled.",
+      "properties": {
+        "index": {
+          "description": "DOCX: 0-based index of the body-level paragraph or table.",
+          "format": "uint",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "page": {
+          "description": "Paged formats: 1-based page number.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "path": {
+          "description": "HTML: absolute XPath of the element, e.g. `/html/body/article[1]/p[3]`\n(indexes count same-name element siblings, 1-based, in the parsed DOM).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "range": {
+          "description": "Spreadsheets: A1-style cell range, e.g. `A1:D20`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sheet": {
+          "description": "Spreadsheets: sheet name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "TableCell": {
+      "description": "A table cell: inline content plus its span (both ≥ 1).",
+      "properties": {
+        "children": {
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "type": "array"
+        },
+        "colspan": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rowspan": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "children"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/everruns/markkit/schema/ir.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "markkit IR document, ir_version 2",
+  "properties": {
+    "ir_version": {
+      "default": 1,
+      "description": "IR schema version ([`IR_VERSION`] for documents built by this crate;\n`1` when missing from deserialized JSON).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/Node"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "nodes"
+  ],
+  "title": "Document",
+  "type": "object"
+}

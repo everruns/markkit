@@ -25,7 +25,8 @@ tags:
 | `crates/markkit/tests/pdf_security.rs` | PDF bombs, interpretation budget, encrypted/unverifiable input, malformed PDFs |
 | `crates/markkit/tests/common/` | In-memory DOCX/XLSX/XLS/ODS/PDF fixture builders |
 | `crates/markkit-cli/tests/cli_integration.rs` | CLI flags and output |
-| `crates/markkit/benches/extraction.rs` | Criterion throughput benchmarks |
+| `crates/markkit/benches/extraction.rs` | Criterion micro-benchmarks |
+| `crates/markkit-bench/` | Benchmark harness; `cargo test` runs every case once |
 
 Office fixtures are generated in code (`tests/common`), not committed binaries, so
 each security test states exactly which bytes it feeds the parser.
@@ -39,7 +40,9 @@ each security test states exactly which bytes it feeds the parser.
   indentation between blocks never changes output
 - **Security**: one or more tests per mitigated threat; the
   [Threat Model](../security/threat-model.md) maps threats to test names
-- **Benchmarks**: `just bench` (criterion); `markkit-bench` harness is a stub
+- **Benchmarks**: `just bench` runs `markkit-bench` (ops/s, throughput, allocations)
+  and saves results; `just bench-criterion` for micro-benchmarks. See
+  [Performance Results](performance-results.md)
 
 ## Rules
 
@@ -61,3 +64,4 @@ tarpaulin coverage (`--engine llvm`; ptrace segfaults on threaded socket tests).
 - [Threat Model](../security/threat-model.md), threat-to-test map
 - [Examples](examples.md), runnable examples CI executes
 - [Maintenance](maintenance.md), periodic test-health review
+- [Performance Results](performance-results.md), benchmark harness and stored results

@@ -47,10 +47,20 @@ pub struct MarkkitBuilder {
     /// Maximum total decoded size of all PDF streams, and of content
     /// interpreted (form XObjects count once per use), in bytes. Default: 256 MiB.
     pub max_pdf_decoded_size: usize,
+    /// Absolute URL that relative HTML links, images and metadata URLs resolve
+    /// against (a document `<base href>` applies on top). `extract_url` uses the
+    /// final response URL instead. Default: none (relative URLs kept as is).
+    pub base_url: Option<String>,
     /// Record per-block provenance ([`crate::ir::Source`]) in the IR:
     /// HTML element XPath, DOCX block index, spreadsheet sheet and range.
     /// Default: false (no cost, no `source` in IR JSON).
     pub track_sources: bool,
+    /// IR passes run after parsing, before rendering (see [`crate::transform`]).
+    pub transforms: crate::transform::TransformChain,
+    /// Keep only the detected main content (article body) of HTML pages,
+    /// Readability-style. Include selectors win; falls back to the full body when
+    /// nothing scores. Default: false.
+    pub main_content: bool,
 }
 
 impl Default for MarkkitBuilder {
@@ -83,7 +93,10 @@ impl Default for MarkkitBuilder {
             max_pdf_pages: 10_000,
             max_pdf_stream_size: 64 * 1024 * 1024,
             max_pdf_decoded_size: 256 * 1024 * 1024,
+            base_url: None,
             track_sources: false,
+            transforms: Default::default(),
+            main_content: false,
         }
     }
 }
@@ -112,6 +125,12 @@ impl MarkkitBuilder {
     /// Record per-block provenance in the IR (see [`MarkkitBuilder::track_sources`] field).
     pub fn track_sources(mut self, yes: bool) -> Self {
         self.track_sources = yes;
+        self
+    }
+
+    /// Append an IR transform pass; passes run in registration order.
+    pub fn transform(mut self, t: impl crate::transform::Transform + 'static) -> Self {
+        self.transforms.push(t);
         self
     }
 
@@ -190,6 +209,20 @@ impl MarkkitBuilder {
 
     pub fn max_pdf_decoded_size(mut self, bytes: usize) -> Self {
         self.max_pdf_decoded_size = bytes;
+        self
+    }
+
+    /// Resolve relative HTML URLs against this absolute URL. Ignored when it
+    /// does not parse or cannot be a base (`data:`, `javascript:`, ...).
+    pub fn base_url(mut self, url: impl Into<String>) -> Self {
+        self.base_url = Some(url.into());
+        self
+    }
+
+    /// Extract only the detected main content of HTML pages (drops sidebars,
+    /// comments, share bars and other boilerplate).
+    pub fn main_content(mut self, yes: bool) -> Self {
+        self.main_content = yes;
         self
     }
 

@@ -12,10 +12,14 @@
 //! - Provenance (`track_sources`): blocks get the absolute XPath of the
 //!   element they came from. Sibling indexes are computed once per parent and
 //!   cached, so cost is O(depth) per block, not O(siblings).
+//! - Math: MathML `<math>` (also inside KaTeX `.katex` / `.katex-display`
+//!   and MathJax `<mjx-container>`) maps to `Math` / `MathBlock` using the
+//!   `application/x-tex` annotation; without one, the text content is kept as
+//!   plain text. KaTeX's visual HTML duplicate is dropped.
 //! - `<figure>` becomes `Figure` only when it has a non-empty `<figcaption>`;
 //!   otherwise it stays a transparent container as before.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 use ego_tree::{NodeId, NodeRef};
@@ -25,7 +29,10 @@ use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, Source, TableCell};
 
+use url::Url;
+
 use super::metadata::PageInfo;
+use super::{readability, urls};
 
 /// Maximum recursion depth for nested elements.
 const MAX_DEPTH: usize = 200;
@@ -38,8 +45,12 @@ pub struct HtmlParser<'a> {
     config: &'a MarkkitBuilder,
     /// Footnote target id (without `#`) -> label, filled by references.
     footnote_labels: RefCell<HashMap<String, String>>,
+    /// Base for relative URLs (caller base, then the document `<base href>`).
+    base: Option<Url>,
     /// Cached 1-based index of an element among same-name element siblings.
     sibling_index: RefCell<HashMap<NodeId, usize>>,
+    /// Main-content mode: also drop "unlikely" subtrees (sidebars, share bars, ...).
+    drop_unlikely: Cell<bool>,
 }
 
 impl<'a> HtmlParser<'a> {
@@ -47,7 +58,9 @@ impl<'a> HtmlParser<'a> {
         Self {
             config,
             footnote_labels: RefCell::new(HashMap::new()),
+            base: urls::parse_base(config.base_url.as_deref()),
             sibling_index: RefCell::new(HashMap::new()),
+            drop_unlikely: Cell::new(false),
         }
     }
 
@@ -59,26 +72,30 @@ impl<'a> HtmlParser<'a> {
     /// Parse an HTML string into a [`Document`] plus page title and metadata.
     pub(crate) fn parse_page(&self, html: &str) -> Result<(Document, PageInfo), Error> {
         let dom = Html::parse_document(html);
-        Ok((self.parse_dom(&dom)?, super::metadata::extract(&dom)))
+        let this = self.for_document(&dom);
+        Ok((
+            this.convert_dom(&dom)?,
+            super::metadata::extract(&dom, this.base.as_ref()),
+        ))
     }
 
     fn parse_dom(&self, dom: &Html) -> Result<Document, Error> {
-        let root = dom.root_element();
+        self.for_document(dom).convert_dom(dom)
+    }
 
-        let content_nodes: Vec<scraper::ElementRef<'_>> =
-            if !self.config.include_selectors.is_empty() {
-                let sels: Vec<Selector> = self
-                    .config
-                    .include_selectors
-                    .iter()
-                    .filter_map(|s| Selector::parse(s).ok())
-                    .collect();
-                sels.iter().flat_map(|sel| dom.select(sel)).collect()
-            } else {
-                let body_sel = Selector::parse("body").unwrap();
-                let body: Vec<_> = dom.select(&body_sel).collect();
-                if body.is_empty() { vec![root] } else { body }
-            };
+    /// Parser whose base includes the document's `<base href>`.
+    fn for_document(&self, dom: &Html) -> Self {
+        Self {
+            config: self.config,
+            footnote_labels: RefCell::new(HashMap::new()),
+            sibling_index: RefCell::new(HashMap::new()),
+            base: urls::document_base(dom, self.base.clone()),
+            drop_unlikely: Cell::new(false),
+        }
+    }
+
+    fn convert_dom(&self, dom: &Html) -> Result<Document, Error> {
+        let root = dom.root_element();
 
         let exclude_selectors: Vec<Selector> = self
             .config
@@ -88,10 +105,40 @@ impl<'a> HtmlParser<'a> {
             .collect();
 
         let mut nodes = Vec::new();
-        for content_root in content_nodes {
-            self.convert_children(content_root, &exclude_selectors, &mut nodes, 0);
+        if !self.config.include_selectors.is_empty() {
+            let sels: Vec<Selector> = self
+                .config
+                .include_selectors
+                .iter()
+                .filter_map(|s| Selector::parse(s).ok())
+                .collect();
+            for content_root in sels.iter().flat_map(|sel| dom.select(sel)) {
+                self.convert_children(content_root, &exclude_selectors, &mut nodes, 0);
+            }
+            return Ok(Document::new(normalize_blocks(nodes)));
         }
 
+        let body_sel = Selector::parse("body").unwrap();
+        let body = dom.select(&body_sel).next().unwrap_or(root);
+
+        if self.config.main_content
+            && let Some(roots) = readability::main_content(body, &exclude_selectors)
+        {
+            self.drop_unlikely.set(true);
+            for r in roots {
+                if r.whole && !is_transparent_container(r.el.value().name()) {
+                    if let Some(mut node) = self.convert_element(r.el, &exclude_selectors, 1) {
+                        self.mark_source(&mut node, r.el);
+                        nodes.push(node);
+                    }
+                } else {
+                    self.convert_children(r.el, &exclude_selectors, &mut nodes, 0);
+                }
+            }
+            return Ok(Document::new(normalize_blocks(nodes)));
+        }
+
+        self.convert_children(body, &exclude_selectors, &mut nodes, 0);
         Ok(Document::new(normalize_blocks(nodes)))
     }
 
@@ -142,6 +189,7 @@ impl<'a> HtmlParser<'a> {
 
     fn is_excluded(&self, el: &scraper::ElementRef<'_>, exclude: &[Selector]) -> bool {
         exclude.iter().any(|sel| sel.matches(el))
+            || (self.drop_unlikely.get() && readability::is_unlikely(*el))
     }
 
     fn convert_children(
@@ -193,6 +241,11 @@ impl<'a> HtmlParser<'a> {
                             out.push(fig);
                             continue;
                         }
+                        if let Some(mut m) = self.math_wrapper(el) {
+                            self.mark_source(&mut m, el);
+                            out.push(m);
+                            continue;
+                        }
                         // Transparent containers: recurse directly into their children
                         if is_transparent_container(name) {
                             self.convert_children(el, exclude, out, depth + 1);
@@ -221,6 +274,10 @@ impl<'a> HtmlParser<'a> {
                 return None;
             }
             return Some(Node::Text(trimmed.to_string()));
+        }
+
+        if let Some(m) = self.math_wrapper(el) {
+            return Some(m);
         }
 
         let tag = el.value().name();
@@ -376,7 +433,7 @@ impl<'a> HtmlParser<'a> {
                         })
                     };
                 }
-                let url = el.value().attr("href").unwrap_or("").to_string();
+                let url = urls::resolve(self.base.as_ref(), el.value().attr("href").unwrap_or(""));
                 let title = el.value().attr("title").map(|s| s.to_string());
                 let children = self.collect_inline(el, exclude, depth);
                 if children.is_empty() {
@@ -393,7 +450,7 @@ impl<'a> HtmlParser<'a> {
                 if !self.config.preserve_images {
                     return None;
                 }
-                let src = el.value().attr("src").unwrap_or("").to_string();
+                let src = urls::resolve(self.base.as_ref(), el.value().attr("src").unwrap_or(""));
                 let alt = el.value().attr("alt").unwrap_or("").to_string();
                 Some(Node::Image { src, alt })
             }
@@ -420,6 +477,45 @@ impl<'a> HtmlParser<'a> {
                         source: None,
                     })
                 }
+            }
+        }
+    }
+
+    /// MathML or a KaTeX / MathJax wrapper around it.
+    fn math_wrapper(&self, el: scraper::ElementRef<'_>) -> Option<Node> {
+        let v = el.value();
+        let (display, math) = match v.name() {
+            "math" => (v.attr("display") == Some("block"), el),
+            "mjx-container" => (v.attr("display") == Some("true"), find_math(el)?),
+            _ if has_class(&el, "katex-display") => (true, find_math(el)?),
+            _ if has_class(&el, "katex") => (false, find_math(el)?),
+            _ => return None,
+        };
+        let display = display || math.value().attr("display") == Some("block");
+        let annotation = math
+            .descendants()
+            .filter_map(scraper::ElementRef::wrap)
+            .find(|e| {
+                e.value().name() == "annotation"
+                    && e.value()
+                        .attr("encoding")
+                        .is_some_and(|enc| enc.eq_ignore_ascii_case("application/x-tex"))
+            });
+        match annotation {
+            Some(a) => {
+                let tex = a.text().collect::<String>().trim().to_string();
+                if tex.is_empty() {
+                    None
+                } else if display {
+                    Some(Node::MathBlock { tex, source: None })
+                } else {
+                    Some(Node::Math { tex })
+                }
+            }
+            None => {
+                let text = collapse_whitespace(&math.text().collect::<String>());
+                let text = text.trim();
+                (!text.is_empty()).then(|| Node::Text(text.to_string()))
             }
         }
     }
@@ -871,6 +967,13 @@ fn task_checkbox(li: scraper::ElementRef<'_>) -> Option<bool> {
         None
     }
     first_checkbox(li, false)
+}
+
+/// First `<math>` element inside a wrapper.
+fn find_math(el: scraper::ElementRef<'_>) -> Option<scraper::ElementRef<'_>> {
+    el.descendants()
+        .filter_map(scraper::ElementRef::wrap)
+        .find(|e| e.value().name() == "math")
 }
 
 fn has_class(el: &scraper::ElementRef<'_>, class: &str) -> bool {

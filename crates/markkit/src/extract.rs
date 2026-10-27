@@ -9,10 +9,12 @@ use crate::ir::Document;
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Extraction {
-    /// Rendered Markdown.
+    /// Rendered Markdown. Non-empty output always ends with exactly one `\n`
+    /// (POSIX text convention, safe to concatenate); empty documents render `""`.
     pub markdown: String,
-    /// Document title when known (HTML `og:title` / JSON-LD / `<title>`;
-    /// DOCX core properties or `Title` style; PDF `/Info /Title`).
+    /// Document title when known: HTML `og:title` / JSON-LD / `<title>`; DOCX
+    /// core properties or `Title` style; XLSX `docProps/core.xml`, ODS
+    /// `meta.xml`, XLS `SummaryInformation`; PDF `/Info /Title`.
     pub title: Option<String>,
     /// Format the document was parsed as.
     pub format: Format,
@@ -124,7 +126,8 @@ impl ParsedDocument {
 }
 
 /// Run a parser, converting a panic into an error (defence in depth for
-/// third-party parsers; only effective when built with `panic = "unwind"`).
+/// third-party parsers; only effective when built with `panic = "unwind"`, which
+/// markkit's own release profile uses).
 #[cfg(any(feature = "docx", feature = "spreadsheet", feature = "pdf"))]
 fn guarded<T>(
     what: &str,
@@ -173,8 +176,7 @@ impl Markkit {
 
         #[cfg(feature = "html")]
         {
-            let parser = crate::html::HtmlParser::new(&self.config);
-            let doc = parser.parse(html)?;
+            let doc = self.parse_html(html)?;
             let mut renderer = crate::render::MarkdownRenderer::new();
             Ok(renderer.render(&doc))
         }
@@ -195,7 +197,9 @@ impl Markkit {
             )));
         }
         let parser = crate::html::HtmlParser::new(&self.config);
-        parser.parse(html)
+        let mut doc = parser.parse(html)?;
+        self.config.transforms.apply(&mut doc)?;
+        Ok(doc)
     }
 
     /// Extract markdown from raw bytes, auto-detecting the format.
@@ -271,7 +275,9 @@ impl Markkit {
             Format::Html => self.parse_html_doc(bytes),
             Format::Pdf => self.parse_pdf(bytes),
             Format::Docx => self.parse_docx(bytes),
-            Format::Xlsx | Format::Xls | Format::Ods => self.parse_spreadsheet(bytes),
+            Format::Xlsx | Format::Xlsb | Format::Xls | Format::Ods => {
+                self.parse_spreadsheet(bytes)
+            }
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
@@ -289,7 +295,8 @@ impl Markkit {
     fn parse_html_doc(&self, bytes: &[u8]) -> crate::Result<ParsedDocument> {
         let text = String::from_utf8_lossy(bytes);
         let parser = crate::html::HtmlParser::new(&self.config);
-        let (doc, page) = parser.parse_page(&text)?;
+        let (mut doc, page) = parser.parse_page(&text)?;
+        self.config.transforms.apply(&mut doc)?;
         let mut p = ParsedDocument::new(doc, Format::Html);
         p.title = page.title;
         p.metadata = page.metadata;
@@ -308,7 +315,9 @@ impl Markkit {
         let out = guarded("DOCX", Error::DocxExtract, || {
             crate::docx::parse(bytes, &self.config)
         })?;
-        let mut p = ParsedDocument::new(out.doc, Format::Docx);
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, Format::Docx);
         p.title = out.title;
         p.stats.paragraphs = Some(out.paragraphs);
         p.stats.tables = Some(out.tables);
@@ -327,7 +336,10 @@ impl Markkit {
         let out = guarded("spreadsheet", Error::SpreadsheetExtract, || {
             crate::spreadsheet::parse(bytes, &self.config)
         })?;
-        let mut p = ParsedDocument::new(out.doc, out.format);
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, out.format);
+        p.title = out.title;
         p.warnings = out.warnings;
         p.stats.sheets = Some(out.sheets);
         p.stats.rows = Some(out.rows);
@@ -350,6 +362,8 @@ impl Markkit {
     /// [`MarkkitBuilder::allow_host`] restricts hosts; redirects capped by
     /// `max_redirects`; body capped by `max_input_size`; whole fetch capped
     /// by `max_processing_secs` ([`Error::ResourceLimit`]).
+    ///
+    /// Relative links and images resolve against the final URL after redirects.
     #[cfg(feature = "http_client")]
     pub async fn extract_url(&self, url: &str) -> crate::Result<String> {
         self.extract_url_document(url).await.map(|e| e.markdown)
@@ -358,10 +372,13 @@ impl Markkit {
     /// [`Markkit::extract_url`] with metadata (format, title, warnings, stats).
     ///
     /// The response `Content-Type` is the format hint; same URL policy and limits.
+    /// Relative HTML URLs resolve against the final URL after redirects.
     #[cfg(feature = "http_client")]
     pub async fn extract_url_document(&self, url: &str) -> crate::Result<Extraction> {
         let fetched = crate::fetch::fetch(url, &self.config).await?;
-        self.extract_document_sync(
+        let mut config = self.config.clone();
+        config.base_url = Some(fetched.url);
+        Markkit::new(config).extract_document_sync(
             &fetched.bytes,
             DocumentHint {
                 content_type: fetched.content_type.as_deref(),
