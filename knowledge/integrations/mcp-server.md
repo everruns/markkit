@@ -49,12 +49,12 @@ Client config:
 
 ## Flags
 
-`--no-url` (drop the `url` source, no network), `--max-size` (input bytes, default 50 MiB),
+`--no-url` (drop the `url` source, no network), every `extract` limit flag (`--max-input-size` alias `--max-size`, `--timeout`, `--max-nodes`, ...; see `markkit::Limits`),
 `--max-output-chars` (default 100 000), `--main-content`, `--locale` (`en-US`, `uk-UA`).
 
 ## Limits
 
-- Each line is read with a cap of `ceil(max_size / 3) * 4 + 1 MiB` (base64 payload plus
+- Each line is read with a cap of `ceil(max_input_size / 3) * 4 + 1 MiB` (base64 payload plus
   framing). A longer line is drained without buffering and answered with `-32700`; the
   session continues.
 - Requests are handled sequentially; one call holds at most one document.

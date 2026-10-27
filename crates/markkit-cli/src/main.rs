@@ -64,10 +64,6 @@ enum Commands {
         #[arg(long)]
         no_url: bool,
 
-        /// Maximum input size in bytes
-        #[arg(long, default_value = "52428800")]
-        max_size: usize,
-
         /// Maximum markdown characters returned per call
         #[arg(long, default_value_t = markkit::tool::DEFAULT_MAX_OUTPUT_CHARS)]
         max_output_chars: usize,
@@ -79,6 +75,9 @@ enum Commands {
         /// Locale for tool descriptions and errors (en-US, uk-UA)
         #[arg(long, default_value = "en-US")]
         locale: String,
+
+        #[command(flatten)]
+        limits: LimitArgs,
     },
 }
 
@@ -159,29 +158,21 @@ async fn main() -> Result<()> {
     match cli.command {
         Commands::Mcp {
             no_url,
-            max_size,
             max_output_chars,
             main_content,
             locale,
+            limits,
         } => {
+            let limits = limits.apply(Limits::default());
+            let max_message = mcp::max_message_bytes(limits.max_input_size);
             let tool = markkit::tool::MarkkitTool::builder()
                 .locale(&locale)
-                .config(
-                    Markkit::builder()
-                        .max_input_size(max_size)
-                        .main_content(main_content),
-                )
+                .config(Markkit::builder().limits(limits).main_content(main_content))
                 .allow_url(!no_url)
                 .max_output_chars(max_output_chars)
                 .build();
             let stdin = tokio::io::BufReader::new(tokio::io::stdin());
-            mcp::serve(
-                &tool,
-                stdin,
-                tokio::io::stdout(),
-                mcp::max_message_bytes(max_size),
-            )
-            .await?;
+            mcp::serve(&tool, stdin, tokio::io::stdout(), max_message).await?;
         }
         Commands::Extract {
             source,
@@ -265,7 +256,9 @@ mod tests {
 
     fn limits_from(args: &[&str]) -> Limits {
         let cli = Cli::try_parse_from(["markkit", "extract", "x"].iter().chain(args)).unwrap();
-        let Commands::Extract { limits, .. } = cli.command;
+        let Commands::Extract { limits, .. } = cli.command else {
+            panic!("expected extract");
+        };
         limits.apply(Limits::default())
     }
 
