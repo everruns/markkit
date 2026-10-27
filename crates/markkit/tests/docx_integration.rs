@@ -266,7 +266,7 @@ fn empty_paragraphs_skipped() {
 
 #[test]
 fn xml_entities_decoded() {
-    assert_eq!(md(&para("a &lt;b&gt; &amp; &#x41;&#66;")), "a <b> & AB\n");
+    assert_eq!(md(&para("a &lt;b&gt; &amp; &#x41;&#66;")), "a \\<b> & AB\n");
 }
 
 #[test]

@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Relative URL resolution: links, images and metadata URLs resolve against the new
   `MarkkitBuilder::base_url` (CLI `--base-url`) and the page's `<base href>`; `extract_url` uses
   the final URL after redirects. Absolute and fragment-only URLs are left unchanged.
-- Math: `$tex$` and `$$` blocks from MathML (`application/x-tex` annotation), KaTeX and MathJax output.
+- Math: `` $`tex`$ `` and ` ```math ` blocks from MathML (`application/x-tex` annotation), KaTeX and MathJax output.
 - IR transforms: `MarkkitBuilder::transform(..)` runs `Transform` passes after parsing and before
   rendering, for every format. Built-ins `transform::NormalizeHeadings` and `transform::DropImages`;
   `transform::from_fn` for closures; `Document::visit` / `visit_mut` to walk the tree.
@@ -48,6 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the article body of a web page, Readability-style, dropping navigation, sidebars, comments, share
   bars and related-link blocks. Off by default; include selectors take precedence; falls back to the
   full page when no article-like block is found.
+- Every resource limit is configurable outside Rust: CLI flags (`--max-output-size`, `--timeout`,
+  `--max-nesting-depth`, `--max-nodes`, archive / sheet / redirect flags; `--max-size` kept as an
+  alias of `--max-input-size`), Python `markkit.Limits(...)` passed as `limits=` to every function,
+  and flat Node.js and WASM option keys (`maxOutputSize`, `maxNodes`, `maxNestingDepth`, plus
+  `timeout` in Node.js).
+- Node.js and WASM options gain `baseUrl` and `mainContent`; Python `extract_html_sync_with_options`
+  gains `base_url=` and `main_content=`, matching the core builder.
 
 ### Security
 
@@ -57,13 +64,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   thousands of rows); `max_nodes` (5 000 000) caps parsed HTML DOM / DOCX XML nodes;
   `max_nesting_depth` (256) is configurable, with a hard ceiling of 512 that keeps deep input off
   the host stack. Violations return `Error::ResourceLimit` naming the limit.
-
 - `extract_url` (CLI, Python and Node `extract_url` too) now refuses non-public destinations by default:
   loopback, private, link-local / cloud metadata and other reserved addresses, checked on the URL,
   after DNS resolution and on every redirect. Only `http`/`https` are fetched. Redirects are capped
   (`max_redirects`, default 5), the body is bounded by `max_input_size` while streaming, and the whole
   fetch by `max_processing_secs`. New builder options `allow_private_networks(true)` and `allow_host(..)`;
   refusals return the new `Error::UrlBlocked`.
+- Markdown output is now escaped: text from documents can no longer emit raw HTML (`<img onerror>`),
+  links, emphasis, headings or list markers; code blocks use a fence longer than any backtick run
+  inside. Links with schemes other than `http`, `https`, `mailto`, `tel`, `ftp` or relative URLs
+  (e.g. `javascript:`) and images other than `http`/`https`/relative/raster `data:image/*` are
+  dropped, keeping their text. URLs percent-encode `( ) < > \` and spaces.
+- Markdown structure from documents can no longer break out of its container: code blocks in table
+  cells and headings are flattened to one line, list item bodies are indented by the marker width
+  (nested content under `1.` items now nests correctly), and nested links render as text.
+- The JSON IR of DOCX and spreadsheet tables now holds raw text (pipes were pre-escaped before).
+- Math TeX (taken from page markup) renders as code, GitHub's `` $`tex`$ `` and ` ```math `
+  forms, instead of `$tex$` / `$$`, so it can no longer emit raw HTML or links in plain GFM.
 
 ### Added
 

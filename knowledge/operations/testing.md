@@ -17,6 +17,7 @@ tags:
 | `crates/markkit/tests/html_integration.rs` | End-to-end HTML to markdown |
 | `crates/markkit/tests/html_fixtures.rs` | Golden files: `tests/fixtures/html/<name>.html` vs `<name>.md` |
 | `crates/markkit/tests/html_security.rs` | XSS payloads, nesting, oversized input |
+| `crates/markkit/tests/output_safety.rs` | Renderer escaping, URL scheme allowlist, fences; pulldown-cmark oracle + proptests |
 | `crates/markkit/tests/html_proptest.rs` | Property tests: no panic, no script/style, determinism, limits |
 | `crates/markkit/tests/docx_integration.rs`, `spreadsheet_integration.rs` | Office mapping |
 | `crates/markkit/tests/document_detection.rs` | Format detection order and explicit unsupported errors |

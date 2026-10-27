@@ -25,7 +25,6 @@ use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::ir::{Document, ListItem, Node, Source, TableCell};
 use crate::limits::Budget;
-use crate::render::escape_table_cell;
 use crate::xml::{self, Element, XmlError};
 
 /// Result of parsing a DOCX package.
@@ -883,11 +882,10 @@ impl Ctx<'_> {
     }
 }
 
-/// Make cell content table-safe: no line breaks, pipes escaped.
+/// Make cell content single-line: hard breaks become spaces (the renderer escapes pipes).
 fn table_cell(nodes: Vec<Node>) -> Vec<Node> {
     fn fix(n: Node) -> Node {
         match n {
-            Node::Text(t) => Node::Text(escape_table_cell(&t)),
             Node::LineBreak => Node::Text(" ".into()),
             Node::Bold { children } => Node::Bold {
                 children: children.into_iter().map(fix).collect(),
@@ -903,7 +901,7 @@ fn table_cell(nodes: Vec<Node>) -> Vec<Node> {
                 title,
                 children,
             } => Node::Link {
-                url: url.replace('|', "%7C"),
+                url,
                 title,
                 children: children.into_iter().map(fix).collect(),
             },
