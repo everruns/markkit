@@ -20,7 +20,7 @@ tags:
   browsers (incl. iframes), edge workers, Node, Deno and Bun.
 - **Separate from the napi package** (`@everruns/markkit`), which stays the fast
   native option for Node on Linux x64.
-- **Features**: `html`, `docx`, `spreadsheet`, `tool`. No `http_client`: reqwest
+- **Features**: `html`, `docx`, `spreadsheet`, `markdown`, `tool`. No `http_client`: reqwest
   needs sockets, and the host fetching keeps network policy (SSRF) with the host.
   The tool therefore offers only `html` and `content_base64`.
 
@@ -37,7 +37,8 @@ const tool = new MarkkitTool({ locale, maxOutputChars });
 tool.toolDefinition(); await tool.execute(args);
 ```
 
-Options are camelCase builder fields (`maxInputSize`, `preserveLinks`,
+Options are camelCase builder fields (`maxInputSize`, `maxOutputSize`,
+`maxNodes`, `maxNestingDepth`, `baseUrl`, `mainContent`, `preserveLinks`,
 `preserveImages`, `includeSelectors`, `excludeSelectors`, archive and sheet
 limits, `includeHiddenSheets`). Selectors add to the defaults, as in Python.
 Unknown keys and wrong types throw `invalid options`: values go through

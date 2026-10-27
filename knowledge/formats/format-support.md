@@ -1,7 +1,7 @@
 ---
 type: Subsystem Design
 title: Format Support
-description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet and PDF mapping.
+description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet, PDF, plain text and Markdown mapping.
 tags:
   - markkit
   - formats
@@ -9,6 +9,7 @@ tags:
   - spreadsheet
   - pdf
   - detection
+  - markdown
 ---
 
 # Format Support
@@ -17,11 +18,12 @@ tags:
 
 ### Tier 1 (Core)
 - **HTML/XHTML**: Full support via html5ever + scraper (`html` feature, default)
-- **Plain text**: Planned pass-through (currently `UnsupportedFormat` via the bytes API)
+- **Plain text**: Always on, no dependencies (`text/plain`, `.txt`, `.text`)
 
 ### Tier 2 (Feature-gated)
 - **DOCX** (`docx`): Word documents via a direct `zip` + `quick-xml` reader (no docx-rs)
 - **XLSX/XLSM, XLS, ODS** (`spreadsheet`): Workbooks to Markdown tables via calamine
+- **Markdown** (`markdown`): Re-parsed with pulldown-cmark into the IR and rendered back (`text/markdown`, `text/x-markdown`, `.md`, `.markdown`, `.mdown`, `.mkd`, `.mkdn`)
 - **PDF** (`pdf`): Text layer via hayro-syntax (pure Rust); no OCR, encrypted PDFs rejected
 
 ### Detected, not supported
@@ -31,7 +33,6 @@ tags:
 - **EPUB**: E-book extraction
 - **RTF**: Rich text format
 - **CSV/TSV**: Tabular data to markdown tables
-- **Markdown**: Normalize/clean existing markdown
 
 ## Bytes-in API
 
@@ -75,7 +76,7 @@ only the Markdown. Parsing is CPU-bound; async callers should use the sync varia
 `spawn_blocking`.
 
 Warning codes: `truncated_sheet`, `hidden_sheet_skipped`, `sheet_error`, `truncated_pdf`,
-`pdf_unmapped_font`, `pdf_no_text`.
+`pdf_unmapped_font`, `pdf_no_text`, `invalid_utf8`.
 
 ## Format Detection
 
@@ -92,6 +93,9 @@ Priority order (`Format::detect`):
    - OLE2 (`D0 CF 11 E0`): UTF-16 `WordDocument` stream → DOC; `Workbook`/`Book` → XLS.
    - `%PDF-` within the first 1 KiB → PDF.
    - `<!doctype html`, `<html`, `<head`, `<body` (after BOM/whitespace) → HTML.
+
+Plain text and Markdown are never sniffed: they need a content type or extension, so
+unlabelled bytes stay `UnsupportedFormat` rather than rendering binary as text.
 
 Spreadsheet parsing re-sniffs the container (XLSX vs XLS vs ODS), so a workbook
 mislabelled as another Excel type still parses.
@@ -162,6 +166,32 @@ Known gaps (follow-ups): multi-column reading order relies on content-stream ord
 no table detection, no repeated header/footer removal, bold/italic not mapped, numbered
 lists stay paragraphs, rotated text is not re-oriented.
 
+## Plain Text and Markdown
+
+Shared decoding: UTF-8 (BOM stripped); UTF-16 LE/BE only with a BOM; otherwise lossy UTF-8
+with an `invalid_utf8` warning. CRLF/CR become LF; C0 controls other than tab/newline, and
+DEL, are dropped (no terminal escapes or NULs in output).
+
+Plain text goes through the IR: blank lines separate paragraphs (`stats.paragraphs`),
+single newlines become hard breaks (`  \n`), trailing whitespace is trimmed, text stays
+`Node::Text`. No title.
+
+Markdown is parsed, not passed through:
+
+| Markdown | Output |
+|---|---|
+| CommonMark blocks and inlines | Same construct via the IR (`*` bullets become `-`, setext headings become ATX) |
+| GFM tables (with `:---:` alignment), `~~strike~~`, task lists `[x]` | IR v2 `Table.alignments`, `Strikethrough`, `ListItem::checked` |
+| Footnotes `[^n]`, definition lists (`Term` / `: def`) | IR v2 `FootnoteReference` / `FootnoteDefinition`, `DefinitionList` |
+| Soft line break | Space (paragraphs reflow); hard breaks kept |
+| YAML front matter | Not rendered; `title:` becomes `Extraction::title` (else first `# ` heading) |
+| HTML block | Through the HTML parser when `html` is on (scripts, styles, handlers stripped), else dropped |
+| Inline HTML tag | Dropped; text between tags kept |
+| Math, wikilinks, other extensions | Not enabled (literal text) |
+
+Containers nested deeper than `max_nesting_depth` (256) are flattened into the deepest kept container
+(explicit-stack builder, so neither the builder nor the recursive renderer can overflow).
+
 ## Resource Limits
 
 All formats enforce:
@@ -175,7 +205,7 @@ Office formats additionally enforce (see [Threat Model](../security/threat-model
 - `max_spreadsheet_cells` (4 000 000) for the dense grid calamine builds for XLS/ODS
 - XML nesting depth 256 for DOCX parts
 
-PDF additionally enforces (T7): `max_pdf_pages` (10 000; truncate + `truncated_pdf`),
+PDF additionally enforces (T8): `max_pdf_pages` (10 000; truncate + `truncated_pdf`),
 `max_pdf_stream_size` (64 MiB per decoded stream), `max_pdf_decoded_size` (256 MiB total
 decoded in the pre-scan, and separately the total content interpreted, form reuse included).
 
@@ -183,4 +213,4 @@ decoded in the pre-scan, and separately the total content interpreted, form reus
 
 - [HTML Extraction](html-extraction.md), the Tier 1 path
 - [IR Specification](../foundations/ir.md), the shared output of every parser
-- [Threat Model](../security/threat-model.md), T6 malicious office documents, T7 malicious PDFs
+- [Threat Model](../security/threat-model.md), T6 malicious office documents, T7 text and Markdown, T8 malicious PDFs

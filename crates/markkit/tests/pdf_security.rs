@@ -1,4 +1,4 @@
-//! PDF security tests (threat model T7): decompression bombs, interpretation
+//! PDF security tests (threat model T8): decompression bombs, interpretation
 //! amplification, unverifiable/encrypted input, malformed files never panic.
 
 #![cfg(feature = "pdf")]
@@ -25,7 +25,7 @@ fn catalog_page(contents: &str) -> Vec<Vec<u8>> {
     ]
 }
 
-// ─── Decompression bombs (T7a) ──────────────────────────────────────
+// ─── Decompression bombs (T8a) ──────────────────────────────────────
 
 #[test]
 fn flate_bomb_content_stream_rejected() {
@@ -108,7 +108,7 @@ fn run_length_bomb_rejected() {
     ));
 }
 
-// ─── Interpretation amplification (T7b) ─────────────────────────────
+// ─── Interpretation amplification (T8b) ─────────────────────────────
 
 #[test]
 fn form_xobject_reuse_hits_interpretation_budget() {
@@ -330,4 +330,22 @@ fn pdf_limits_settable_via_limits_struct() {
         .build();
     let out = run(&m, &bytes).unwrap();
     assert!(out.markdown.contains("one") && !out.markdown.contains("two"));
+}
+
+#[test]
+fn output_cap_rejects() {
+    let content: String = (0..200)
+        .map(|i| {
+            format!(
+                "BT /F1 12 Tf 72 {} Td (paragraph {i}) Tj ET\n",
+                7000 - i * 30
+            )
+        })
+        .collect();
+    let bytes = pdf_pages(&[content.as_str()]);
+    let m = Markkit::builder().max_output_size(500).build();
+    match run(&m, &bytes) {
+        Err(Error::ResourceLimit(msg)) => assert!(msg.contains("max_output_size"), "{msg}"),
+        other => panic!("expected output cap, got {other:?}"),
+    }
 }

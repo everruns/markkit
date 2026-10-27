@@ -38,6 +38,23 @@ test("input size limit", () => {
   assert.throws(() => mk.extractHtml("<p>too long</p>"), /Resource limit/);
 });
 
+test("output, node and depth limits", () => {
+  const html = "<p>hello world</p>".repeat(200);
+  assert.throws(() => new Markkit({ maxOutputSize: 100 }).extractHtml(html), /max_output_size/);
+  assert.throws(() => new Markkit({ maxNodes: 50 }).extractHtml(html), /max_nodes/);
+  const deep = "<blockquote>".repeat(20) + "<p>Deep</p>" + "</blockquote>".repeat(20);
+  assert.ok(!new Markkit({ maxNestingDepth: 5 }).extractHtml(deep).includes("> ".repeat(6)));
+  assert.throws(() => new Markkit({ timeout: 1 }), /invalid options/);
+});
+
+test("baseUrl and mainContent options", () => {
+  const page = '<body><nav><a href="/n">menu</a></nav><article><h1>T</h1>' + "<p>Long article text, with commas, and more words here.</p>".repeat(8) + '<p><a href="/a">rel</a></p></article><aside>side</aside></body>';
+  const md = new Markkit({ baseUrl: "https://x.test/d/", mainContent: true }).extractHtml(page);
+  assert.ok(md.includes("(https://x.test/a)"));
+  assert.ok(!md.includes("side"));
+  assert.ok(new Markkit().extractHtml(page).includes("side"));
+});
+
 test("extractDocument returns metadata", () => {
   const mk = new Markkit();
   const out = mk.extractDocument(new TextEncoder().encode("<p>bytes</p>"), { fileName: "a.html" });
@@ -55,6 +72,17 @@ test("extractDocument exposes page metadata in camelCase", () => {
   assert.equal(out.metadata.canonicalUrl, "https://x.test/a");
   assert.equal(out.metadata.language, "en");
   assert.equal(out.metadata.site_name, undefined);
+});
+
+test("extractDocument reads plain text and Markdown", () => {
+  const mk = new Markkit();
+  const txt = mk.extractDocument(new TextEncoder().encode("a\nb"), { fileName: "n.txt" });
+  assert.equal(txt.format, "text");
+  assert.equal(txt.markdown, "a  \nb\n");
+  const md = mk.extractDocument(new TextEncoder().encode("# T\n\n<script>x()</script>\n"), { fileName: "d.md" });
+  assert.equal(md.format, "markdown");
+  assert.equal(md.title, "T");
+  assert.ok(!md.markdown.includes("script"));
 });
 
 test("extractBytes and unsupported formats", () => {

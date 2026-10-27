@@ -10,6 +10,16 @@ export function version(): string;
 export interface MarkkitOptions {
   /** Maximum input size in bytes (default 50 MiB). */
   maxInputSize?: number;
+  /** Maximum Markdown output in bytes (default 128 MiB). */
+  maxOutputSize?: number;
+  /** Maximum parsed nodes (default 5 000 000). */
+  maxNodes?: number;
+  /** Maximum element nesting (default 256, capped at 512). */
+  maxNestingDepth?: number;
+  /** Absolute URL relative links and images resolve against. */
+  baseUrl?: string;
+  /** Keep only the detected main content (article body) of HTML pages. */
+  mainContent?: boolean;
   preserveLinks?: boolean;
   preserveImages?: boolean;
   /** CSS selectors to include (empty = whole document). */

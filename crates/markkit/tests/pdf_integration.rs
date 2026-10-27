@@ -125,8 +125,8 @@ endcmap end end";
 
 #[test]
 fn tj_kerning_gap_becomes_space() {
-    let pdf = pdf_pages(&["BT /F1 12 Tf 72 700 Td [(Hello) -600 (world) -20 (!)] TJ ET"]);
-    assert_eq!(extract(&pdf).markdown.trim(), "Hello world!");
+    let pdf = pdf_pages(&["BT /F1 12 Tf 72 700 Td [(Hello) -600 (world) -20 (.)] TJ ET"]);
+    assert_eq!(extract(&pdf).markdown.trim(), "Hello world.");
 }
 
 #[test]

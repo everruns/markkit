@@ -26,8 +26,9 @@ tags:
 
 ### T1: Injection via Extracted Content
 
-**Description**: Attacker crafts HTML so extracted markdown contains executable content
-(script tags, event handlers, style expressions).
+**Description**: Attacker crafts a document so extracted markdown contains executable
+content (script tags, event handlers, script-scheme links) or spoofed structure (text
+that renders as headings, links, code fences or tables).
 
 **Impact**: High -- downstream consumers may render markdown as HTML, re-introducing XSS.
 
@@ -36,7 +37,26 @@ tags:
 **Mitigations**:
 - Parser strips all `<script>`, `<style>`, `<noscript>`, `<iframe>`, `<object>`, `<embed>`, `<svg>`, `<canvas>` elements
 - Event handler attributes (onclick, onload, etc.) are not preserved -- only `href`, `src`, `alt`, `title`, `class`, `start` attributes are read
-- Output is markdown text with no HTML pass-through
+- Output is markdown text with no HTML pass-through, enforced at render time by
+  `render/escape.rs` for every format (the IR keeps raw text):
+  - Text escapes `` ` * [ ] < ~ | ``, `_` at word boundaries, entity-like `&`, a
+    trailing `\` or `!`, and block markers (`# > - + =`, `1.`/`1)`) at line start.
+    Newlines inside text become spaces.
+  - Link schemes allowlisted (`http`, `https`, `mailto`, `tel`, `ftp`, relative);
+    image schemes `http`, `https`, relative and raster `data:image/*`. Others are
+    dropped, keeping link text / alt text. Whitespace and control characters are
+    ignored for scheme detection (`java\tscript:`).
+  - Destinations percent-encode `( ) < > \` and whitespace and backslash-escape
+    entity-like `&` (`javascript&colon;` cannot decode into a scheme).
+  - Code fences and code spans are one backtick longer than the longest run inside;
+    info strings keep only the first word without backticks; a space separates a
+    code span from a preceding backtick.
+  - Structure cannot break out of its container: block nodes inside inline content
+    (table cells, headings, link text) are flattened to one line; list item bodies
+    are indented by the marker width (`1. ` = 3, `10. ` = 4); a block always starts
+    on its own line after a blank line; hard breaks never produce a blank line;
+    nested links render as text; empty destinations are written `<>`; link titles
+    escape `"`, `\` and `<`.
 - Form elements (`<form>`, `<input>`, `<button>`, `<select>`, `<textarea>`) stripped
 - Page metadata (`Extraction::metadata`): URL fields drop non-`http(s)` schemes
   (`javascript:`, `data:`); values single-line and capped at 2048 chars
@@ -54,7 +74,10 @@ tags:
 - `html_proptest::no_script_tags_in_output`
 - `html_proptest::no_style_tags_in_output`
 - `html_metadata::dangerous_url_schemes_dropped`, `values_are_single_line_and_capped`, `html_proptest::metadata_values_single_line`
-- `html_urls::absolute_dangerous_schemes_pass_through_untouched`, `page_base_cannot_switch_to_local_or_script_scheme`, `invalid_caller_base_ignored`
+- `html_urls::absolute_dangerous_schemes_are_not_resolved`, `page_base_cannot_switch_to_local_or_script_scheme`, `invalid_caller_base_ignored`
+- `output_safety::*`: a pulldown-cmark (GFM) oracle checks no raw HTML, no unsafe
+  destination, block structure and verbatim text, plus proptests over arbitrary text,
+  URLs and code
 
 ### T2: Denial of Service (Resource Exhaustion)
 
@@ -273,7 +296,35 @@ process, or smuggling content past a human reviewer.
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
   `spreadsheet_integration::xlsm_with_vba_project_extracts_values_only`
 
-### T7: Malicious PDFs
+### T7: Text and Markdown Input
+
+**Description**: Plain text or Markdown carrying terminal escapes, NULs, invalid encodings,
+raw HTML (`<script>`, event handlers) or pathological nesting.
+
+**Impact**: Medium -- raw HTML passed through re-introduces T1; deep nesting can crash.
+
+**Mitigations**:
+- Text and Markdown are never sniffed; a content type or extension must select them
+- Decoding is total: invalid UTF-8/UTF-16 is replaced (U+FFFD) with an `invalid_utf8` warning
+- C0 controls (except tab/newline) and DEL are dropped before parsing
+- Markdown is re-parsed (pulldown-cmark) into the IR; raw HTML is never copied. HTML blocks
+  go through the HTML parser (T1 stripping) or are dropped; inline tags are dropped
+- Explicit-stack IR builder, nesting capped at `max_nesting_depth` (deeper content flattened);
+  the call's `timeout` and `max_nodes` budget covers decoding, parsing and HTML blocks
+
+**Residual**: none specific to text. Literal text that looks like markup (a `<script>` line
+in a `.txt`) is emitted as `Node::Text` and escaped by the renderer (S17), like every format.
+
+**Test Coverage** (`text_integration`):
+- `security_control_chars_stripped`, `security_arbitrary_bytes_never_panic`
+- `security_invalid_utf8_lossy_with_warning`, `security_utf16_malformed_no_panic`
+- `security_markdown_raw_html_never_passes_through`
+- `security_markdown_deep_nesting_no_stack_overflow`, `security_long_line`
+- `security_input_size_limit`, `security_output_bounded_by_input`
+- `security_text_and_markdown_share_limits` (timeout, `max_nodes`)
+- `security_plain_text_markup_is_escaped`
+
+### T8: Malicious PDFs
 
 **Description**: Crafted PDFs aimed at exhausting memory/CPU through stream
 decompression or content amplification, crashing the parser, or hiding text.
@@ -284,7 +335,7 @@ decompression or content amplification, crashing the parser, or hiding text.
 
 **Sub-threats and mitigations** (`crates/markkit/src/pdf/`):
 
-#### T7a: Decompression bombs
+#### T8a: Decompression bombs
 - hayro-syntax decodes object and xref streams itself, without limits, while resolving
   objects. So before hayro sees the file, `guard::prescan` finds every `stream` keyword
   in the raw bytes (streams cannot be nested in object streams), reads `/Filter` from the
@@ -299,7 +350,7 @@ decompression or content amplification, crashing the parser, or hiding text.
   and encrypted files (`/Encrypt` key; the scan would only see ciphertext) →
   `UnsupportedFormat`. Image filters end a chain; hayro is built without image decoders.
 
-#### T7b: Interpretation amplification
+#### T8b: Interpretation amplification
 - Every decoded content stream is charged to an interpretation budget equal to
   `max_pdf_decoded_size`, per use: a form XObject drawn 10 000 times, or one stream listed
   10 000 times in `/Contents`, exhausts it → `ResourceLimit`. Operators are charged too.
@@ -308,12 +359,12 @@ decompression or content amplification, crashing the parser, or hiding text.
 - CMap `bfrange`s are never expanded (binary-searched ranges); `/W` arrays capped at 65 536 entries.
 - `max_pdf_pages` (10 000) truncates with a `truncated_pdf` warning.
 
-#### T7c: Parser crashes on malformed input
+#### T8c: Parser crashes on malformed input
 - hayro-syntax repairs broken xref tables and returns `None` on bad objects; markkit
   maps load failures to `Error::PdfExtract`. Parsing runs under `catch_unwind` like the
   office parsers (defence in depth).
 
-#### T7d: Hidden text
+#### T8d: Hidden text
 - Residual: text render mode 3 (invisible) is extracted, because that is how OCR layers
   of scanned PDFs are stored; white-on-white or off-page text is also extracted. Treat
   PDF text as untrusted content (prompt-injection vector), as with any source.
@@ -326,7 +377,8 @@ decompression or content amplification, crashing the parser, or hiding text.
   `self_referencing_form_does_not_recurse_forever`, `deep_save_state_nesting_and_degenerate_matrices`,
   `huge_cmap_range_and_width_arrays_are_cheap`
 - `encrypted_pdf_is_explicitly_unsupported`, `indirect_filter_is_refused_not_trusted`,
-  `not_a_pdf_is_an_error_not_a_panic`, `max_input_size_honoured_for_pdf`
+  `not_a_pdf_is_an_error_not_a_panic`, `max_input_size_honoured_for_pdf`,
+  `zero_timeout_rejects`, `output_cap_rejects`, `pdf_limits_settable_via_limits_struct`
 - `truncated_pdfs_never_panic`, `random_bytes_after_header_never_panic`,
   `mutated_pdfs_never_panic`, `arbitrary_content_stream_never_panics`
 - Unit: `pdf::guard::tests::*` (decoders, caps, filter parsing), `pdf::font::tests::*`
@@ -352,7 +404,7 @@ decompression or content amplification, crashing the parser, or hiding text.
 | Output size | 128 MiB | `max_output_size(usize)` | Renderer, per block / list item / table row |
 | Processing time | 60 s | `timeout(Duration)`, `max_processing_secs(u64)` | One budget per call: fetch, parse, render (cooperative) |
 | Parsed nodes | 5 000 000 | `max_nodes(usize)` | After html5ever (DOM count); while building DOCX XML trees |
-| Nesting depth | 256 (hard max 512) | `max_nesting_depth(usize)` | HTML walk (flatten); DOCX XML build (reject) |
+| Nesting depth | 256 (hard max 512) | `max_nesting_depth(usize)` | HTML walk and Markdown IR build (flatten); DOCX XML build (reject) |
 | Redirects (`extract_url`) | 5 | `max_redirects(usize)` | Every redirect hop |
 | Fetched body (`extract_url`) | = input size | `max_input_size(usize)` | `Content-Length` and while streaming |
 | Table span grid | 1 000 000 slots | Hardcoded `MAX_TABLE_GRID_CELLS` | Renderer table layout (spans dropped past it) |
@@ -372,8 +424,10 @@ decompression or content amplification, crashing the parser, or hiding text.
 |----------|---------|----------|
 | XSS script tags | `<script>alert(1)</script>` | Stripped (non-content element) |
 | Event handlers | `<p onclick="...">` | Attribute not read |
-| JavaScript URLs | `<a href="javascript:...">` | URL preserved as-is in markdown (no execution context); never rewritten by base resolution |
-| Data URI payloads | `<img src="data:text/html,...">` | Rendered as markdown image (no execution) |
+| JavaScript URLs | `<a href="javascript:...">` | Link dropped, text kept (scheme allowlist); never rewritten by base resolution |
+| Data URI payloads | `<img src="data:text/html,...">` | Image dropped, alt text kept (only raster `data:image/*` allowed) |
+| Markdown in text | `<p># x *y* &lt;img onerror&gt;</p>` | Escaped; renders as the literal text |
+| Fence breakout | ```` ``` ```` inside `<pre>` | Fence longer than any backtick run in the code |
 | Style expressions | `style="background:url(javascript:...)"` | Attribute not read |
 | Deep nesting | 1000+ nested `<div>` | Flattened to text at `max_nesting_depth` (256) |
 | Huge text nodes | 100KB+ single text node | Passed through (bounded by input limit) |
@@ -408,10 +462,12 @@ decompression or content amplification, crashing the parser, or hiding text.
 | S14 | Returned Markdown never exceeds `max_output_size` | `limits::*output_cap*` |
 | S15 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
 | S16 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
-| S17 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
+| S17 | Rendered markdown has no raw HTML, no non-allowlisted link/image scheme, and document text cannot create Markdown structure | `output_safety::*` (pulldown-cmark oracle + proptests) |
+| S18 | Text and Markdown output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*` |
+| S19 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
 
 ## See also
 
 - [Security Model](security-model.md), the one-page summary of these threats
-- [Format Support](../formats/format-support.md), office-format and PDF limits referenced by T6 and T7
+- [Format Support](../formats/format-support.md), office-format and PDF limits referenced by T6 and T8
 - [Testing Strategy](../operations/testing.md), where the security suites live

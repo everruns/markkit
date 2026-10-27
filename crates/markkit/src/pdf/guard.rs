@@ -1,4 +1,4 @@
-//! Bounded PDF stream decoding (threat model T7a, decompression bombs).
+//! Bounded PDF stream decoding (threat model T8a, decompression bombs).
 //!
 //! Decision: hayro-syntax decodes object streams and xref streams itself while
 //! resolving objects, with no output limit, so a bomb disguised as an object
