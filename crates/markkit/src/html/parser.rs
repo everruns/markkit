@@ -37,26 +37,32 @@ use crate::rules::ElementAction;
 use url::Url;
 
 use super::metadata::PageInfo;
+use super::nesting::{self, NON_CONTENT};
 use super::{readability, urls};
+
+/// Extra levels kept above `max_nesting_depth` before raw tags are dropped:
+/// the walker flattens there anyway, the slack covers `html`/`body` and
+/// implied elements the pre-scan does not count.
+const NESTING_SLACK: usize = 8;
 
 /// Hidden-content policy (threat model T9): an element a reader never sees is
 /// skipped unless `include_hidden_content(true)`. Only signals on the element
 /// itself count (`hidden`, `aria-hidden="true"`, inline `style`); stylesheet and
 /// class-based hiding (`.sr-only`, off-screen positioning) is not detected.
 fn is_hidden(el: &scraper::node::Element) -> bool {
-    if el
-        .attr("hidden")
-        .is_some_and(|v| !v.eq_ignore_ascii_case("until-found"))
-    {
+    hidden_by(|name| el.attr(name))
+}
+
+/// [`is_hidden`] over any attribute lookup (also used by the nesting pre-scan,
+/// which sees raw tags).
+pub(crate) fn hidden_by<'v>(attr: impl Fn(&str) -> Option<&'v str>) -> bool {
+    if attr("hidden").is_some_and(|v| !v.eq_ignore_ascii_case("until-found")) {
         return true;
     }
-    if el
-        .attr("aria-hidden")
-        .is_some_and(|v| v.trim().eq_ignore_ascii_case("true"))
-    {
+    if attr("aria-hidden").is_some_and(|v| v.trim().eq_ignore_ascii_case("true")) {
         return true;
     }
-    let Some(style) = el.attr("style") else {
+    let Some(style) = attr("style") else {
         return false;
     };
     style.split(';').any(|decl| {
@@ -173,12 +179,21 @@ impl<'a> HtmlParser<'a> {
 
     /// Parse an HTML string into a [`Document`].
     pub fn parse(&self, html: &str) -> Result<Document, Error> {
-        self.parse_dom(&Html::parse_document(html))
+        self.parse_dom(&self.parse_html5ever(html))
+    }
+
+    /// html5ever parse of `html` with nesting capped first (see `nesting`).
+    fn parse_html5ever(&self, html: &str) -> Html {
+        Html::parse_document(&nesting::cap_nesting(
+            html,
+            self.max_depth + NESTING_SLACK,
+            !self.config.include_hidden_content,
+        ))
     }
 
     /// Parse an HTML string into a [`Document`] plus page title and metadata.
     pub(crate) fn parse_page(&self, html: &str) -> Result<(Document, PageInfo), Error> {
-        let dom = Html::parse_document(html);
+        let dom = self.parse_html5ever(html);
         let this = self.for_document(&dom);
         Ok((
             this.convert_dom(&dom)?,
@@ -325,7 +340,7 @@ impl<'a> HtmlParser<'a> {
         }
         if depth >= self.max_depth {
             // At max depth, just extract text
-            let text: String = parent.text().collect();
+            let text = flat_text(parent, !self.config.include_hidden_content);
             let trimmed = text.trim();
             if !trimmed.is_empty() {
                 out.push(Node::Text(trimmed.to_string()));
@@ -410,7 +425,7 @@ impl<'a> HtmlParser<'a> {
             return None;
         }
         if depth >= self.max_depth {
-            let text: String = el.text().collect();
+            let text = flat_text(el, !self.config.include_hidden_content);
             let trimmed = text.trim();
             if trimmed.is_empty() {
                 return None;
@@ -609,9 +624,7 @@ impl<'a> HtmlParser<'a> {
             "hr" => Some(Node::ThematicBreak),
 
             // Skip non-content elements
-            "script" | "style" | "noscript" | "template" | "iframe" | "object" | "embed"
-            | "form" | "input" | "button" | "select" | "textarea" | "svg" | "canvas" | "video"
-            | "audio" | "source" | "track" | "map" | "area" => None,
+            name if NON_CONTENT.contains(&name) => None,
 
             // Unknown element: try to extract inline content
             _ => {
@@ -927,7 +940,7 @@ impl<'a> HtmlParser<'a> {
     /// `<a>` that is a footnote reference: record target and build the node.
     fn footnote_reference(&self, el: scraper::ElementRef<'_>) -> Option<Node> {
         let target = el.value().attr("href")?.strip_prefix('#')?;
-        let text: String = el.text().collect();
+        let text = flat_text(el, !self.config.include_hidden_content);
         let text = text
             .trim()
             .trim_start_matches('[')
@@ -951,7 +964,7 @@ impl<'a> HtmlParser<'a> {
             return nodes;
         }
         if depth >= self.max_depth {
-            let text: String = el.text().collect();
+            let text = flat_text(el, !self.config.include_hidden_content);
             let trimmed = text.trim();
             if !trimmed.is_empty() {
                 nodes.push(Node::Text(trimmed.to_string()));
@@ -1040,17 +1053,15 @@ impl<'a> HtmlParser<'a> {
         exclude: &[Selector],
         depth: usize,
     ) -> Option<Node> {
-        let thead_sel = Selector::parse("thead").unwrap();
-        let tbody_sel = Selector::parse("tbody").unwrap();
-        let tr_sel = Selector::parse("tr").unwrap();
-
         let mut headers: Vec<TableCell> = Vec::new();
         let mut alignments: Vec<Alignment> = Vec::new();
         let mut rows: Vec<Vec<TableCell>> = Vec::new();
 
-        if let Some(thead) = table_el.select(&thead_sel).next()
-            && let Some(tr) = thead.select(&tr_sel).next()
-        {
+        // Direct structure only: a descendant query would also pick up the
+        // rows of nested tables, duplicating them into every enclosing table
+        // (output and work grew 4x per nesting level). THREAT[T2c].
+        let (head_row, body_rows) = table_rows(table_el);
+        if let Some(tr) = head_row {
             let ths = row_cells(tr, &["th", "td"]);
             alignments = column_alignments(&ths);
             headers = ths
@@ -1058,13 +1069,6 @@ impl<'a> HtmlParser<'a> {
                 .map(|th| self.table_cell(th, exclude, depth))
                 .collect();
         }
-
-        let body_rows: Vec<scraper::ElementRef<'_>> =
-            if let Some(tbody) = table_el.select(&tbody_sel).next() {
-                tbody.select(&tr_sel).collect()
-            } else {
-                table_el.select(&tr_sel).collect()
-            };
 
         for tr in body_rows {
             if self.is_excluded(&tr, exclude) {
@@ -1133,6 +1137,64 @@ impl<'a> HtmlParser<'a> {
         };
         TableCell::new(children).with_span(colspan, rowspan)
     }
+}
+
+/// Text of a subtree flattened at `max_nesting_depth`, without the content of
+/// [`NON_CONTENT`] elements (`el.text()` leaked `<script>`/`<style>` bodies) and,
+/// with `skip_hidden`, of hidden elements (T9). Iterative, so depth costs no stack.
+fn flat_text(el: scraper::ElementRef<'_>, skip_hidden: bool) -> String {
+    let mut out = String::new();
+    let mut skipping = 0usize;
+    for edge in el.traverse() {
+        match edge {
+            ego_tree::iter::Edge::Open(n) => match n.value() {
+                HtmlNode::Element(e)
+                    if skipping > 0
+                        || NON_CONTENT.contains(&e.name())
+                        || (skip_hidden && is_hidden(e)) =>
+                {
+                    skipping += 1;
+                }
+                HtmlNode::Text(t) if skipping == 0 => out.push_str(t),
+                _ => {}
+            },
+            ego_tree::iter::Edge::Close(n) => {
+                if skipping > 0 && n.value().is_element() {
+                    skipping -= 1;
+                }
+            }
+        }
+    }
+    out
+}
+
+/// First row of the first direct `<thead>`, and the body rows: `<tr>`
+/// children of the table and of its direct `<tbody>` sections, in order.
+fn table_rows<'a>(
+    table: scraper::ElementRef<'a>,
+) -> (
+    Option<scraper::ElementRef<'a>>,
+    Vec<scraper::ElementRef<'a>>,
+) {
+    let head = child_elements(table, "thead").find_map(|thead| child_elements(thead, "tr").next());
+    let mut body = Vec::new();
+    for child in table.children().filter_map(scraper::ElementRef::wrap) {
+        match child.value().name() {
+            "tbody" => body.extend(child_elements(child, "tr")),
+            "tr" => body.push(child),
+            _ => {}
+        }
+    }
+    (head, body)
+}
+
+fn child_elements<'a>(
+    el: scraper::ElementRef<'a>,
+    name: &'static str,
+) -> impl Iterator<Item = scraper::ElementRef<'a>> {
+    el.children()
+        .filter_map(scraper::ElementRef::wrap)
+        .filter(move |c| c.value().name() == name)
 }
 
 /// Direct `th`/`td` children of a row (nested tables' cells excluded).

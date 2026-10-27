@@ -113,6 +113,15 @@ All limits live in one `Limits` struct (`crates/markkit/src/limits.rs`,
   conversion, spreadsheet cell loops and renderer. html5ever tokenizing and calamine
   sheet decoding are not interruptible; they are linear in the (capped) input and the
   deadline is checked right after them
+- html5ever's tree builder is quadratic in nesting depth (687 KiB of nested `<div>`s took
+  12.6 s, 292 KiB of nested tables passed 60 s, uninterruptibly). `html::nesting::cap_nesting`
+  drops tags past `max_nesting_depth + 8` before html5ever runs, so parse cost is
+  O(input x cap); 45 MiB of hostile nesting now parses in under 0.5 s
+- Nested tables: rows are taken from the table's direct structure only. A descendant query
+  copied inner rows into every enclosing table, growing output and work 4x per level
+- Tests: `html_security::deep_div_nesting_is_linear`, `deep_unclosed_table_nesting_is_linear`,
+  `nested_table_rows_are_not_duplicated`, `deep_nested_tables_output_is_bounded`,
+  `html::nesting::tests::*`
 - `max_nodes` (default 5 000 000) caps HTML DOM nodes and DOCX XML nodes (summed over parts)
 - wasm32-unknown-unknown has no clock, so `timeout` is not enforced in `@everruns/markkit-wasm`;
   hosts bound time themselves (e.g. terminate the Worker). All other limits apply
@@ -422,7 +431,9 @@ at an LLM that consumes the extracted Markdown.
 - HTML: elements with `hidden` (not `until-found`), `aria-hidden="true"`, or an
   inline `style` declaring `display:none`, `visibility:hidden|collapse`,
   `opacity:0` or `font-size:0`; `<template>` always. Applies to list items, table
-  rows and cells too (a hidden cell stays empty to keep column alignment).
+  rows and cells too (a hidden cell stays empty to keep column alignment), and to
+  subtrees flattened past `max_nesting_depth` (the nesting pre-scan checks raw
+  attributes of tags it drops; entity-encoded values there are not decoded).
 - DOCX: runs with direct `w:vanish`; `hidden_content_skipped` warning with a count.
 - Spreadsheets: hidden sheets already skipped (T6e).
 
@@ -431,6 +442,7 @@ positioning, white-on-white via CSS), and `w:vanish` inherited from a character
 style, is not detected.
 
 **Test Coverage**: `hidden_content::*`,
+`html_security::hidden_content_does_not_leak_past_max_depth`,
 `html_integration::exclude_selector_applies_to_list_items_and_table_parts`
 
 ## Resource Limits
@@ -503,6 +515,7 @@ style, is not detected.
 | S18 | Text and Markdown output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*` |
 | S19 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
 | S20 | Hidden content is not rendered by default | `hidden_content::*` |
+| S21 | HTML parse time is linear in input whatever the nesting; flattened deep subtrees never emit non-content (script/style/template) text | `html_security::deep_*_is_linear`, `script_and_style_bodies_do_not_leak_past_max_depth` |
 
 ## See also
 
