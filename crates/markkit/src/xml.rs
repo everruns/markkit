@@ -8,6 +8,16 @@
 //! Tree depth (`limits.max_nesting_depth`), node count (`limits.max_nodes`,
 //! shared across parts) and the deadline are enforced while building; the tree
 //! is built iteratively (no recursion on input).
+//!
+//! Decision: memory. Names are interned per parse, attribute and child lists are
+//! exact-size boxed slices, and single-text elements hand out borrowed text.
+//! [`parse_split`] streams the children of one element path (a DOCX body's
+//! paragraphs and tables) to a callback and frees each one, so peak memory follows
+//! the largest block, not the whole part.
+
+use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::{Reader, XmlVersion};
@@ -21,17 +31,53 @@ pub(crate) enum XmlError {
     Invalid(String),
 }
 
+/// Interned string (local names and attribute values): one allocation per
+/// distinct value per parse, shared by every element that uses it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct Name(Rc<str>);
+
+impl Name {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for Name {
+    type Target = str;
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl PartialEq<str> for Name {
+    fn eq(&self, other: &str) -> bool {
+        &*self.0 == other
+    }
+}
+
+impl PartialEq<&str> for Name {
+    fn eq(&self, other: &&str) -> bool {
+        &*self.0 == *other
+    }
+}
+
+/// Element node. Attribute and child lists are exact-size boxed slices (built
+/// from a shared scratch stack), so leaves allocate nothing for them and no
+/// list carries growth slack.
 #[derive(Debug, Default)]
 pub(crate) struct Element {
-    pub name: String,
-    pub attrs: Vec<(String, String)>,
-    pub children: Vec<XNode>,
+    pub name: Name,
+    pub attrs: Attrs,
+    pub children: Box<[XNode]>,
 }
+
+/// Attribute list: (local name, value).
+pub(crate) type Attrs = Box<[(Name, Name)]>;
 
 #[derive(Debug)]
 pub(crate) enum XNode {
     Element(Element),
-    Text(String),
+    Text(Box<str>),
 }
 
 impl Element {
@@ -40,7 +86,7 @@ impl Element {
         self.attrs
             .iter()
             .find(|(k, _)| k == local)
-            .map(|(_, v)| v.as_str())
+            .map(|(_, v)| &**v)
     }
 
     /// Child elements.
@@ -62,7 +108,13 @@ impl Element {
     }
 
     /// Concatenated text of this element and its descendants.
-    pub fn text(&self) -> String {
+    pub fn text(&self) -> Cow<'_, str> {
+        // Common case: one text child, borrowed as is.
+        match &*self.children {
+            [] => return Cow::Borrowed(""),
+            [XNode::Text(t)] => return Cow::Borrowed(t),
+            _ => {}
+        }
         let mut out = String::new();
         // Iterative depth-first walk in document order.
         let mut pending: Vec<std::slice::Iter<'_, XNode>> = vec![self.children.iter()];
@@ -75,7 +127,7 @@ impl Element {
                 }
             }
         }
-        out
+        Cow::Owned(out)
     }
 
     /// Depth-first search for the first descendant with the given local name.
@@ -93,38 +145,101 @@ impl Element {
     }
 }
 
-fn local(name: &str) -> String {
-    match name.rsplit_once(':') {
-        Some((_, local)) => local.to_string(),
-        None => name.to_string(),
-    }
+fn local(name: &str) -> &str {
+    name.rsplit_once(':').map_or(name, |(_, local)| local)
 }
 
-fn element_from(start: &BytesStart<'_>) -> Element {
-    let mut attrs = Vec::new();
-    for attr in start.attributes().with_checks(false).flatten() {
-        let key = local(attr.key.as_ref());
-        let value = match attr.normalized_value(XmlVersion::Implicit1_0) {
-            Ok(v) => v.into_owned(),
-            Err(_) => attr.value.into_owned(),
-        };
-        attrs.push((key, value));
-    }
-    Element {
-        name: local(start.name().as_ref()),
-        attrs,
-        children: Vec::new(),
-    }
+/// Builder state: interned names plus scratch stacks for attributes and
+/// children, so every finished list is collected once at its exact size.
+#[derive(Default)]
+struct Builder<'s> {
+    names: HashMap<Box<str>, Name>,
+    /// Attribute values repeat heavily in OOXML (style ids, `val="0"`), so they
+    /// are interned too.
+    values: HashSet<Rc<str>>,
+    /// Open elements: name, attributes, start index of their children in `nodes`.
+    open: Vec<(Name, Attrs, usize)>,
+    nodes: Vec<XNode>,
+    attrs: Vec<(Name, Name)>,
+    /// Elements whose open ancestors match `split` go to `sink` instead of the tree.
+    split: &'s [&'s str],
+    sink: Option<&'s mut dyn FnMut(Element)>,
 }
 
-fn push_text(parent: &mut Element, text: &str) {
-    if text.is_empty() {
-        return;
+impl Builder<'_> {
+    fn name(&mut self, qname: &str) -> Name {
+        if let Some(n) = self.names.get(qname) {
+            return n.clone();
+        }
+        let n = Name(Rc::from(local(qname)));
+        self.names.insert(qname.into(), n.clone());
+        n
     }
-    if let Some(XNode::Text(prev)) = parent.children.last_mut() {
-        prev.push_str(text);
-    } else {
-        parent.children.push(XNode::Text(text.to_string()));
+
+    fn value(&mut self, v: &str) -> Name {
+        if let Some(k) = self.values.get(v) {
+            return Name(k.clone());
+        }
+        let k: Rc<str> = Rc::from(v);
+        self.values.insert(k.clone());
+        Name(k)
+    }
+
+    fn start(&mut self, start: &BytesStart<'_>) -> (Name, Attrs) {
+        for attr in start.attributes().with_checks(false).flatten() {
+            let key = self.name(attr.key.as_ref());
+            let value = match attr.normalized_value(XmlVersion::Implicit1_0) {
+                Ok(v) => self.value(&v),
+                Err(_) => self.value(&attr.value),
+            };
+            self.attrs.push((key, value));
+        }
+        let attrs = self.attrs.drain(..).collect();
+        (self.name(start.name().as_ref()), attrs)
+    }
+
+    /// Start of the innermost open element's children in `nodes`.
+    fn base(&self) -> usize {
+        self.open.last().map_or(0, |o| o.2)
+    }
+
+    fn text(&mut self, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        let base = self.base();
+        if self.nodes.len() > base
+            && let Some(XNode::Text(prev)) = self.nodes.last_mut()
+        {
+            let mut joined = String::with_capacity(prev.len() + text.len());
+            joined.push_str(prev);
+            joined.push_str(text);
+            *prev = joined.into_boxed_str();
+        } else {
+            self.nodes.push(XNode::Text(text.into()));
+        }
+    }
+
+    fn close(&mut self) {
+        if let Some((name, attrs, base)) = self.open.pop() {
+            let children = self.nodes.drain(base..).collect();
+            self.finish(Element {
+                name,
+                attrs,
+                children,
+            });
+        }
+    }
+
+    fn finish(&mut self, el: Element) {
+        if let Some(sink) = self.sink.as_mut()
+            && self.open.len() == self.split.len()
+            && self.open.iter().zip(self.split).all(|(o, s)| o.0 == *s)
+        {
+            sink(el);
+        } else {
+            self.nodes.push(XNode::Element(el));
+        }
     }
 }
 
@@ -138,9 +253,35 @@ fn limit(e: Error) -> XmlError {
 /// Parse an XML document into a tree. Returns a synthetic root whose children
 /// are the document's top-level nodes.
 pub(crate) fn parse(bytes: &[u8], max_depth: usize, budget: &Budget) -> Result<Element, XmlError> {
+    build(bytes, max_depth, budget, Builder::default())
+}
+
+/// Like [`parse`], but every element whose ancestors' local names are exactly
+/// `split` (outermost first) is passed to `sink` in document order and left out
+/// of the returned tree.
+pub(crate) fn parse_split(
+    bytes: &[u8],
+    max_depth: usize,
+    budget: &Budget,
+    split: &[&str],
+    sink: &mut dyn FnMut(Element),
+) -> Result<Element, XmlError> {
+    let b = Builder {
+        split,
+        sink: Some(sink),
+        ..Builder::default()
+    };
+    build(bytes, max_depth, budget, b)
+}
+
+fn build(
+    bytes: &[u8],
+    max_depth: usize,
+    budget: &Budget,
+    mut b: Builder<'_>,
+) -> Result<Element, XmlError> {
     let mut reader = Reader::from_reader(bytes);
     reader.config_mut().check_end_names = false;
-    let mut stack: Vec<Element> = vec![Element::default()];
     let mut buf = Vec::new();
     loop {
         let event = reader
@@ -157,37 +298,32 @@ pub(crate) fn parse(bytes: &[u8], max_depth: usize, budget: &Budget) -> Result<E
         }
         match event {
             Event::Start(s) => {
-                if stack.len() > max_depth {
+                if b.open.len() >= max_depth {
                     return Err(XmlError::Limit(format!(
                         "XML nesting deeper than max_nesting_depth {max_depth}"
                     )));
                 }
-                stack.push(element_from(&s));
+                let (name, attrs) = b.start(&s);
+                let base = b.nodes.len();
+                b.open.push((name, attrs, base));
             }
             Event::Empty(s) => {
-                let el = element_from(&s);
-                if let Some(top) = stack.last_mut() {
-                    top.children.push(XNode::Element(el));
-                }
+                let (name, attrs) = b.start(&s);
+                b.finish(Element {
+                    name,
+                    attrs,
+                    children: Box::default(),
+                });
             }
             Event::End(_) => {
-                if stack.len() > 1 {
-                    let el = stack.pop().unwrap_or_default();
-                    if let Some(top) = stack.last_mut() {
-                        top.children.push(XNode::Element(el));
-                    }
-                }
+                b.close();
             }
             Event::Text(t) => {
                 let text = t.xml_content(XmlVersion::Implicit1_0);
-                if let Some(top) = stack.last_mut() {
-                    push_text(top, &text);
-                }
+                b.text(&text);
             }
             Event::CData(t) => {
-                if let Some(top) = stack.last_mut() {
-                    push_text(top, &t);
-                }
+                b.text(&t);
             }
             Event::GeneralRef(r) => {
                 let resolved: Option<String> = match r.resolve_char_ref() {
@@ -198,8 +334,8 @@ pub(crate) fn parse(bytes: &[u8], max_depth: usize, budget: &Budget) -> Result<E
                     Err(_) => None,
                 };
                 // Unknown (DTD-declared / external) entities are dropped, never expanded.
-                if let (Some(text), Some(top)) = (resolved, stack.last_mut()) {
-                    push_text(top, &text);
+                if let Some(text) = resolved {
+                    b.text(&text);
                 }
             }
             Event::Eof => break,
@@ -208,13 +344,13 @@ pub(crate) fn parse(bytes: &[u8], max_depth: usize, budget: &Budget) -> Result<E
         buf.clear();
     }
     // Leniently close unterminated elements.
-    while stack.len() > 1 {
-        let el = stack.pop().unwrap_or_default();
-        if let Some(top) = stack.last_mut() {
-            top.children.push(XNode::Element(el));
-        }
+    while !b.open.is_empty() {
+        b.close();
     }
-    Ok(stack.pop().unwrap_or_default())
+    Ok(Element {
+        children: b.nodes.into_boxed_slice(),
+        ..Element::default()
+    })
 }
 
 #[cfg(test)]
@@ -235,6 +371,36 @@ mod tests {
         assert!(r.child("c").is_some());
         assert_eq!(r.text(), "1 < 2 A");
         assert_eq!(root.find("c").map(|e| e.name.as_str()), Some("c"));
+    }
+
+    #[test]
+    fn split_streams_matching_children_in_order() {
+        let xml = br#"<w:document><w:body><w:p>a</w:p><w:tbl><w:p>in</w:p></w:tbl><w:p/>t<w:sectPr/></w:body><w:p>out</w:p></w:document>"#;
+        let mut seen = Vec::new();
+        let rest = parse_split(
+            xml,
+            256,
+            &Budget::new(&Limits::default()),
+            &["document", "body"],
+            &mut |el| seen.push(format!("{}:{}", el.name.as_str(), el.text())),
+        )
+        .unwrap();
+        assert_eq!(seen, ["p:a", "tbl:in", "p:", "sectPr:"]);
+        let doc = rest.child("document").unwrap();
+        // Streamed elements are gone; text and non-matching paths stay.
+        assert_eq!(doc.child("body").unwrap().text(), "t");
+        assert_eq!(doc.child("p").unwrap().text(), "out");
+    }
+
+    #[test]
+    fn names_and_values_are_shared_not_copied() {
+        let root = parse(br#"<r><a:x v="1"/><a:x v="1"/><x v="2">t<y/>u</x></r>"#).unwrap();
+        let xs: Vec<_> = root.child("r").unwrap().elements().collect();
+        assert!(Rc::ptr_eq(&xs[0].name.0, &xs[1].name.0));
+        assert!(Rc::ptr_eq(&xs[0].attrs[0].1.0, &xs[1].attrs[0].1.0));
+        assert_eq!(xs[2].attr("v"), Some("2"));
+        assert!(matches!(xs[0].text(), Cow::Borrowed("")));
+        assert!(matches!(xs[2].text(), Cow::Owned(t) if t == "tu"));
     }
 
     #[test]

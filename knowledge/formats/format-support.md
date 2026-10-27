@@ -108,7 +108,10 @@ mislabelled as another Excel type still parses.
 | `w:del`, `w:instrText`, drawings/text boxes, comments, headers/footers, footnotes | Skipped |
 
 The main part is located through `_rels/.rels` (fallback `word/document.xml`); styles and
-numbering through the main part's relationships.
+numbering through the main part's relationships. Body blocks (`w:p`, `w:tbl`, ...) are
+converted while the main part is parsed and each block's XML subtree is freed right after
+(`xml::parse_split`), so peak memory follows the largest block, not the document. XML
+trees intern element names and attribute values per part.
 
 ## Spreadsheet Mapping
 

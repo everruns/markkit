@@ -18,7 +18,9 @@
 //! - Skipped: deleted text, field instructions, drawings/text boxes, comments,
 //!   headers/footers, footnotes. Macros (`vbaProject.bin`) are never read.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
@@ -62,6 +64,22 @@ impl Parts<'_, '_> {
     fn read_xml(&mut self, path: &str) -> Result<Option<Element>, Error> {
         match self.zip.read(path).map_err(archive_err)? {
             Some(bytes) => xml::parse(&bytes, self.max_depth, self.budget)
+                .map(Some)
+                .map_err(|e| xml_err(path, e)),
+            None => Ok(None),
+        }
+    }
+
+    /// Read a part, passing each child of the `split` element path to `sink`
+    /// as soon as it is complete (see [`xml::parse_split`]).
+    fn read_xml_split(
+        &mut self,
+        path: &str,
+        split: &[&str],
+        sink: &mut dyn FnMut(Element),
+    ) -> Result<Option<Element>, Error> {
+        match self.zip.read(path).map_err(archive_err)? {
+            Some(bytes) => xml::parse_split(&bytes, self.max_depth, self.budget, split, sink)
                 .map(Some)
                 .map_err(|e| xml_err(path, e)),
             None => Ok(None),
@@ -332,21 +350,23 @@ struct Fmt {
     strike: bool,
 }
 
-enum Seg {
+/// Inline segment. Text borrows from the XML tree until it becomes an IR node;
+/// the link is shared by every segment of a hyperlink.
+enum Seg<'e> {
     Text {
-        text: String,
+        text: Cow<'e, str>,
         fmt: Fmt,
-        link: Option<String>,
+        link: Option<Rc<str>>,
     },
     Break {
-        link: Option<String>,
+        link: Option<Rc<str>>,
     },
 }
 
-impl Seg {
-    fn link(&self) -> Option<&str> {
+impl Seg<'_> {
+    fn link(&self) -> Option<&Rc<str>> {
         match self {
-            Seg::Text { link, .. } | Seg::Break { link } => link.as_deref(),
+            Seg::Text { link, .. } | Seg::Break { link } => link.as_ref(),
         }
     }
 }
@@ -393,13 +413,13 @@ impl Ctx<'_> {
             .map(|a| format!("#{}", a.replace(' ', "%20")))
     }
 
-    fn collect_segs(&self, el: &Element, link: Option<&str>, segs: &mut Vec<Seg>) {
+    fn collect_segs<'e>(&self, el: &'e Element, link: Option<&Rc<str>>, segs: &mut Vec<Seg<'e>>) {
         for child in el.elements() {
             match child.name.as_str() {
                 "r" => self.run_segs(child, link, segs),
                 "hyperlink" => {
-                    let url = self.hyperlink_url(child);
-                    self.collect_segs(child, url.as_deref().or(link), segs);
+                    let url = self.hyperlink_url(child).map(Rc::from);
+                    self.collect_segs(child, url.as_ref().or(link), segs);
                 }
                 "sdt" => {
                     if let Some(content) = child.child("sdtContent") {
@@ -414,10 +434,10 @@ impl Ctx<'_> {
         }
     }
 
-    fn run_segs(&self, run: &Element, link: Option<&str>, segs: &mut Vec<Seg>) {
+    fn run_segs<'e>(&self, run: &'e Element, link: Option<&Rc<str>>, segs: &mut Vec<Seg<'e>>) {
         let fmt = run_fmt(run.child("rPr"));
-        let link = link.map(str::to_string);
-        let push_text = |segs: &mut Vec<Seg>, t: String| {
+        let link = link.cloned();
+        let push_text = |segs: &mut Vec<Seg<'e>>, t: Cow<'e, str>| {
             segs.push(Seg::Text {
                 text: t,
                 fmt,
@@ -427,8 +447,8 @@ impl Ctx<'_> {
         for c in run.elements() {
             match c.name.as_str() {
                 "t" => push_text(segs, c.text()),
-                "tab" | "ptab" => push_text(segs, " ".to_string()),
-                "noBreakHyphen" => push_text(segs, "-".to_string()),
+                "tab" | "ptab" => push_text(segs, Cow::Borrowed(" ")),
+                "noBreakHyphen" => push_text(segs, Cow::Borrowed("-")),
                 "br" | "cr" => match c.attr("type") {
                     Some("page") | Some("column") => {}
                     _ => segs.push(Seg::Break { link: link.clone() }),
@@ -446,7 +466,7 @@ impl Ctx<'_> {
 }
 
 /// Merge segments and turn them into IR inline nodes.
-fn build_inline(segs: Vec<Seg>) -> Vec<Node> {
+fn build_inline(segs: Vec<Seg<'_>>) -> Vec<Node> {
     // 1. Merge adjacent text with identical formatting and link.
     let mut merged: Vec<Seg> = Vec::with_capacity(segs.len());
     for seg in segs {
@@ -461,81 +481,77 @@ fn build_inline(segs: Vec<Seg>) -> Vec<Node> {
             && pf == fmt
             && pl == link
         {
-            prev.push_str(text);
+            prev.to_mut().push_str(text);
             continue;
         }
         merged.push(seg);
     }
 
     // 2. Group by link.
-    let mut out: Vec<Node> = Vec::new();
-    let mut i = 0;
-    while i < merged.len() {
-        let link = merged[i].link().map(str::to_string);
-        let mut j = i;
-        while j < merged.len() && merged[j].link() == link.as_deref() {
-            j += 1;
+    let mut out: Vec<Node> = Vec::with_capacity(merged.len());
+    let mut segs = merged.into_iter().peekable();
+    while let Some(first) = segs.next() {
+        let Some(url) = first.link().cloned() else {
+            format_seg(first, &mut out);
+            continue;
+        };
+        let mut nodes = Vec::new();
+        format_seg(first, &mut nodes);
+        while let Some(next) = segs.next_if(|s| s.link() == Some(&url)) {
+            format_seg(next, &mut nodes);
         }
-        let nodes = format_nodes(&merged[i..j]);
-        match link {
-            Some(url) if !is_blank(&nodes) => {
-                let (lead, core, trail) = split_ws_nodes(nodes);
-                out.extend(lead);
-                out.push(Node::Link {
-                    url,
-                    title: None,
-                    children: core,
-                });
-                out.extend(trail);
-            }
-            _ => out.extend(nodes),
+        if is_blank(&nodes) {
+            out.extend(nodes);
+        } else {
+            let (lead, core, trail) = split_ws_nodes(nodes);
+            out.extend(lead);
+            out.push(Node::Link {
+                url: url.to_string(),
+                title: None,
+                children: core,
+            });
+            out.extend(trail);
         }
-        i = j;
     }
     tidy_inline(out)
 }
 
-fn format_nodes(segs: &[Seg]) -> Vec<Node> {
-    let mut out = Vec::new();
-    for seg in segs {
-        match seg {
-            Seg::Break { .. } => out.push(Node::LineBreak),
-            Seg::Text { text, fmt, .. } => {
-                let core = text.trim();
-                if core.is_empty() || *fmt == Fmt::default() {
-                    out.push(Node::Text(text.clone()));
-                    continue;
-                }
-                let start = text.len() - text.trim_start().len();
-                let lead = &text[..start];
-                let trail = &text[start + core.len()..];
-                if !lead.is_empty() {
-                    out.push(Node::Text(lead.to_string()));
-                }
-                let mut node = Node::Text(core.to_string());
-                if fmt.strike {
-                    node = Node::Strikethrough {
-                        children: vec![node],
-                    };
-                }
-                if fmt.italic {
-                    node = Node::Italic {
-                        children: vec![node],
-                    };
-                }
-                if fmt.bold {
-                    node = Node::Bold {
-                        children: vec![node],
-                    };
-                }
-                out.push(node);
-                if !trail.is_empty() {
-                    out.push(Node::Text(trail.to_string()));
-                }
-            }
-        }
+fn format_seg(seg: Seg<'_>, out: &mut Vec<Node>) {
+    let (text, fmt) = match seg {
+        Seg::Break { .. } => return out.push(Node::LineBreak),
+        Seg::Text { text, fmt, .. } => (text, fmt),
+    };
+    let core = text.trim();
+    if core.is_empty() || fmt == Fmt::default() {
+        out.push(Node::Text(text.into_owned()));
+        return;
     }
-    out
+    let start = text.len() - text.trim_start().len();
+    let lead = &text[..start];
+    let trail = &text[start + core.len()..];
+    if !lead.is_empty() {
+        out.push(Node::Text(lead.to_string()));
+    }
+    let mut node = Node::Text(core.to_string());
+    if fmt.strike {
+        node = Node::Strikethrough {
+            children: vec![node],
+        };
+    }
+    if fmt.italic {
+        node = Node::Italic {
+            children: vec![node],
+        };
+    }
+    if fmt.bold {
+        node = Node::Bold {
+            children: vec![node],
+        };
+    }
+    out.push(node);
+    if !trail.is_empty() {
+        out.push(Node::Text(trail.to_string()));
+    }
 }
 
 /// Split leading/trailing whitespace text out of a node list (for link text).
@@ -561,22 +577,33 @@ fn split_ws_nodes(mut nodes: Vec<Node>) -> (Vec<Node>, Vec<Node>, Vec<Node>) {
 }
 
 /// Merge adjacent text nodes and strip leading/trailing line breaks.
-fn tidy_inline(nodes: Vec<Node>) -> Vec<Node> {
-    let mut out: Vec<Node> = Vec::with_capacity(nodes.len());
-    for n in nodes {
-        match (out.last_mut(), n) {
-            (Some(Node::Text(prev)), Node::Text(t)) => prev.push_str(&t),
-            (_, Node::Text(t)) if t.is_empty() => {}
-            (_, n) => out.push(n),
+fn tidy_inline(mut nodes: Vec<Node>) -> Vec<Node> {
+    // In place: `w` is the write cursor, read slots are taken by swap.
+    let mut w = 0;
+    for r in 0..nodes.len() {
+        match std::mem::replace(&mut nodes[r], Node::LineBreak) {
+            Node::Text(t) if t.is_empty() => {}
+            Node::Text(t) if w > 0 && matches!(nodes[w - 1], Node::Text(_)) => {
+                if let Node::Text(prev) = &mut nodes[w - 1] {
+                    prev.push_str(&t);
+                }
+            }
+            n => {
+                nodes[w] = n;
+                w += 1;
+            }
         }
     }
-    while matches!(out.first(), Some(Node::LineBreak)) {
-        out.remove(0);
+    nodes.truncate(w);
+    while matches!(nodes.last(), Some(Node::LineBreak)) {
+        nodes.pop();
     }
-    while matches!(out.last(), Some(Node::LineBreak)) {
-        out.pop();
-    }
-    out
+    let lead = nodes
+        .iter()
+        .take_while(|n| matches!(n, Node::LineBreak))
+        .count();
+    nodes.drain(..lead);
+    nodes
 }
 
 fn is_blank(nodes: &[Node]) -> bool {
@@ -697,29 +724,33 @@ impl Ctx<'_> {
             if self.budget.expired() {
                 return;
             }
-            match child.name.as_str() {
-                "p" => {
-                    let index = body.next_index;
-                    body.next_index += 1;
-                    self.paragraph(child, body, index);
-                }
-                "tbl" => {
-                    let index = body.next_index;
-                    body.next_index += 1;
-                    body.flush_list();
-                    if let Some(t) = self.table(child) {
-                        body.tables += 1;
-                        body.push(t, index);
-                    }
-                }
-                "sdt" => {
-                    if let Some(content) = child.child("sdtContent") {
-                        self.blocks(content, body);
-                    }
-                }
-                "ins" | "moveTo" | "customXml" | "smartTag" => self.blocks(child, body),
-                _ => {}
+            self.block(child, body);
+        }
+    }
+
+    fn block(&self, child: &Element, body: &mut Body) {
+        match child.name.as_str() {
+            "p" => {
+                let index = body.next_index;
+                body.next_index += 1;
+                self.paragraph(child, body, index);
             }
+            "tbl" => {
+                let index = body.next_index;
+                body.next_index += 1;
+                body.flush_list();
+                if let Some(t) = self.table(child) {
+                    body.tables += 1;
+                    body.push(t, index);
+                }
+            }
+            "sdt" => {
+                if let Some(content) = child.child("sdtContent") {
+                    self.blocks(content, body);
+                }
+            }
+            "ins" | "moveTo" | "customXml" | "smartTag" => self.blocks(child, body),
+            _ => {}
         }
     }
 
@@ -932,9 +963,6 @@ pub(crate) fn parse(
         .map(|t| resolve_target("", t))
         .unwrap_or_else(|| "docProps/core.xml".to_string());
 
-    let main = zip
-        .read_xml(&main_path)?
-        .ok_or_else(|| Error::DocxExtract("missing main document part".into()))?;
     let (dir, file) = split_dir(&main_path);
     let rels = parse_rels(zip.read_xml(&format!("{dir}/_rels/{file}.rels"))?);
 
@@ -953,13 +981,6 @@ pub(crate) fn parse(
         .and_then(|c| c.find("title").map(|t| t.text().trim().to_string()))
         .filter(|t| !t.is_empty());
 
-    let document = main
-        .child("document")
-        .ok_or_else(|| Error::DocxExtract("main part is not a w:document".into()))?;
-    let body_el = document
-        .child("body")
-        .ok_or_else(|| Error::DocxExtract("document has no body".into()))?;
-
     // Hyperlinks only resolve through external relationships or explicit targets.
     let ctx = Ctx {
         rels: &rels,
@@ -971,7 +992,19 @@ pub(crate) fn parse(
         track: config.track_sources,
         ..Body::default()
     };
-    ctx.blocks(body_el, &mut body);
+    // Body blocks are converted as they are parsed and freed right after, so
+    // the whole document tree is never held at once.
+    let main = zip
+        .read_xml_split(&main_path, &["document", "body"], &mut |el| {
+            if !budget.expired() {
+                ctx.block(&el, &mut body);
+            }
+        })?
+        .ok_or_else(|| Error::DocxExtract("missing main document part".into()))?;
+    main.child("document")
+        .ok_or_else(|| Error::DocxExtract("main part is not a w:document".into()))?
+        .child("body")
+        .ok_or_else(|| Error::DocxExtract("document has no body".into()))?;
     budget.check_time()?;
     body.flush_list();
 

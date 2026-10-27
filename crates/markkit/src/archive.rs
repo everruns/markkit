@@ -97,10 +97,16 @@ impl<'a> ZipGuard<'a> {
                 }
             }
         };
-        let mut buf = Vec::new();
-        let n = {
+        let (n, buf) = {
             let mut entry = self.archive.by_index(index)?;
-            copy_capped(&mut entry, self.max_entry, name, &mut buf)?
+            // The declared size is only a capacity hint (saves growth copies and
+            // slack); it is clamped, and the real limit is still `copy_capped`.
+            let hint = entry.size().min(self.max_entry).min(MAX_SIZE_HINT);
+            let mut buf = Vec::with_capacity(usize::try_from(hint).unwrap_or(0));
+            (
+                copy_capped(&mut entry, self.max_entry, name, &mut buf)?,
+                buf,
+            )
         };
         self.add_total(n)?;
         Ok(Some(buf))
@@ -117,6 +123,9 @@ impl<'a> ZipGuard<'a> {
         Ok(())
     }
 }
+
+/// Largest capacity reserved up front from a (lying) declared entry size.
+const MAX_SIZE_HINT: u64 = 16 * 1024 * 1024;
 
 fn copy_capped<R: Read, W: std::io::Write>(
     reader: &mut R,

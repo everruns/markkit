@@ -4,6 +4,7 @@
 
 * **Nesting cost**: HTML parsing was quadratic in nesting depth (html5ever) and exponential in nested tables (descendant row selection duplicated inner rows); text flattened past `max_nesting_depth` leaked `<script>`/`<style>` bodies. Fixed with a pre-scan nesting cap, direct-structure table rows and a non-content-aware flattener; new invariant S18. Found by `markkit-bench`. See [HTML Extraction](formats/html-extraction.md) and [Threat Model](security/threat-model.md) T2c.
 * **Spreadsheet follow-ups (#11)**: single-row sheets render as data under column letters; XLSX/ODS/XLS titles come from document properties; XLSB content type no longer maps to XLSX; XLSX without `_rels/.rels` parses; trailing-newline output documented as intended; release profile switched to `panic = "unwind"` so `catch_unwind` is effective in markkit's own binaries. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md) T6c.
+* **DOCX memory**: `docx_report` peaked at 18.5 MiB for 1.5 MB of XML with 265k allocations. The main part's body is now streamed block by block, XML names and attribute values are interned, child/attribute lists are exact-size, run text is borrowed until it becomes IR, and the escaper and output normalizer stop allocating per run/line. Result: 3.9 MiB peak, about 137k allocations. See [Format Support](formats/format-support.md).
 
 ## 2026-10-26
 

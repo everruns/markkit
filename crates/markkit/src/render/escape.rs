@@ -27,6 +27,47 @@ pub(crate) enum Position {
 /// Escape document text for inline Markdown. Returns whether the output still sits at
 /// a line start (the run was empty or whitespace only).
 pub(crate) fn push_text(buf: &mut String, s: &str, pos: Position) -> bool {
+    // Fast path: most runs hold nothing escapable, so copy them without the
+    // per-char buffer. Must agree with `push_text_slow` (tested).
+    let inert = !s.bytes().any(|b| {
+        matches!(
+            b,
+            b'`' | b'*'
+                | b'['
+                | b']'
+                | b'<'
+                | b'~'
+                | b'|'
+                | b'\\'
+                | b'!'
+                | b'_'
+                | b'&'
+                | b'\n'
+                | b'\r'
+        )
+    });
+    if inert {
+        let lead = s.bytes().find(|b| !matches!(b, b' ' | b'\t'));
+        if pos == Position::Inline {
+            buf.push_str(s);
+            return false;
+        }
+        match lead {
+            None => {
+                buf.push_str(s);
+                return true;
+            }
+            Some(b) if !matches!(b, b'#' | b'>' | b'-' | b'+' | b'=' | b'0'..=b'9') => {
+                buf.push_str(s);
+                return false;
+            }
+            Some(_) => {}
+        }
+    }
+    push_text_slow(buf, s, pos)
+}
+
+fn push_text_slow(buf: &mut String, s: &str, pos: Position) -> bool {
     let chars: Vec<char> = s
         .chars()
         .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
@@ -284,6 +325,45 @@ mod tests {
         let mut b = String::new();
         push_text(&mut b, s, pos);
         b
+    }
+
+    #[test]
+    fn fast_path_matches_slow_path() {
+        let samples = [
+            "",
+            " ",
+            "\t ",
+            "plain words",
+            "  lead",
+            "# h",
+            "  # h",
+            "- x",
+            "+x",
+            "=",
+            ">q",
+            "1. one",
+            "12) x",
+            "1x",
+            "a1. b",
+            "é # ü",
+            "x\ny",
+            "\r",
+            "a_b",
+            "C:\\dir",
+            "!",
+            "&",
+            "trail ",
+            "  9",
+            "\u{a0}-",
+        ];
+        for s in samples {
+            for pos in [Position::LineStart, Position::Inline] {
+                let (mut fast, mut slow) = (String::new(), String::new());
+                let a = push_text(&mut fast, s, pos);
+                let b = push_text_slow(&mut slow, s, pos);
+                assert_eq!((fast, a), (slow, b), "{s:?}");
+            }
+        }
     }
 
     #[test]
