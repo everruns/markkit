@@ -304,3 +304,30 @@ proptest! {
         let _ = run(&Markkit::builder().build(), &pdf_pages(&[&content]));
     }
 }
+
+// ─── Shared limits ──────────────────────────────────────────────────
+
+#[test]
+fn zero_timeout_rejects() {
+    let bytes = pdf_pages(&["BT /F1 12 Tf 72 720 Td (x) Tj ET"]);
+    let m = Markkit::builder()
+        .timeout(std::time::Duration::ZERO)
+        .build();
+    match run(&m, &bytes) {
+        Err(Error::ResourceLimit(msg)) => assert!(msg.contains("timeout"), "{msg}"),
+        other => panic!("expected timeout, got {other:?}"),
+    }
+}
+
+#[test]
+fn pdf_limits_settable_via_limits_struct() {
+    let bytes = pdf_pages(&[
+        "BT /F1 12 Tf 72 720 Td (one) Tj ET",
+        "BT /F1 12 Tf 72 720 Td (two) Tj ET",
+    ]);
+    let m = Markkit::builder()
+        .limits(markkit::Limits::default().max_pdf_pages(1))
+        .build();
+    let out = run(&m, &bytes).unwrap();
+    assert!(out.markdown.contains("one") && !out.markdown.contains("two"));
+}

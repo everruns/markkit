@@ -4,6 +4,7 @@ use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::format::{DocumentHint, Format};
 use crate::ir::Document;
+use crate::limits::Budget;
 
 /// Result of [`Markkit::extract_document`]: Markdown plus metadata.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -113,9 +114,24 @@ impl ParsedDocument {
 
     /// Render to Markdown, keeping the metadata.
     pub fn render(self) -> Extraction {
-        let mut renderer = crate::render::MarkdownRenderer::new();
+        let markdown = crate::render::MarkdownRenderer::new().render(&self.document);
+        self.into_extraction(markdown)
+    }
+
+    /// [`ParsedDocument::render`] with `max_output_size` and the deadline enforced.
+    #[cfg(any(feature = "html", feature = "docx", feature = "spreadsheet"))]
+    fn render_bounded(self, max_output: usize, budget: &Budget) -> crate::Result<Extraction> {
+        let markdown = crate::render::MarkdownRenderer::new().render_bounded(
+            &self.document,
+            max_output,
+            budget,
+        )?;
+        Ok(self.into_extraction(markdown))
+    }
+
+    fn into_extraction(self, markdown: String) -> Extraction {
         Extraction {
-            markdown: renderer.render(&self.document),
+            markdown,
             title: self.title,
             format: self.format,
             warnings: self.warnings,
@@ -166,19 +182,17 @@ impl Markkit {
 
     /// Synchronous HTML extraction (no async needed for parsing).
     pub fn extract_html_sync(&self, html: &str) -> crate::Result<String> {
-        if html.len() > self.config.max_input_size {
-            return Err(Error::ResourceLimit(format!(
-                "Input size {} exceeds limit {}",
-                html.len(),
-                self.config.max_input_size
-            )));
-        }
+        self.config.limits.check_input(html.len())?;
 
         #[cfg(feature = "html")]
         {
-            let doc = self.parse_html(html)?;
-            let mut renderer = crate::render::MarkdownRenderer::new();
-            Ok(renderer.render(&doc))
+            let budget = Budget::new(&self.config.limits);
+            let doc = self.parse_html_with(html, &budget)?;
+            crate::render::MarkdownRenderer::new().render_bounded(
+                &doc,
+                self.config.limits.max_output_size,
+                &budget,
+            )
         }
         #[cfg(not(feature = "html"))]
         Err(Error::UnsupportedFormat(
@@ -189,15 +203,13 @@ impl Markkit {
     /// Parse HTML into the IR without rendering.
     #[cfg(feature = "html")]
     pub fn parse_html(&self, html: &str) -> crate::Result<crate::ir::Document> {
-        if html.len() > self.config.max_input_size {
-            return Err(Error::ResourceLimit(format!(
-                "Input size {} exceeds limit {}",
-                html.len(),
-                self.config.max_input_size
-            )));
-        }
-        let parser = crate::html::HtmlParser::new(&self.config);
-        let mut doc = parser.parse(html)?;
+        self.config.limits.check_input(html.len())?;
+        self.parse_html_with(html, &Budget::new(&self.config.limits))
+    }
+
+    #[cfg(feature = "html")]
+    fn parse_html_with(&self, html: &str, budget: &Budget) -> crate::Result<crate::ir::Document> {
+        let mut doc = crate::html::HtmlParser::with_budget(&self.config, budget).parse(html)?;
         self.config.transforms.apply(&mut doc)?;
         Ok(doc)
     }
@@ -235,7 +247,7 @@ impl Markkit {
 
     /// Synchronous [`Markkit::extract_document`].
     ///
-    /// Errors: [`Error::ResourceLimit`] when input/archive/grid limits are
+    /// Errors: [`Error::ResourceLimit`] when any [`Limits`](crate::Limits) value is
     /// exceeded, [`Error::UnsupportedFormat`] for unknown formats or formats whose
     /// feature is disabled, and a format-specific variant for malformed input.
     pub fn extract_document_sync(
@@ -243,8 +255,22 @@ impl Markkit {
         bytes: &[u8],
         hint: DocumentHint<'_>,
     ) -> crate::Result<Extraction> {
-        self.parse_document_sync(bytes, hint)
-            .map(ParsedDocument::render)
+        self.extract_document_with(bytes, hint, &Budget::new(&self.config.limits))
+    }
+
+    fn extract_document_with(
+        &self,
+        bytes: &[u8],
+        hint: DocumentHint<'_>,
+        budget: &Budget,
+    ) -> crate::Result<Extraction> {
+        let parsed = self.parse_document_with(bytes, hint, budget)?;
+        #[cfg(any(feature = "html", feature = "docx", feature = "spreadsheet"))]
+        {
+            parsed.render_bounded(self.config.limits.max_output_size, budget)
+        }
+        #[cfg(not(any(feature = "html", feature = "docx", feature = "spreadsheet")))]
+        Ok(parsed.render())
     }
 
     /// Parse a document (HTML, DOCX, XLSX/XLS/ODS) into the IR without
@@ -263,20 +289,23 @@ impl Markkit {
         bytes: &[u8],
         hint: DocumentHint<'_>,
     ) -> crate::Result<ParsedDocument> {
-        if bytes.len() > self.config.max_input_size {
-            return Err(Error::ResourceLimit(format!(
-                "Input size {} exceeds limit {}",
-                bytes.len(),
-                self.config.max_input_size
-            )));
-        }
+        self.parse_document_with(bytes, hint, &Budget::new(&self.config.limits))
+    }
+
+    fn parse_document_with(
+        &self,
+        bytes: &[u8],
+        hint: DocumentHint<'_>,
+        budget: &Budget,
+    ) -> crate::Result<ParsedDocument> {
+        self.config.limits.check_input(bytes.len())?;
 
         match Format::detect(bytes, hint) {
-            Format::Html => self.parse_html_doc(bytes),
-            Format::Pdf => self.parse_pdf(bytes),
-            Format::Docx => self.parse_docx(bytes),
+            Format::Html => self.parse_html_doc(bytes, budget),
+            Format::Pdf => self.parse_pdf(bytes, budget),
+            Format::Docx => self.parse_docx(bytes, budget),
             Format::Xlsx | Format::Xlsb | Format::Xls | Format::Ods => {
-                self.parse_spreadsheet(bytes)
+                self.parse_spreadsheet(bytes, budget)
             }
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
@@ -292,9 +321,9 @@ impl Markkit {
     }
 
     #[cfg(feature = "html")]
-    fn parse_html_doc(&self, bytes: &[u8]) -> crate::Result<ParsedDocument> {
+    fn parse_html_doc(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let text = String::from_utf8_lossy(bytes);
-        let parser = crate::html::HtmlParser::new(&self.config);
+        let parser = crate::html::HtmlParser::with_budget(&self.config, budget);
         let (mut doc, page) = parser.parse_page(&text)?;
         self.config.transforms.apply(&mut doc)?;
         let mut p = ParsedDocument::new(doc, Format::Html);
@@ -304,16 +333,16 @@ impl Markkit {
     }
 
     #[cfg(not(feature = "html"))]
-    fn parse_html_doc(&self, _bytes: &[u8]) -> crate::Result<ParsedDocument> {
+    fn parse_html_doc(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
         Err(Error::UnsupportedFormat(
             "HTML support requires the 'html' feature".to_string(),
         ))
     }
 
     #[cfg(feature = "docx")]
-    fn parse_docx(&self, bytes: &[u8]) -> crate::Result<ParsedDocument> {
+    fn parse_docx(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let out = guarded("DOCX", Error::DocxExtract, || {
-            crate::docx::parse(bytes, &self.config)
+            crate::docx::parse(bytes, &self.config, budget)
         })?;
         let mut doc = out.doc;
         self.config.transforms.apply(&mut doc)?;
@@ -325,16 +354,16 @@ impl Markkit {
     }
 
     #[cfg(not(feature = "docx"))]
-    fn parse_docx(&self, _bytes: &[u8]) -> crate::Result<ParsedDocument> {
+    fn parse_docx(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
         Err(Error::UnsupportedFormat(
             "DOCX support requires the 'docx' feature".to_string(),
         ))
     }
 
     #[cfg(feature = "spreadsheet")]
-    fn parse_spreadsheet(&self, bytes: &[u8]) -> crate::Result<ParsedDocument> {
+    fn parse_spreadsheet(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let out = guarded("spreadsheet", Error::SpreadsheetExtract, || {
-            crate::spreadsheet::parse(bytes, &self.config)
+            crate::spreadsheet::parse(bytes, &self.config, budget)
         })?;
         let mut doc = out.doc;
         self.config.transforms.apply(&mut doc)?;
@@ -347,7 +376,7 @@ impl Markkit {
     }
 
     #[cfg(not(feature = "spreadsheet"))]
-    fn parse_spreadsheet(&self, _bytes: &[u8]) -> crate::Result<ParsedDocument> {
+    fn parse_spreadsheet(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
         Err(Error::UnsupportedFormat(
             "spreadsheet support requires the 'spreadsheet' feature".to_string(),
         ))
@@ -360,8 +389,8 @@ impl Markkit {
     /// refused with [`Error::UrlBlocked`] on every hop (including after DNS
     /// resolution) unless [`MarkkitBuilder::allow_private_networks`] is set;
     /// [`MarkkitBuilder::allow_host`] restricts hosts; redirects capped by
-    /// `max_redirects`; body capped by `max_input_size`; whole fetch capped
-    /// by `max_processing_secs` ([`Error::ResourceLimit`]).
+    /// `max_redirects`; body capped by `max_input_size`; fetch, parse and render
+    /// together capped by `limits.timeout` ([`Error::ResourceLimit`]).
     ///
     /// Relative links and images resolve against the final URL after redirects.
     #[cfg(feature = "http_client")]
@@ -375,22 +404,26 @@ impl Markkit {
     /// Relative HTML URLs resolve against the final URL after redirects.
     #[cfg(feature = "http_client")]
     pub async fn extract_url_document(&self, url: &str) -> crate::Result<Extraction> {
+        let start = std::time::Instant::now();
         let fetched = crate::fetch::fetch(url, &self.config).await?;
+        // Fetch, parse and render share one `timeout` budget.
+        let budget = Budget::starting_at(&self.config.limits, start);
         let mut config = self.config.clone();
         config.base_url = Some(fetched.url);
-        Markkit::new(config).extract_document_sync(
+        Markkit::new(config).extract_document_with(
             &fetched.bytes,
             DocumentHint {
                 content_type: fetched.content_type.as_deref(),
                 file_name: None,
             },
+            &budget,
         )
     }
 
     #[cfg(feature = "pdf")]
-    fn parse_pdf(&self, bytes: &[u8]) -> crate::Result<ParsedDocument> {
+    fn parse_pdf(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let out = guarded("PDF", Error::PdfExtract, || {
-            crate::pdf::parse(bytes, &self.config)
+            crate::pdf::parse(bytes, &self.config, budget)
         })?;
         let mut p = ParsedDocument::new(out.doc, Format::Pdf);
         p.title = out.title;
@@ -400,7 +433,7 @@ impl Markkit {
     }
 
     #[cfg(not(feature = "pdf"))]
-    fn parse_pdf(&self, _bytes: &[u8]) -> crate::Result<ParsedDocument> {
+    fn parse_pdf(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
         Err(Error::UnsupportedFormat(
             "PDF support requires the 'pdf' feature".to_string(),
         ))
@@ -419,7 +452,7 @@ mod tests {
     #[tokio::test]
     async fn test_builder_defaults() {
         let m = Markkit::builder().build();
-        assert_eq!(m.config().max_input_size, 50 * 1024 * 1024);
+        assert_eq!(m.config().limits.max_input_size, 50 * 1024 * 1024);
         assert!(m.config().preserve_links);
     }
 

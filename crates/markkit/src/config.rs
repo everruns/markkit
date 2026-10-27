@@ -1,12 +1,14 @@
+use std::time::Duration;
+
 use crate::extract::Markkit;
+use crate::limits::Limits;
 
 /// Builder for configuring a Markkit instance.
 #[derive(Debug, Clone)]
 pub struct MarkkitBuilder {
-    /// Maximum input size in bytes (default: 50MB).
-    pub max_input_size: usize,
-    /// Maximum processing time in seconds (default: 60).
-    pub max_processing_secs: u64,
+    /// Resource limits (input/output size, time, nesting, nodes, archives,
+    /// spreadsheets, redirects). See [`Limits`].
+    pub limits: Limits,
     /// Whether to preserve link URLs in output.
     pub preserve_links: bool,
     /// Whether to preserve image references in output.
@@ -17,19 +19,6 @@ pub struct MarkkitBuilder {
     pub include_selectors: Vec<String>,
     /// CSS selectors for content to exclude.
     pub exclude_selectors: Vec<String>,
-    /// Maximum number of entries in a ZIP container (DOCX/XLSX/ODS). Default: 10 000.
-    pub max_archive_entries: usize,
-    /// Maximum decompressed size of a single ZIP entry in bytes. Default: 64 MiB.
-    pub max_archive_entry_size: u64,
-    /// Maximum total decompressed size of a ZIP container in bytes. Default: 256 MiB.
-    pub max_archive_total_size: u64,
-    /// Maximum data rows rendered per sheet (header excluded). Default: 10 000.
-    pub max_sheet_rows: usize,
-    /// Maximum columns rendered per sheet. Default: 256.
-    pub max_sheet_cols: usize,
-    /// Maximum cell grid a workbook may expand to while parsing (XLS/ODS
-    /// pre-scan, summed over sheets). Default: 4 000 000.
-    pub max_spreadsheet_cells: u64,
     /// Render hidden / very hidden sheets. Default: false (skipped with a warning).
     pub include_hidden_sheets: bool,
     /// Let `extract_url` reach loopback, private, link-local and other
@@ -38,15 +27,6 @@ pub struct MarkkitBuilder {
     /// Hosts `extract_url` may contact, matched exactly and case-insensitively
     /// on every hop (empty = any public host).
     pub allowed_hosts: Vec<String>,
-    /// Maximum redirects `extract_url` follows. Default: 5.
-    pub max_redirects: usize,
-    /// Maximum PDF pages rendered (rest skipped with a warning). Default: 10 000.
-    pub max_pdf_pages: usize,
-    /// Maximum decoded size of a single PDF stream in bytes. Default: 64 MiB.
-    pub max_pdf_stream_size: usize,
-    /// Maximum total decoded size of all PDF streams, and of content
-    /// interpreted (form XObjects count once per use), in bytes. Default: 256 MiB.
-    pub max_pdf_decoded_size: usize,
     /// Absolute URL that relative HTML links, images and metadata URLs resolve
     /// against (a document `<base href>` applies on top). `extract_url` uses the
     /// final response URL instead. Default: none (relative URLs kept as is).
@@ -66,8 +46,7 @@ pub struct MarkkitBuilder {
 impl Default for MarkkitBuilder {
     fn default() -> Self {
         Self {
-            max_input_size: 50 * 1024 * 1024,
-            max_processing_secs: 60,
+            limits: Limits::default(),
             preserve_links: true,
             preserve_images: true,
             extract_code_blocks: true,
@@ -80,19 +59,9 @@ impl Default for MarkkitBuilder {
                 "style".into(),
                 "noscript".into(),
             ],
-            max_archive_entries: 10_000,
-            max_archive_entry_size: 64 * 1024 * 1024,
-            max_archive_total_size: 256 * 1024 * 1024,
-            max_sheet_rows: 10_000,
-            max_sheet_cols: 256,
-            max_spreadsheet_cells: 4_000_000,
             include_hidden_sheets: false,
             allow_private_networks: false,
             allowed_hosts: Vec::new(),
-            max_redirects: 5,
-            max_pdf_pages: 10_000,
-            max_pdf_stream_size: 64 * 1024 * 1024,
-            max_pdf_decoded_size: 256 * 1024 * 1024,
             base_url: None,
             track_sources: false,
             transforms: Default::default(),
@@ -103,12 +72,41 @@ impl Default for MarkkitBuilder {
 
 impl MarkkitBuilder {
     pub fn max_input_size(mut self, size: usize) -> Self {
-        self.max_input_size = size;
+        self.limits.max_input_size = size;
         self
     }
 
+    /// Replace all limits at once.
+    pub fn limits(mut self, limits: Limits) -> Self {
+        self.limits = limits;
+        self
+    }
+
+    /// Wall-clock budget per call (fetch + parse + render).
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.limits.timeout = timeout;
+        self
+    }
+
+    /// [`MarkkitBuilder::timeout`] in whole seconds.
     pub fn max_processing_secs(mut self, secs: u64) -> Self {
-        self.max_processing_secs = secs;
+        self.limits.timeout = Duration::from_secs(secs);
+        self
+    }
+
+    pub fn max_output_size(mut self, bytes: usize) -> Self {
+        self.limits.max_output_size = bytes;
+        self
+    }
+
+    /// Clamped to [`crate::limits::HARD_MAX_NESTING_DEPTH`].
+    pub fn max_nesting_depth(mut self, depth: usize) -> Self {
+        self.limits.max_nesting_depth = depth;
+        self
+    }
+
+    pub fn max_nodes(mut self, nodes: usize) -> Self {
+        self.limits.max_nodes = nodes;
         self
     }
 
@@ -145,32 +143,32 @@ impl MarkkitBuilder {
     }
 
     pub fn max_archive_entries(mut self, n: usize) -> Self {
-        self.max_archive_entries = n;
+        self.limits.max_archive_entries = n;
         self
     }
 
     pub fn max_archive_entry_size(mut self, bytes: u64) -> Self {
-        self.max_archive_entry_size = bytes;
+        self.limits.max_archive_entry_size = bytes;
         self
     }
 
     pub fn max_archive_total_size(mut self, bytes: u64) -> Self {
-        self.max_archive_total_size = bytes;
+        self.limits.max_archive_total_size = bytes;
         self
     }
 
     pub fn max_sheet_rows(mut self, rows: usize) -> Self {
-        self.max_sheet_rows = rows;
+        self.limits.max_sheet_rows = rows;
         self
     }
 
     pub fn max_sheet_cols(mut self, cols: usize) -> Self {
-        self.max_sheet_cols = cols;
+        self.limits.max_sheet_cols = cols;
         self
     }
 
     pub fn max_spreadsheet_cells(mut self, cells: u64) -> Self {
-        self.max_spreadsheet_cells = cells;
+        self.limits.max_spreadsheet_cells = cells;
         self
     }
 
@@ -193,22 +191,22 @@ impl MarkkitBuilder {
     }
 
     pub fn max_redirects(mut self, n: usize) -> Self {
-        self.max_redirects = n;
+        self.limits.max_redirects = n;
         self
     }
 
     pub fn max_pdf_pages(mut self, n: usize) -> Self {
-        self.max_pdf_pages = n;
+        self.limits.max_pdf_pages = n;
         self
     }
 
     pub fn max_pdf_stream_size(mut self, bytes: usize) -> Self {
-        self.max_pdf_stream_size = bytes;
+        self.limits.max_pdf_stream_size = bytes;
         self
     }
 
     pub fn max_pdf_decoded_size(mut self, bytes: usize) -> Self {
-        self.max_pdf_decoded_size = bytes;
+        self.limits.max_pdf_decoded_size = bytes;
         self
     }
 

@@ -66,19 +66,31 @@ tags:
 
 **Sub-threats**:
 
+All limits live in one `Limits` struct (`crates/markkit/src/limits.rs`,
+`MarkkitBuilder::limits`); violations return `Error::ResourceLimit` naming the limit.
+
 #### T2a: Oversized Input
 - Input size checked before parsing against `max_input_size`
 - Default: 50 MB
 - Returns `Error::ResourceLimit` on violation
 
 #### T2b: Deep Nesting (Stack Overflow)
-- `MAX_DEPTH=200` limits recursion in HTML parser
-- At depth limit, subtree flattened to plain text (no further recursion)
-- Tested with 1000 levels of nesting
+- `max_nesting_depth` (default 256) bounds recursion: HTML flattens deeper subtrees to
+  plain text; DOCX XML parts deeper than it are rejected
+- Clamped to `HARD_MAX_NESTING_DEPTH` (512) whatever the embedder sets: 512 levels
+  of the worst recursive construct (nested blockquotes) fit a 2 MiB stack in release
+  with ~2x headroom (1024 did not after IR v2); debug frames are ~6x larger
+- Tested with 4096 levels under a small thread stack
 
-#### T2c: Many Elements (CPU Exhaustion)
-- `max_processing_secs` configurable (default: 60s)
-- Tested with 1000 paragraph elements
+#### T2c: Many Elements / Slow Input (CPU Exhaustion)
+- `timeout` (default 60 s) is one wall-clock budget per call covering URL fetch,
+  parsing and rendering. Checked cooperatively in the HTML walk, XML tree build, DOCX
+  conversion, spreadsheet cell loops and renderer. html5ever tokenizing and calamine
+  sheet decoding are not interruptible; they are linear in the (capped) input and the
+  deadline is checked right after them
+- `max_nodes` (default 5 000 000) caps HTML DOM nodes and DOCX XML nodes (summed over parts)
+- wasm32-unknown-unknown has no clock, so `timeout` is not enforced in `@everruns/markkit-wasm`;
+  hosts bound time themselves (e.g. terminate the Worker). All other limits apply
 
 #### T2e: Table Span Amplification
 - `colspan`/`rowspan` clamped by the HTML parser (1000 / 65534) and again at layout
@@ -103,6 +115,12 @@ tags:
 - Tests: `html_main_content::deep_nesting_does_not_overflow`, `many_paragraphs_stay_linear`,
   `many_sibling_containers_stay_bounded`, `non_content_elements_still_stripped`
 
+#### T2h: Output Amplification
+- GFM tables pad every row to the widest row, so output can be rows x columns of input
+- `max_output_size` (default 128 MiB) checked per block, list item and table row,
+  including nested renderers (blockquotes, list items), so no buffer grows past the
+  limit by more than one row
+
 **Test Coverage**:
 - `html_security::deeply_nested_elements`
 - `html_security::very_long_text_node`
@@ -112,6 +130,9 @@ tags:
 - `html_security::hostile_colspan_rowspan_bounded`
 - `html_security::deep_definition_lists_bounded`
 - `html_proptest::resource_limit_enforced`
+- `limits::*` (every `Limits` field: output cap incl. table amplification, timeout,
+  node cap, configurable depth, hard depth ceiling on a small stack, for HTML, DOCX and
+  spreadsheets)
 
 ### T3: Server-Side Request Forgery (SSRF)
 
@@ -142,7 +163,7 @@ feature is enabled (off by default; the CLI and Python/Node bindings enable it).
 - Redirects capped by `max_redirects` (default 5)
 - Response body bounded by `max_input_size`: declared `Content-Length` rejected
   before reading, undeclared bodies stopped while streaming (`ResourceLimit`)
-- Whole fetch (connect, headers, body) bounded by `max_processing_secs`
+- Whole fetch (connect, headers, body) bounded by `timeout`; parse and render share the remaining budget
 - Opt-out: embedders that fetch content themselves build with
   `default-features = false` and never link reqwest (CI asserts this for
   `docx,spreadsheet`)
@@ -172,6 +193,7 @@ the proxy, or use `allow_host`.
 **Mitigations**:
 - Input size limit (pre-parse)
 - Depth limit prevents unbounded tree growth
+- `max_nodes` caps parsed tree size; `max_output_size` caps the Markdown buffer
 - `String::with_capacity(4096)` for renderer output buffer (bounded initial allocation)
 
 **Test Coverage**:
@@ -327,12 +349,13 @@ decompression or content amplification, crashing the parser, or hiding text.
 | Resource | Default | Configurable | Enforcement Point |
 |----------|---------|--------------|-------------------|
 | Input size | 50 MB | `max_input_size(usize)` | Before parsing |
-| Processing time | 60 s | `max_processing_secs(u64)` | Whole `extract_url` fetch (parsing itself TBD) |
+| Output size | 128 MiB | `max_output_size(usize)` | Renderer, per block / list item / table row |
+| Processing time | 60 s | `timeout(Duration)`, `max_processing_secs(u64)` | One budget per call: fetch, parse, render (cooperative) |
+| Parsed nodes | 5 000 000 | `max_nodes(usize)` | After html5ever (DOM count); while building DOCX XML trees |
+| Nesting depth | 256 (hard max 512) | `max_nesting_depth(usize)` | HTML walk (flatten); DOCX XML build (reject) |
 | Redirects (`extract_url`) | 5 | `max_redirects(usize)` | Every redirect hop |
 | Fetched body (`extract_url`) | = input size | `max_input_size(usize)` | `Content-Length` and while streaming |
-| Nesting depth | 200 | Hardcoded `MAX_DEPTH` | During HTML tree walk |
 | Table span grid | 1 000 000 slots | Hardcoded `MAX_TABLE_GRID_CELLS` | Renderer table layout (spans dropped past it) |
-| XML nesting depth (DOCX) | 256 | Hardcoded `MAX_XML_DEPTH` | While building the XML tree |
 | ZIP entries | 10 000 | `max_archive_entries(usize)` | On archive open |
 | ZIP entry size (decompressed) | 64 MiB | `max_archive_entry_size(u64)` | While decompressing |
 | ZIP total size (decompressed) | 256 MiB | `max_archive_total_size(u64)` | While decompressing |
@@ -342,7 +365,6 @@ decompression or content amplification, crashing the parser, or hiding text.
 | PDF pages | 10 000 | `max_pdf_pages(usize)` | Page loop (truncate + warn) |
 | PDF form XObject depth | 8 | Hardcoded `MAX_FORM_DEPTH` | `Do` operator |
 | Rows / columns per sheet | 10 000 / 256 | `max_sheet_rows`, `max_sheet_cols` | While collecting cells (truncate + warn) |
-| Output size | Unbounded | N/A | Proportional to input size |
 
 ## Malicious Input Categories
 
@@ -353,7 +375,7 @@ decompression or content amplification, crashing the parser, or hiding text.
 | JavaScript URLs | `<a href="javascript:...">` | URL preserved as-is in markdown (no execution context); never rewritten by base resolution |
 | Data URI payloads | `<img src="data:text/html,...">` | Rendered as markdown image (no execution) |
 | Style expressions | `style="background:url(javascript:...)"` | Attribute not read |
-| Deep nesting | 1000+ nested `<div>` | Flattened to text at depth 200 |
+| Deep nesting | 1000+ nested `<div>` | Flattened to text at `max_nesting_depth` (256) |
 | Huge text nodes | 100KB+ single text node | Passed through (bounded by input limit) |
 | Null bytes | `\0` in content | Replaced with U+FFFD by html5ever |
 | Unclosed tags | `<p>text<p>more` | html5ever auto-closes per spec |
@@ -383,7 +405,10 @@ decompression or content amplification, crashing the parser, or hiding text.
 | S11 | Unsupported formats fail explicitly (no empty success) | `document_detection::*unsupported*`, `pdf_security::encrypted_pdf_is_explicitly_unsupported` |
 | S12 | Default `extract_url` never connects to a non-public address | `url_security::*_blocked*`, `fetch::tests::non_public_addresses_forbidden` |
 | S13 | Table spans never grow the render grid past `MAX_TABLE_GRID_CELLS`; footnote labels cannot leave `[^...]` | `html_security::hostile_colspan_rowspan_bounded`, `html_integration::footnote_label_cannot_break_out` |
-| S14 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
+| S14 | Returned Markdown never exceeds `max_output_size` | `limits::*output_cap*` |
+| S15 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
+| S16 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
+| S17 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
 
 ## See also
 

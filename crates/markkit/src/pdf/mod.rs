@@ -39,6 +39,7 @@ use hayro_syntax::page::Resources;
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::ir::{Document, ListItem, Node, Source};
+use crate::limits::Budget;
 
 use font::{Font, Glyph};
 use guard::PrescanError;
@@ -53,18 +54,27 @@ pub(crate) struct PdfOutput {
     pub warnings: Vec<String>,
 }
 
-pub(crate) fn parse(bytes: &[u8], cfg: &MarkkitBuilder) -> Result<PdfOutput, Error> {
-    guard::prescan(bytes, cfg.max_pdf_stream_size, cfg.max_pdf_decoded_size).map_err(
-        |e| match e {
-            PrescanError::Encrypted => {
-                Error::UnsupportedFormat("encrypted PDFs are not supported".into())
-            }
-            PrescanError::Unverifiable => Error::PdfExtract(
-                "stream filter declared indirectly or ambiguously; refusing to decode".into(),
-            ),
-            PrescanError::Limit(m) => Error::ResourceLimit(m),
-        },
-    )?;
+pub(crate) fn parse(
+    bytes: &[u8],
+    cfg: &MarkkitBuilder,
+    clock: &Budget,
+) -> Result<PdfOutput, Error> {
+    guard::prescan(
+        bytes,
+        cfg.limits.max_pdf_stream_size,
+        cfg.limits.max_pdf_decoded_size,
+    )
+    .map_err(|e| match e {
+        PrescanError::Encrypted => {
+            Error::UnsupportedFormat("encrypted PDFs are not supported".into())
+        }
+        PrescanError::Unverifiable => Error::PdfExtract(
+            "stream filter declared indirectly or ambiguously; refusing to decode".into(),
+        ),
+        PrescanError::Limit(m) => Error::ResourceLimit(m),
+    })?;
+
+    clock.check_time()?;
 
     let pdf = Pdf::new(bytes.to_vec()).map_err(|e| match e {
         hayro_syntax::LoadPdfError::Decryption(_) => {
@@ -83,9 +93,14 @@ pub(crate) fn parse(bytes: &[u8], cfg: &MarkkitBuilder) -> Result<PdfOutput, Err
 
     let pages = pdf.pages();
     let mut warnings = Vec::new();
-    let mut interp = Interpreter::new(cfg.max_pdf_stream_size, cfg.max_pdf_decoded_size);
+    let mut interp = Interpreter::new(
+        cfg.limits.max_pdf_stream_size,
+        cfg.limits.max_pdf_decoded_size,
+        clock,
+    );
     let mut page_lines = Vec::new();
-    for page in pages.iter().take(cfg.max_pdf_pages) {
+    for page in pages.iter().take(cfg.limits.max_pdf_pages) {
+        clock.check_time()?;
         interp.spans.clear();
         let res = page.resources().clone();
         if let Some(contents) = page.raw().get::<Object<'_>>(b"Contents") {
@@ -104,10 +119,10 @@ pub(crate) fn parse(bytes: &[u8], cfg: &MarkkitBuilder) -> Result<PdfOutput, Err
         }
         page_lines.push(build_lines(std::mem::take(&mut interp.spans)));
     }
-    if pages.len() > cfg.max_pdf_pages {
+    if pages.len() > cfg.limits.max_pdf_pages {
         warnings.push(format!(
             "truncated_pdf: rendered {} of {} pages (max_pdf_pages)",
-            cfg.max_pdf_pages,
+            cfg.limits.max_pdf_pages,
             pages.len()
         ));
     }
@@ -127,7 +142,7 @@ pub(crate) fn parse(bytes: &[u8], cfg: &MarkkitBuilder) -> Result<PdfOutput, Err
     Ok(PdfOutput {
         doc: Document::new(nodes),
         title,
-        pages: pages.len().min(cfg.max_pdf_pages),
+        pages: pages.len().min(cfg.limits.max_pdf_pages),
         warnings,
     })
 }
@@ -225,7 +240,7 @@ struct Span {
     text: String,
 }
 
-struct Interpreter {
+struct Interpreter<'c> {
     fonts: Vec<Font>,
     font_ids: HashMap<ObjectIdentifier, usize>,
     unmapped: std::collections::BTreeSet<String>,
@@ -233,6 +248,7 @@ struct Interpreter {
     stream_cap: usize,
     budget: usize,
     form_stack: Vec<ObjectIdentifier>,
+    clock: &'c Budget,
 }
 
 fn limit() -> Error {
@@ -245,8 +261,8 @@ fn num(o: Option<&Object<'_>>) -> f32 {
         .unwrap_or(0.0)
 }
 
-impl Interpreter {
-    fn new(stream_cap: usize, budget: usize) -> Self {
+impl<'c> Interpreter<'c> {
+    fn new(stream_cap: usize, budget: usize, clock: &'c Budget) -> Self {
         Interpreter {
             fonts: Vec::new(),
             font_ids: HashMap::new(),
@@ -255,6 +271,7 @@ impl Interpreter {
             stream_cap,
             budget,
             form_stack: Vec::new(),
+            clock,
         }
     }
 
@@ -315,6 +332,9 @@ impl Interpreter {
             count += 1;
             if count & 0xFFF == 0 {
                 self.charge(0x1000)?;
+            }
+            if self.clock.expired() {
+                return Err(self.clock.timeout_error());
             }
             let args: Vec<&Object<'_>> = ins.operands().collect();
             let a = |i: usize| num(args.get(i).copied());

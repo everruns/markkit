@@ -595,6 +595,7 @@ fn parse_request(inner: &ToolInner, args: serde_json::Value) -> Result<Request, 
         let max_encoded = inner
             .markkit
             .config()
+            .limits
             .max_input_size
             .saturating_add(2)
             .saturating_div(3)

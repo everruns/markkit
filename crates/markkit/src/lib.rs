@@ -58,6 +58,7 @@ pub mod format;
 #[cfg(feature = "html")]
 pub mod html;
 pub mod ir;
+pub mod limits;
 #[cfg(feature = "pdf")]
 mod pdf;
 pub mod render;
@@ -75,6 +76,7 @@ pub use error::Error;
 pub use extract::{Extraction, ExtractionStats, Markkit, Metadata, ParsedDocument};
 pub use format::{DocumentHint, Format};
 pub use ir::Document;
+pub use limits::Limits;
 pub use render::MarkdownRenderer;
 
 /// Result type alias for markkit operations.

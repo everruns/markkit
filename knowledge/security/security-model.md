@@ -28,7 +28,7 @@ Markkit processes untrusted input from the internet. Key threats:
 
 ### TM-SSRF: Server-side request forgery (URL fetching)
 - **Mitigation**: Non-public addresses refused by default, after DNS resolution and on every redirect (opt in with `allow_private_networks`)
-- **Mitigation**: http/https only, optional host allowlist, redirect limit, body bounded by `max_input_size`, fetch bounded by `max_processing_secs`
+- **Mitigation**: http/https only, optional host allowlist, redirect limit, body bounded by `max_input_size`, fetch bounded by `timeout`
 - **Residual**: an environment proxy resolves names itself; see [Threat Model](threat-model.md) T3
 
 ### TM-DOC: Malicious office documents
