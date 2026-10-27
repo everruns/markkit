@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `markkit mcp`: Model Context Protocol server over stdio exposing the `markkit` tool
+  (`tools/list`, `tools/call`). URL fetching keeps the SSRF guard; `--no-url` keeps it offline,
+  the `extract` limit flags and `--max-output-chars` bound each call.
 - Plain text input (`text/plain`, `.txt`), always on: paragraphs and hard breaks through the IR,
   UTF-8/UTF-16 BOM decoding, control characters dropped, `invalid_utf8` warning on lossy decode.
 - Markdown input (`markdown` feature, in `all_formats`; `text/markdown`, `.md`): re-parsed with

@@ -28,6 +28,7 @@ tags:
 | `crates/markkit/tests/pdf_security.rs` | PDF bombs, interpretation budget, encrypted/unverifiable input, malformed PDFs |
 | `crates/markkit/tests/common/` | In-memory DOCX/XLSX/XLS/ODS/PDF fixture builders |
 | `crates/markkit-cli/tests/cli_integration.rs` | CLI flags and output |
+| `crates/markkit-cli/tests/mcp_integration.rs` | `markkit mcp` stdio session end to end |
 | `crates/markkit/benches/extraction.rs` | Criterion micro-benchmarks |
 | `crates/markkit-bench/` | Benchmark harness; `cargo test` runs every case once |
 
