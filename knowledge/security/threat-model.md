@@ -109,7 +109,13 @@ All limits live in one `Limits` struct (`crates/markkit/src/limits.rs`,
 - Tests: `html_metadata::deeply_nested_json_ld_does_not_overflow`,
   `oversized_json_ld_skipped`, `many_json_ld_scripts_bounded`, `malformed_json_ld_ignored`
 
-#### T2g: Output Amplification
+#### T2g: Main-Content Scoring
+- One iterative DOM traversal (no recursion); scored paragraphs are leaf blocks, so text
+  measurement is linear; link density only for the top 10 candidates and the winner's siblings
+- Tests: `html_main_content::deep_nesting_does_not_overflow`, `many_paragraphs_stay_linear`,
+  `many_sibling_containers_stay_bounded`, `non_content_elements_still_stripped`
+
+#### T2h: Output Amplification
 - GFM tables pad every row to the widest row, so output can be rows x columns of input
 - `max_output_size` (default 128 MiB) checked per block, list item and table row,
   including nested renderers (blockquotes, list items), so no buffer grows past the

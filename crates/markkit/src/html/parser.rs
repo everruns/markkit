@@ -19,7 +19,7 @@
 //! - `<figure>` becomes `Figure` only when it has a non-empty `<figcaption>`;
 //!   otherwise it stays a transparent container as before.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 use ego_tree::{NodeId, NodeRef};
@@ -33,7 +33,7 @@ use crate::limits::Budget;
 use url::Url;
 
 use super::metadata::PageInfo;
-use super::urls;
+use super::{readability, urls};
 
 /// HTML-spec clamps for table spans.
 const MAX_COLSPAN: u32 = 1000;
@@ -58,6 +58,8 @@ pub struct HtmlParser<'a> {
     base: Option<Url>,
     /// Cached 1-based index of an element among same-name element siblings.
     sibling_index: RefCell<HashMap<NodeId, usize>>,
+    /// Main-content mode: also drop "unlikely" subtrees (sidebars, share bars, ...).
+    drop_unlikely: Cell<bool>,
 }
 
 impl<'a> HtmlParser<'a> {
@@ -70,6 +72,7 @@ impl<'a> HtmlParser<'a> {
             footnote_labels: RefCell::new(HashMap::new()),
             base: urls::parse_base(config.base_url.as_deref()),
             sibling_index: RefCell::new(HashMap::new()),
+            drop_unlikely: Cell::new(false),
         }
     }
 
@@ -81,6 +84,7 @@ impl<'a> HtmlParser<'a> {
             footnote_labels: RefCell::new(HashMap::new()),
             base: urls::parse_base(config.base_url.as_deref()),
             sibling_index: RefCell::new(HashMap::new()),
+            drop_unlikely: Cell::new(false),
         }
     }
 
@@ -120,6 +124,7 @@ impl<'a> HtmlParser<'a> {
             footnote_labels: RefCell::new(HashMap::new()),
             sibling_index: RefCell::new(HashMap::new()),
             base: urls::document_base(dom, self.base.clone()),
+            drop_unlikely: Cell::new(false),
         }
     }
 
@@ -129,21 +134,6 @@ impl<'a> HtmlParser<'a> {
         self.budget().add_nodes(dom.tree.nodes().count())?;
         let root = dom.root_element();
 
-        let content_nodes: Vec<scraper::ElementRef<'_>> =
-            if !self.config.include_selectors.is_empty() {
-                let sels: Vec<Selector> = self
-                    .config
-                    .include_selectors
-                    .iter()
-                    .filter_map(|s| Selector::parse(s).ok())
-                    .collect();
-                sels.iter().flat_map(|sel| dom.select(sel)).collect()
-            } else {
-                let body_sel = Selector::parse("body").unwrap();
-                let body: Vec<_> = dom.select(&body_sel).collect();
-                if body.is_empty() { vec![root] } else { body }
-            };
-
         let exclude_selectors: Vec<Selector> = self
             .config
             .exclude_selectors
@@ -152,12 +142,42 @@ impl<'a> HtmlParser<'a> {
             .collect();
 
         let mut nodes = Vec::new();
-        for content_root in content_nodes {
-            self.convert_children(content_root, &exclude_selectors, &mut nodes, 0);
+        if !self.config.include_selectors.is_empty() {
+            let sels: Vec<Selector> = self
+                .config
+                .include_selectors
+                .iter()
+                .filter_map(|s| Selector::parse(s).ok())
+                .collect();
+            for content_root in sels.iter().flat_map(|sel| dom.select(sel)) {
+                self.convert_children(content_root, &exclude_selectors, &mut nodes, 0);
+            }
+            return Ok(Document::new(normalize_blocks(nodes)));
         }
         // The walk stops early once the deadline passes; report it here.
         self.budget().check_time()?;
 
+        let body_sel = Selector::parse("body").unwrap();
+        let body = dom.select(&body_sel).next().unwrap_or(root);
+
+        if self.config.main_content
+            && let Some(roots) = readability::main_content(body, &exclude_selectors)
+        {
+            self.drop_unlikely.set(true);
+            for r in roots {
+                if r.whole && !is_transparent_container(r.el.value().name()) {
+                    if let Some(mut node) = self.convert_element(r.el, &exclude_selectors, 1) {
+                        self.mark_source(&mut node, r.el);
+                        nodes.push(node);
+                    }
+                } else {
+                    self.convert_children(r.el, &exclude_selectors, &mut nodes, 0);
+                }
+            }
+            return Ok(Document::new(normalize_blocks(nodes)));
+        }
+
+        self.convert_children(body, &exclude_selectors, &mut nodes, 0);
         Ok(Document::new(normalize_blocks(nodes)))
     }
 
@@ -208,6 +228,7 @@ impl<'a> HtmlParser<'a> {
 
     fn is_excluded(&self, el: &scraper::ElementRef<'_>, exclude: &[Selector]) -> bool {
         exclude.iter().any(|sel| sel.matches(el))
+            || (self.drop_unlikely.get() && readability::is_unlikely(*el))
     }
 
     fn convert_children(

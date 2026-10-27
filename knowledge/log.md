@@ -6,6 +6,8 @@
 
 ## 2026-10-26
 
+* **Main content**: opt-in Readability-style detection (`main_content`, CLI `--main-content`) keeps the article body and drops sidebars, comments, share bars; falls back to the full body when nothing scores. Algorithm in [HTML Extraction](formats/html-extraction.md); bounds in [Threat Model](security/threat-model.md) T2g.
+
 * **Relative URLs**: links, images and metadata URLs resolve against `base_url` (or the final `extract_url` response URL) plus `<base href>`. Only scheme-less references change; page bases are limited to `http(s)`. New `extract_url_document`. See [HTML Extraction](formats/html-extraction.md) and [Threat Model](security/threat-model.md) T1.
 * **Transforms**: `transform::Transform` passes between parse and render (`MarkkitBuilder::transform`), built-ins `NormalizeHeadings` / `DropImages`, `from_fn`, IR walkers. `Error` is now `#[non_exhaustive]` with `Error::Transform`. See [Markkit Architecture](foundations/architecture.md), [Examples](operations/examples.md).
 
@@ -25,4 +27,4 @@
 * **Accuracy pass**: [Python Package](runtimes/python-package.md) now names the shipped `markkit` module; [Examples](operations/examples.md) lists the four real examples; [Evaluation Harness](operations/eval.md) is marked as a stub; [Threat Model](security/threat-model.md) T3 records that `http_client` is a default feature and SSRF mitigations are still open.
 * **Maintenance contract**: [Maintenance](operations/maintenance.md) adopts the analyze, fix, ship invocation contract and a workflow credential audit.
 * **Benchmarks**: `markkit-bench` is no longer a stub. It measures latency, ops/s, throughput and per-op heap allocations (count, bytes, peak) plus process peak RSS over a generated corpus, and `just bench` saves JSON + Markdown runs to `crates/markkit-bench/results/`, like bashkit. Criterion moves to `just bench-criterion`. See [Performance Results](operations/performance-results.md).
-* **Resource limits**: all limits moved into one `Limits` struct (bashkit `ExecutionLimits` style). New: `timeout` now bounds parsing and rendering, not just URL fetch; `max_output_size` (128 MiB, stops table amplification); `max_nodes` (5M); `max_nesting_depth` configurable (256, was hardcoded 200 HTML / 256 XML) with a 512 hard ceiling. Threat T2g, invariants S14-S16, `limits` tests. See [Threat Model](security/threat-model.md) T2.
+* **Resource limits**: all limits moved into one `Limits` struct (bashkit `ExecutionLimits` style). New: `timeout` now bounds parsing and rendering, not just URL fetch; `max_output_size` (128 MiB, stops table amplification); `max_nodes` (5M); `max_nesting_depth` configurable (256, was hardcoded 200 HTML / 256 XML) with a 512 hard ceiling. Threat T2h, invariants S14-S16, `limits` tests. See [Threat Model](security/threat-model.md) T2.
