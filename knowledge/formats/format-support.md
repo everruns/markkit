@@ -82,7 +82,7 @@ only the Markdown. Parsing is CPU-bound; async callers should use the sync varia
 
 Warning codes: `truncated_sheet`, `hidden_sheet_skipped`, `sheet_error`, `truncated_pdf`,
 `pdf_unmapped_font`, `pdf_no_text`, `invalid_utf8`, `hidden_content_skipped`,
-`hidden_slide_skipped`, `slide_error`, 
+`hidden_slide_skipped`, `slide_error`,
 `malformed_csv`, `truncated_table`.
 
 ## Format Detection
