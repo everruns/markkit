@@ -99,6 +99,11 @@ name = "agent_tool"
 path = "../../examples/agent_tool.rs"
 required-features = ["html", "tool"]
 
+[[example]]
+name = "transforms"
+path = "../../examples/transforms.rs"
+required-features = ["html"]
+
 [[bench]]
 name = "extraction"
 harness = false

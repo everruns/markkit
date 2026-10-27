@@ -48,6 +48,8 @@ pub struct MarkkitBuilder {
     /// HTML element XPath, DOCX block index, spreadsheet sheet and range.
     /// Default: false (no cost, no `source` in IR JSON).
     pub track_sources: bool,
+    /// IR passes run after parsing, before rendering (see [`crate::transform`]).
+    pub transforms: crate::transform::TransformChain,
 }
 
 impl Default for MarkkitBuilder {
@@ -79,6 +81,7 @@ impl Default for MarkkitBuilder {
             max_redirects: 5,
             base_url: None,
             track_sources: false,
+            transforms: Default::default(),
         }
     }
 }
@@ -107,6 +110,12 @@ impl MarkkitBuilder {
     /// Record per-block provenance in the IR (see [`MarkkitBuilder::track_sources`] field).
     pub fn track_sources(mut self, yes: bool) -> Self {
         self.track_sources = yes;
+        self
+    }
+
+    /// Append an IR transform pass; passes run in registration order.
+    pub fn transform(mut self, t: impl crate::transform::Transform + 'static) -> Self {
+        self.transforms.push(t);
         self
     }
 
