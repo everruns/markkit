@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `<figure>`/`<figcaption>` and table spans/alignment. Row-header `<th>` cells in table bodies are
   no longer dropped.
 - `Document.ir_version` (`markkit::ir::IR_VERSION = 2`) is serialized with the IR JSON.
+- Math: `$tex$` and `$$` blocks from MathML (`application/x-tex` annotation), KaTeX and MathJax output.
+- JSON Schema for the IR at `schema/ir.schema.json`; `json-schema` feature adds `markkit::ir::json_schema()`.
 - Per-block provenance: `MarkkitBuilder::track_sources(true)` records a `Source` on each IR block
   (HTML element XPath, DOCX body block index, spreadsheet sheet and A1 range) for citations.
 - `Markkit::parse_document` / `parse_document_sync` return the IR plus metadata (`ParsedDocument`)

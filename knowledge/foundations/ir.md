@@ -37,7 +37,8 @@ Methods: `new(Vec<Node>)` (sets `ir_version = IR_VERSION`), `is_empty() -> bool`
 
 - `markkit::ir::IR_VERSION` is the serialized schema version. v1 was the
   initial, unversioned IR. v2 adds footnotes, definition lists, task lists,
-  figures and table cells with alignment and spans. Bump it on any breaking
+  figures, math, table cells with alignment and spans, and per-block
+  provenance. Bump it on any breaking
   change to serialized form.
 - `Node`, `ListItem`, `TableCell`, `DefinitionItem`, `Alignment` and
   `Document` are `#[non_exhaustive]`: new kinds/fields are additive; external
@@ -67,6 +68,7 @@ All block variants except `ThematicBreak` also carry `source` (see Provenance).
 | `DefinitionList` | `items: Vec<DefinitionItem>` | Terms with one or more definitions. |
 | `Figure` | `children: Vec<Node>`, `caption: Option<Vec<Node>>` | Block content with inline caption. |
 | `FootnoteDefinition` | `label: String`, `children: Vec<Node>` | Footnote body (blocks). |
+| `MathBlock` | `tex: String` | Display math, TeX source. Renders `$$` fenced; `$$` inside is split. |
 
 #### Inline Variants
 
@@ -81,6 +83,7 @@ All block variants except `ThematicBreak` also carry `source` (see Provenance).
 | `Image` | `src: String`, `alt: String` | Image reference. Leaf node (no children). |
 | `LineBreak` | (unit) | Hard line break. Renders as two trailing spaces + newline. |
 | `FootnoteReference` | `label: String` | Marker pointing at the `FootnoteDefinition` with the same label. |
+| `Math` | `tex: String` | Inline math, TeX source. Renders `$tex$`: one line, trimmed, unescaped `$` escaped. |
 
 ### Provenance (`Source`)
 
@@ -193,6 +196,14 @@ and default-valued fields (`alignments`, `colspan`/`rowspan` = 1, `checked`,
   ]
 }
 ```
+
+### JSON Schema
+
+`schema/ir.schema.json` (draft 2020-12) describes the serialized `Document`.
+It is generated from the Rust types with `schemars` behind the `json-schema`
+feature (`markkit::ir::json_schema()`); `ir::tests::committed_schema_is_current`
+fails when the committed file drifts. Regenerate with `just schema`. Python and
+Node consumers of IR JSON validate against this file.
 
 Roundtrip guarantee: `serialize -> deserialize` produces `==` document.
 Tested in `ir::tests::ir_roundtrip_json` and `html_integration::ir_serialization_roundtrip`.

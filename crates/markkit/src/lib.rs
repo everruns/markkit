@@ -38,6 +38,7 @@
 //! - **URL fetching** (`http_client`, opt-in): Fetch and extract from URLs via reqwest
 //! - **Agent tool** (`tool`): `markkit::tool::MarkkitTool`, an LLM tool following the
 //!   Everruns toolkit-library contract (schemas, OpenAI definition, `tower::Service`)
+//! - **JSON Schema** (`json-schema`): `ir::json_schema()` for the serialized IR
 //!
 //! The default build has no network stack; enable `http_client` for
 //! `Markkit::extract_url`. Office formats only, no HTML:
