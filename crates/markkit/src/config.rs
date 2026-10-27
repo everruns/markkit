@@ -27,6 +27,10 @@ pub struct MarkkitBuilder {
     /// Hosts `extract_url` may contact, matched exactly and case-insensitively
     /// on every hop (empty = any public host).
     pub allowed_hosts: Vec<String>,
+    /// Record per-block provenance ([`crate::ir::Source`]) in the IR:
+    /// HTML element XPath, DOCX block index, spreadsheet sheet and range.
+    /// Default: false (no cost, no `source` in IR JSON).
+    pub track_sources: bool,
 }
 
 impl Default for MarkkitBuilder {
@@ -48,6 +52,7 @@ impl Default for MarkkitBuilder {
             include_hidden_sheets: false,
             allow_private_networks: false,
             allowed_hosts: Vec::new(),
+            track_sources: false,
         }
     }
 }
@@ -99,6 +104,12 @@ impl MarkkitBuilder {
 
     pub fn preserve_images(mut self, yes: bool) -> Self {
         self.preserve_images = yes;
+        self
+    }
+
+    /// Record per-block provenance in the IR (see [`MarkkitBuilder::track_sources`] field).
+    pub fn track_sources(mut self, yes: bool) -> Self {
+        self.track_sources = yes;
         self
     }
 

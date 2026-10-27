@@ -165,36 +165,36 @@ fn null_bytes() {
 // ─── Depth Limits ───────────────────────────────────────────────────
 
 #[test]
-fn depth_limit_200() {
-    // MAX_DEPTH is 200. With 200 nested divs, the inner <p> is at depth 200
-    // (body=0, div1=1, ..., div200=200). At depth >= 200 the parser
-    // falls back to text extraction. The content should still appear.
+fn depth_limit_default() {
+    // Default max_nesting_depth is 256. With 256 nested divs, the inner <p> is
+    // at depth 256 (body=0, div1=1, ...). At depth >= 256 the parser falls
+    // back to text extraction. The content should still appear.
     let mut html = String::new();
-    for _ in 0..200 {
+    for _ in 0..256 {
         html.push_str("<div>");
     }
     html.push_str("<p>Deep content</p>");
-    for _ in 0..200 {
+    for _ in 0..256 {
         html.push_str("</div>");
     }
     let md = convert(&html);
     assert!(
         md.contains("Deep content"),
-        "Content at depth 200 should still be extracted as text: {:?}",
+        "Content at depth 256 should still be extracted as text: {:?}",
         md
     );
 }
 
 #[test]
 fn depth_limit_exceeded() {
-    // 250 nested divs — well past MAX_DEPTH (200).
+    // 300 nested divs — past the default max_nesting_depth (256).
     // Content should still be extracted (flattened to text), not lost.
     let mut html = String::new();
-    for _ in 0..250 {
+    for _ in 0..300 {
         html.push_str("<div>");
     }
     html.push_str("<p>Very deep content</p>");
-    for _ in 0..250 {
+    for _ in 0..300 {
         html.push_str("</div>");
     }
     let md = convert(&html);
@@ -232,4 +232,16 @@ fn non_numeric_spans_ignored() {
 fn deep_definition_lists_bounded() {
     let html = "<dl><dd>".repeat(500) + "x" + &"</dd></dl>".repeat(500);
     let _ = convert(&html);
+}
+
+#[test]
+fn source_tracking_many_siblings_is_linear() {
+    // 200k siblings: per-block XPath must not rescan siblings (O(n^2)).
+    let html = "<p>x</p>".repeat(200_000);
+    let m = Markkit::builder().track_sources(true).build();
+    let start = std::time::Instant::now();
+    let doc = m.parse_html(&html).unwrap();
+    assert!(start.elapsed().as_secs() < 20);
+    let last = doc.nodes.last().unwrap().source().unwrap();
+    assert_eq!(last.path.as_deref(), Some("/html[1]/body[1]/p[200000]"));
 }

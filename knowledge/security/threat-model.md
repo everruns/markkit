@@ -18,6 +18,7 @@ tags:
 | URL fetching | `extract_url()` (http_client feature) | Untrusted remote |
 | Byte input | `extract_bytes()` with content-type | Untrusted |
 | Document input | `extract_document()`, `extract_document_sync()` | Untrusted (bytes and `DocumentHint`) |
+| LLM tool arguments | `MarkkitTool::execution()` (tool feature) | Untrusted (model output); validated before execution, see [Tool Contract](../integrations/tool-contract.md) |
 | Configuration | `MarkkitBuilder` methods | Trusted (caller-controlled) |
 | CSS selectors | `include_selector()`, `exclude_selector()` | Semi-trusted (caller-provided) |
 
@@ -37,6 +38,8 @@ tags:
 - Event handler attributes (onclick, onload, etc.) are not preserved -- only `href`, `src`, `alt`, `title`, `class`, `start` attributes are read
 - Output is markdown text with no HTML pass-through
 - Form elements (`<form>`, `<input>`, `<button>`, `<select>`, `<textarea>`) stripped
+- Page metadata (`Extraction::metadata`): URL fields drop non-`http(s)` schemes
+  (`javascript:`, `data:`); values single-line and capped at 2048 chars
 
 **Test Coverage**:
 - `html_security::xss_script_tag`
@@ -48,6 +51,7 @@ tags:
 - `html_security::xss_iframe`
 - `html_proptest::no_script_tags_in_output`
 - `html_proptest::no_style_tags_in_output`
+- `html_metadata::dangerous_url_schemes_dropped`, `values_are_single_line_and_capped`, `html_proptest::metadata_values_single_line`
 
 ### T2: Denial of Service (Resource Exhaustion)
 
@@ -83,12 +87,6 @@ All limits live in one `Limits` struct (`crates/markkit/src/limits.rs`,
   deadline is checked right after them
 - `max_nodes` (default 5 000 000) caps HTML DOM nodes and DOCX XML nodes (summed over parts)
 
-#### T2f: Output Amplification
-- GFM tables pad every row to the widest row, so output can be rows x columns of input
-- `max_output_size` (default 128 MiB) checked per block, list item and table row,
-  including nested renderers (blockquotes, list items), so no buffer grows past the
-  limit by more than one row
-
 #### T2e: Table Span Amplification
 - `colspan`/`rowspan` clamped by the HTML parser (1000 / 65534) and again at layout
 - Renderer lays spans out on a grid capped at 1 000 000 slots, checked incrementally
@@ -99,6 +97,18 @@ All limits live in one `Limits` struct (`crates/markkit/src/limits.rs`,
 - html5ever handles entity expansion internally
 - No custom entity processing
 - Input size limit bounds total expansion
+
+#### T2f: JSON-LD Amplification
+- First 16 `application/ld+json` scripts only, each at most 1 MiB, at most 256 nodes
+- serde_json recursion limit (128) bounds nesting; parse errors are ignored
+- Tests: `html_metadata::deeply_nested_json_ld_does_not_overflow`,
+  `oversized_json_ld_skipped`, `many_json_ld_scripts_bounded`, `malformed_json_ld_ignored`
+
+#### T2g: Output Amplification
+- GFM tables pad every row to the widest row, so output can be rows x columns of input
+- `max_output_size` (default 128 MiB) checked per block, list item and table row,
+  including nested renderers (blockquotes, list items), so no buffer grows past the
+  limit by more than one row
 
 **Test Coverage**:
 - `html_security::deeply_nested_elements`

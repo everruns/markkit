@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
-use crate::ir::{Document, ListItem, Node, TableCell};
+use crate::ir::{Document, ListItem, Node, Source, TableCell};
 use crate::limits::Budget;
 use crate::render::escape_table_cell;
 use crate::xml::{self, Element, XmlError};
@@ -602,7 +602,7 @@ fn plain_text(nodes: &[Node], out: &mut String) {
             | Node::Strikethrough { children }
             | Node::Link { children, .. }
             | Node::Heading { children, .. }
-            | Node::Paragraph { children } => plain_text(children, out),
+            | Node::Paragraph { children, .. } => plain_text(children, out),
             _ => {}
         }
     }
@@ -615,6 +615,7 @@ struct ListEntry {
     ordered: bool,
     start: Option<u64>,
     content: Vec<Node>,
+    index: usize,
 }
 
 #[derive(Default)]
@@ -624,6 +625,11 @@ struct Body {
     title_text: Option<String>,
     paragraphs: usize,
     tables: usize,
+    /// Record `Source::index` on blocks (`track_sources`).
+    track: bool,
+    /// Next body block index (every `w:p` / `w:tbl`, in document order,
+    /// including those inside `w:sdt` / `w:ins` wrappers and blank ones).
+    next_index: usize,
 }
 
 impl Body {
@@ -635,8 +641,17 @@ impl Body {
         let base = entries.iter().map(|e| e.level).min().unwrap_or(0);
         let mut pos = 0;
         while pos < entries.len() {
-            self.blocks.push(build_list(&entries, &mut pos, base));
+            let index = entries[pos].index;
+            let list = build_list(&entries, &mut pos, base);
+            self.push(list, index);
         }
+    }
+
+    fn push(&mut self, mut node: Node, index: usize) {
+        if self.track {
+            node.set_source(Source::index(index));
+        }
+        self.blocks.push(node);
     }
 }
 
@@ -665,6 +680,7 @@ fn build_list(entries: &[ListEntry], pos: &mut usize, level: u32) -> Node {
         }
         items.push(ListItem::new(vec![Node::Paragraph {
             children: e.content.clone(),
+            source: None,
         }]));
         *pos += 1;
     }
@@ -672,6 +688,7 @@ fn build_list(entries: &[ListEntry], pos: &mut usize, level: u32) -> Node {
         ordered,
         start,
         items,
+        source: None,
     }
 }
 
@@ -682,12 +699,18 @@ impl Ctx<'_> {
                 return;
             }
             match child.name.as_str() {
-                "p" => self.paragraph(child, body),
+                "p" => {
+                    let index = body.next_index;
+                    body.next_index += 1;
+                    self.paragraph(child, body, index);
+                }
                 "tbl" => {
+                    let index = body.next_index;
+                    body.next_index += 1;
                     body.flush_list();
                     if let Some(t) = self.table(child) {
                         body.tables += 1;
-                        body.blocks.push(t);
+                        body.push(t, index);
                     }
                 }
                 "sdt" => {
@@ -701,7 +724,7 @@ impl Ctx<'_> {
         }
     }
 
-    fn paragraph(&self, p: &Element, body: &mut Body) {
+    fn paragraph(&self, p: &Element, body: &mut Body, index: usize) {
         let ppr = p.child("pPr");
         let style = ppr.and_then(|x| x.child_val("pStyle"));
         let content = self.inline(p);
@@ -725,10 +748,14 @@ impl Ctx<'_> {
                 body.title_text = Some(t.trim().to_string());
             }
             body.flush_list();
-            body.blocks.push(Node::Heading {
-                level,
-                children: content,
-            });
+            body.push(
+                Node::Heading {
+                    level,
+                    children: content,
+                    source: None,
+                },
+                index,
+            );
             return;
         }
 
@@ -765,10 +792,17 @@ impl Ctx<'_> {
                 ordered,
                 start,
                 content,
+                index,
             }),
             None => {
                 body.flush_list();
-                body.blocks.push(Node::Paragraph { children: content });
+                body.push(
+                    Node::Paragraph {
+                        children: content,
+                        source: None,
+                    },
+                    index,
+                );
             }
         }
     }
@@ -844,6 +878,7 @@ impl Ctx<'_> {
             alignments: Vec::new(),
             headers,
             rows,
+            source: None,
         })
     }
 }
@@ -934,7 +969,10 @@ pub(crate) fn parse(
         numbering: &numbering,
         budget,
     };
-    let mut body = Body::default();
+    let mut body = Body {
+        track: config.track_sources,
+        ..Body::default()
+    };
     ctx.blocks(body_el, &mut body);
     budget.check_time()?;
     body.flush_list();

@@ -3,6 +3,7 @@ use serde::Serialize;
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::format::{DocumentHint, Format};
+use crate::ir::Document;
 use crate::limits::Budget;
 
 /// Result of [`Markkit::extract_document`]: Markdown plus metadata.
@@ -11,7 +12,8 @@ use crate::limits::Budget;
 pub struct Extraction {
     /// Rendered Markdown.
     pub markdown: String,
-    /// Document title when known (DOCX core properties or `Title` style).
+    /// Document title when known (HTML `og:title` / JSON-LD / `<title>`;
+    /// DOCX core properties or `Title` style).
     pub title: Option<String>,
     /// Format the document was parsed as.
     pub format: Format,
@@ -20,6 +22,35 @@ pub struct Extraction {
     pub warnings: Vec<String>,
     /// Format-specific counters.
     pub stats: ExtractionStats,
+    /// Document metadata (HTML `<meta>`, Open Graph, JSON-LD); empty when unknown.
+    pub metadata: Metadata,
+}
+
+/// Document-level metadata. Every field is `None` when absent.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub struct Metadata {
+    /// Summary (`og:description`, `<meta name=description>`, JSON-LD `description`).
+    pub description: Option<String>,
+    /// Author name(s), comma-separated (`<meta name=author>`, JSON-LD `author`).
+    pub author: Option<String>,
+    /// Publication date as written in the source, typically ISO 8601.
+    pub published: Option<String>,
+    /// Content language (`<html lang>`, `Content-Language`, `og:locale`).
+    pub language: Option<String>,
+    /// Canonical URL (`<link rel=canonical>`, `og:url`, JSON-LD `url`).
+    pub canonical_url: Option<String>,
+    /// Site / publisher name (`og:site_name`, JSON-LD `publisher.name`).
+    pub site_name: Option<String>,
+    /// Lead image URL (`og:image`, `twitter:image`, JSON-LD `image`).
+    pub image: Option<String>,
+}
+
+impl Metadata {
+    /// True when no field is set.
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 /// Counters describing the extracted content; `None` when not applicable.
@@ -38,14 +69,66 @@ pub struct ExtractionStats {
     pub tables: Option<usize>,
 }
 
-impl Extraction {
-    fn new(markdown: String, format: Format) -> Self {
+/// Result of [`Markkit::parse_document`]: the IR plus metadata, not rendered.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[non_exhaustive]
+pub struct ParsedDocument {
+    /// Canonical IR (blocks carry [`crate::ir::Source`] when
+    /// [`MarkkitBuilder::track_sources`] is enabled).
+    pub document: Document,
+    /// Document title when known.
+    pub title: Option<String>,
+    /// Format the document was parsed as.
+    pub format: Format,
+    /// Non-fatal issues (see [`Extraction::warnings`]).
+    pub warnings: Vec<String>,
+    /// Format-specific counters.
+    pub stats: ExtractionStats,
+    /// Document metadata (see [`Extraction::metadata`]).
+    pub metadata: Metadata,
+}
+
+impl ParsedDocument {
+    #[cfg_attr(
+        not(any(feature = "html", feature = "docx", feature = "spreadsheet")),
+        allow(dead_code)
+    )]
+    fn new(document: Document, format: Format) -> Self {
         Self {
-            markdown,
+            document,
             title: None,
             format,
             warnings: Vec::new(),
             stats: ExtractionStats::default(),
+            metadata: Metadata::default(),
+        }
+    }
+
+    /// Render to Markdown, keeping the metadata.
+    pub fn render(self) -> Extraction {
+        let markdown = crate::render::MarkdownRenderer::new().render(&self.document);
+        self.into_extraction(markdown)
+    }
+
+    /// [`ParsedDocument::render`] with `max_output_size` and the deadline enforced.
+    #[cfg(any(feature = "html", feature = "docx", feature = "spreadsheet"))]
+    fn render_bounded(self, max_output: usize, budget: &Budget) -> crate::Result<Extraction> {
+        let markdown = crate::render::MarkdownRenderer::new().render_bounded(
+            &self.document,
+            max_output,
+            budget,
+        )?;
+        Ok(self.into_extraction(markdown))
+    }
+
+    fn into_extraction(self, markdown: String) -> Extraction {
+        Extraction {
+            markdown,
+            title: self.title,
+            format: self.format,
+            warnings: self.warnings,
+            stats: self.stats,
+            metadata: self.metadata,
         }
     }
 }
@@ -89,28 +172,24 @@ impl Markkit {
     }
 
     /// Synchronous HTML extraction (no async needed for parsing).
-    ///
-    /// All [`Limits`](crate::Limits) apply; violations return [`Error::ResourceLimit`].
     pub fn extract_html_sync(&self, html: &str) -> crate::Result<String> {
-        self.extract_html_with(html, &Budget::new(&self.config.limits))
-    }
-
-    fn extract_html_with(&self, html: &str, budget: &Budget) -> crate::Result<String> {
         self.config.limits.check_input(html.len())?;
 
         #[cfg(feature = "html")]
         {
-            let parser = crate::html::HtmlParser::with_budget(&self.config, budget);
+            let budget = Budget::new(&self.config.limits);
+            let parser = crate::html::HtmlParser::with_budget(&self.config, &budget);
             let doc = parser.parse(html)?;
-            self.render(&doc, budget)
+            crate::render::MarkdownRenderer::new().render_bounded(
+                &doc,
+                self.config.limits.max_output_size,
+                &budget,
+            )
         }
         #[cfg(not(feature = "html"))]
-        {
-            let _ = budget;
-            Err(Error::UnsupportedFormat(
-                "HTML support requires the 'html' feature".to_string(),
-            ))
-        }
+        Err(Error::UnsupportedFormat(
+            "HTML support requires the 'html' feature".to_string(),
+        ))
     }
 
     /// Parse HTML into the IR without rendering.
@@ -119,15 +198,6 @@ impl Markkit {
         self.config.limits.check_input(html.len())?;
         let budget = Budget::new(&self.config.limits);
         crate::html::HtmlParser::with_budget(&self.config, &budget).parse(html)
-    }
-
-    #[cfg(any(feature = "html", feature = "docx", feature = "spreadsheet"))]
-    fn render(&self, doc: &crate::ir::Document, budget: &Budget) -> crate::Result<String> {
-        crate::render::MarkdownRenderer::new().render_bounded(
-            doc,
-            self.config.limits.max_output_size,
-            budget,
-        )
     }
 
     /// Extract markdown from raw bytes, auto-detecting the format.
@@ -180,17 +250,47 @@ impl Markkit {
         hint: DocumentHint<'_>,
         budget: &Budget,
     ) -> crate::Result<Extraction> {
+        let parsed = self.parse_document_with(bytes, hint, budget)?;
+        #[cfg(any(feature = "html", feature = "docx", feature = "spreadsheet"))]
+        {
+            parsed.render_bounded(self.config.limits.max_output_size, budget)
+        }
+        #[cfg(not(any(feature = "html", feature = "docx", feature = "spreadsheet")))]
+        Ok(parsed.render())
+    }
+
+    /// Parse a document (HTML, DOCX, XLSX/XLS/ODS) into the IR without
+    /// rendering. Same detection and errors as [`Markkit::extract_document`].
+    pub async fn parse_document(
+        &self,
+        bytes: &[u8],
+        hint: DocumentHint<'_>,
+    ) -> crate::Result<ParsedDocument> {
+        self.parse_document_sync(bytes, hint)
+    }
+
+    /// Synchronous [`Markkit::parse_document`].
+    pub fn parse_document_sync(
+        &self,
+        bytes: &[u8],
+        hint: DocumentHint<'_>,
+    ) -> crate::Result<ParsedDocument> {
+        self.parse_document_with(bytes, hint, &Budget::new(&self.config.limits))
+    }
+
+    fn parse_document_with(
+        &self,
+        bytes: &[u8],
+        hint: DocumentHint<'_>,
+        budget: &Budget,
+    ) -> crate::Result<ParsedDocument> {
         self.config.limits.check_input(bytes.len())?;
 
         match Format::detect(bytes, hint) {
-            Format::Html => {
-                let text = String::from_utf8_lossy(bytes);
-                let md = self.extract_html_with(&text, budget)?;
-                Ok(Extraction::new(md, Format::Html))
-            }
-            Format::Pdf => self.extract_pdf_sync(bytes),
-            Format::Docx => self.extract_docx(bytes, budget),
-            Format::Xlsx | Format::Xls | Format::Ods => self.extract_spreadsheet(bytes, budget),
+            Format::Html => self.parse_html_doc(bytes, budget),
+            Format::Pdf => self.parse_pdf(bytes),
+            Format::Docx => self.parse_docx(bytes, budget),
+            Format::Xlsx | Format::Xls | Format::Ods => self.parse_spreadsheet(bytes, budget),
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
@@ -204,39 +304,57 @@ impl Markkit {
         }
     }
 
+    #[cfg(feature = "html")]
+    fn parse_html_doc(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
+        let text = String::from_utf8_lossy(bytes);
+        let parser = crate::html::HtmlParser::with_budget(&self.config, budget);
+        let (doc, page) = parser.parse_page(&text)?;
+        let mut p = ParsedDocument::new(doc, Format::Html);
+        p.title = page.title;
+        p.metadata = page.metadata;
+        Ok(p)
+    }
+
+    #[cfg(not(feature = "html"))]
+    fn parse_html_doc(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
+        Err(Error::UnsupportedFormat(
+            "HTML support requires the 'html' feature".to_string(),
+        ))
+    }
+
     #[cfg(feature = "docx")]
-    fn extract_docx(&self, bytes: &[u8], budget: &Budget) -> crate::Result<Extraction> {
+    fn parse_docx(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let out = guarded("DOCX", Error::DocxExtract, || {
             crate::docx::parse(bytes, &self.config, budget)
         })?;
-        let mut e = Extraction::new(self.render(&out.doc, budget)?, Format::Docx);
-        e.title = out.title;
-        e.stats.paragraphs = Some(out.paragraphs);
-        e.stats.tables = Some(out.tables);
-        Ok(e)
+        let mut p = ParsedDocument::new(out.doc, Format::Docx);
+        p.title = out.title;
+        p.stats.paragraphs = Some(out.paragraphs);
+        p.stats.tables = Some(out.tables);
+        Ok(p)
     }
 
     #[cfg(not(feature = "docx"))]
-    fn extract_docx(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<Extraction> {
+    fn parse_docx(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
         Err(Error::UnsupportedFormat(
             "DOCX support requires the 'docx' feature".to_string(),
         ))
     }
 
     #[cfg(feature = "spreadsheet")]
-    fn extract_spreadsheet(&self, bytes: &[u8], budget: &Budget) -> crate::Result<Extraction> {
+    fn parse_spreadsheet(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let out = guarded("spreadsheet", Error::SpreadsheetExtract, || {
             crate::spreadsheet::parse(bytes, &self.config, budget)
         })?;
-        let mut e = Extraction::new(self.render(&out.doc, budget)?, out.format);
-        e.warnings = out.warnings;
-        e.stats.sheets = Some(out.sheets);
-        e.stats.rows = Some(out.rows);
-        Ok(e)
+        let mut p = ParsedDocument::new(out.doc, out.format);
+        p.warnings = out.warnings;
+        p.stats.sheets = Some(out.sheets);
+        p.stats.rows = Some(out.rows);
+        Ok(p)
     }
 
     #[cfg(not(feature = "spreadsheet"))]
-    fn extract_spreadsheet(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<Extraction> {
+    fn parse_spreadsheet(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
         Err(Error::UnsupportedFormat(
             "spreadsheet support requires the 'spreadsheet' feature".to_string(),
         ))
@@ -249,24 +367,35 @@ impl Markkit {
     /// refused with [`Error::UrlBlocked`] on every hop (including after DNS
     /// resolution) unless [`MarkkitBuilder::allow_private_networks`] is set;
     /// [`MarkkitBuilder::allow_host`] restricts hosts; redirects capped by
-    /// `max_redirects`; body capped by `max_input_size`; fetch, parse and
-    /// render together capped by `limits.timeout` ([`Error::ResourceLimit`]).
+    /// `max_redirects`; body capped by `max_input_size`; fetch, parse and render
+    /// together capped by `limits.timeout` ([`Error::ResourceLimit`]).
     #[cfg(feature = "http_client")]
     pub async fn extract_url(&self, url: &str) -> crate::Result<String> {
+        self.extract_url_document(url).await.map(|e| e.markdown)
+    }
+
+    /// [`Markkit::extract_url`] with metadata (format, title, warnings, stats).
+    ///
+    /// The response `Content-Type` is the format hint; same URL policy and limits.
+    #[cfg(feature = "http_client")]
+    pub async fn extract_url_document(&self, url: &str) -> crate::Result<Extraction> {
         let start = std::time::Instant::now();
         let fetched = crate::fetch::fetch(url, &self.config).await?;
+        // Fetch, parse and render share one `timeout` budget.
         let budget = Budget::starting_at(&self.config.limits, start);
-        let hint = DocumentHint {
-            content_type: fetched.content_type.as_deref(),
-            file_name: None,
-        };
-        self.extract_document_with(&fetched.bytes, hint, &budget)
-            .map(|e| e.markdown)
+        self.extract_document_with(
+            &fetched.bytes,
+            DocumentHint {
+                content_type: fetched.content_type.as_deref(),
+                file_name: None,
+            },
+            &budget,
+        )
     }
 
     /// PDF extraction is not implemented yet; report it explicitly rather than
     /// returning an empty (misleading) success.
-    fn extract_pdf_sync(&self, _bytes: &[u8]) -> crate::Result<Extraction> {
+    fn parse_pdf(&self, _bytes: &[u8]) -> crate::Result<ParsedDocument> {
         #[cfg(feature = "pdf")]
         let msg = "PDF extraction is not implemented yet";
         #[cfg(not(feature = "pdf"))]

@@ -56,6 +56,14 @@ Via `MarkkitBuilder`:
 - Link and image preservation
 - Office-document limits (archive entries/sizes, sheet rows/cols, grid cells, hidden sheets)
 - URL fetch policy (`allow_private_networks`, `allow_host`, `max_redirects`)
+- Provenance (`track_sources`): per-block `Source` in the IR (off by default)
+
+## Public entry points
+
+- `extract_*` return Markdown (`extract_document` adds metadata as `Extraction`).
+- `parse_html` and `parse_document` return the IR (`ParsedDocument` = `Document`
+  + title, format, warnings, stats); `ParsedDocument::render()` gives the
+  `Extraction`. `extract_document` is `parse_document` + `render`.
 
 ## See also
 
