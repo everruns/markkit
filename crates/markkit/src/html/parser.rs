@@ -9,17 +9,21 @@
 //! - Table `colspan`/`rowspan` are clamped to the HTML limits (1000 / 65534;
 //!   `rowspan=0` means "to the end", stored as 65534); the renderer lays them
 //!   out under a grid budget.
+//! - Provenance (`track_sources`): blocks get the absolute XPath of the
+//!   element they came from. Sibling indexes are computed once per parent and
+//!   cached, so cost is O(depth) per block, not O(siblings).
 //! - `<figure>` becomes `Figure` only when it has a non-empty `<figcaption>`;
 //!   otherwise it stays a transparent container as before.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use ego_tree::{NodeId, NodeRef};
 use scraper::{Html, Node as HtmlNode, Selector};
 
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
-use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, TableCell};
+use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, Source, TableCell};
 
 use url::Url;
 
@@ -39,6 +43,8 @@ pub struct HtmlParser<'a> {
     footnote_labels: RefCell<HashMap<String, String>>,
     /// Base for relative URLs (caller base, then the document `<base href>`).
     base: Option<Url>,
+    /// Cached 1-based index of an element among same-name element siblings.
+    sibling_index: RefCell<HashMap<NodeId, usize>>,
 }
 
 impl<'a> HtmlParser<'a> {
@@ -47,6 +53,7 @@ impl<'a> HtmlParser<'a> {
             config,
             footnote_labels: RefCell::new(HashMap::new()),
             base: urls::parse_base(config.base_url.as_deref()),
+            sibling_index: RefCell::new(HashMap::new()),
         }
     }
 
@@ -74,6 +81,7 @@ impl<'a> HtmlParser<'a> {
         Self {
             config: self.config,
             footnote_labels: RefCell::new(HashMap::new()),
+            sibling_index: RefCell::new(HashMap::new()),
             base: urls::document_base(dom, self.base.clone()),
         }
     }
@@ -109,6 +117,51 @@ impl<'a> HtmlParser<'a> {
         }
 
         Ok(Document::new(normalize_blocks(nodes)))
+    }
+
+    /// Attach the element's XPath to a block that has no source yet.
+    fn mark_source(&self, node: &mut Node, el: scraper::ElementRef<'_>) {
+        if self.config.track_sources && node.is_block() && node.source().is_none() {
+            node.set_source(Source::path(self.xpath(*el)));
+        }
+    }
+
+    /// Absolute XPath (`/html[1]/body[1]/p[3]`) of an element.
+    fn xpath(&self, node: NodeRef<'_, HtmlNode>) -> String {
+        let mut segs: Vec<String> = Vec::new();
+        let mut cur = Some(node);
+        while let Some(n) = cur {
+            if let Some(e) = n.value().as_element() {
+                segs.push(format!("{}[{}]", e.name(), self.index_among_siblings(n)));
+            }
+            cur = n.parent();
+        }
+        let mut out = String::new();
+        for s in segs.iter().rev() {
+            out.push('/');
+            out.push_str(s);
+        }
+        out
+    }
+
+    fn index_among_siblings(&self, node: NodeRef<'_, HtmlNode>) -> usize {
+        if let Some(&i) = self.sibling_index.borrow().get(&node.id()) {
+            return i;
+        }
+        let Some(parent) = node.parent() else {
+            return 1;
+        };
+        // Index every element child of this parent in one pass.
+        let mut counts: HashMap<&str, usize> = HashMap::new();
+        let mut cache = self.sibling_index.borrow_mut();
+        for child in parent.children() {
+            if let Some(e) = child.value().as_element() {
+                let n = counts.entry(e.name()).or_insert(0);
+                *n += 1;
+                cache.insert(child.id(), *n);
+            }
+        }
+        cache.get(&node.id()).copied().unwrap_or(1)
     }
 
     fn is_excluded(&self, el: &scraper::ElementRef<'_>, exclude: &[Selector]) -> bool {
@@ -158,15 +211,18 @@ impl<'a> HtmlParser<'a> {
                             continue;
                         }
                         if name == "figure"
-                            && let Some(fig) = self.convert_figure(el, exclude, depth + 1)
+                            && let Some(mut fig) = self.convert_figure(el, exclude, depth + 1)
                         {
+                            self.mark_source(&mut fig, el);
                             out.push(fig);
                             continue;
                         }
                         // Transparent containers: recurse directly into their children
                         if is_transparent_container(name) {
                             self.convert_children(el, exclude, out, depth + 1);
-                        } else if let Some(node) = self.convert_element(el, exclude, depth + 1) {
+                        } else if let Some(mut node) = self.convert_element(el, exclude, depth + 1)
+                        {
+                            self.mark_source(&mut node, el);
                             out.push(node);
                         }
                     }
@@ -200,7 +256,11 @@ impl<'a> HtmlParser<'a> {
                 if children.is_empty() {
                     return None;
                 }
-                Some(Node::Heading { level, children })
+                Some(Node::Heading {
+                    level,
+                    children,
+                    source: None,
+                })
             }
 
             "p" => {
@@ -208,7 +268,10 @@ impl<'a> HtmlParser<'a> {
                 if children.is_empty() {
                     return None;
                 }
-                Some(Node::Paragraph { children })
+                Some(Node::Paragraph {
+                    children,
+                    source: None,
+                })
             }
 
             "figure" => self
@@ -230,6 +293,7 @@ impl<'a> HtmlParser<'a> {
                     ordered: false,
                     start: None,
                     items,
+                    source: None,
                 })
             }
 
@@ -243,6 +307,7 @@ impl<'a> HtmlParser<'a> {
                     ordered: true,
                     start,
                     items,
+                    source: None,
                 })
             }
 
@@ -253,7 +318,10 @@ impl<'a> HtmlParser<'a> {
                 if children.is_empty() {
                     return None;
                 }
-                Some(Node::BlockQuote { children })
+                Some(Node::BlockQuote {
+                    children,
+                    source: None,
+                })
             }
 
             "pre" => {
@@ -264,12 +332,17 @@ impl<'a> HtmlParser<'a> {
                         .attr("class")
                         .and_then(extract_language_from_class);
                     let code = code_el.text().collect::<String>();
-                    Some(Node::CodeBlock { language, code })
+                    Some(Node::CodeBlock {
+                        language,
+                        code,
+                        source: None,
+                    })
                 } else {
                     let code = el.text().collect::<String>();
                     Some(Node::CodeBlock {
                         language: None,
                         code,
+                        source: None,
                     })
                 }
             }
@@ -321,7 +394,10 @@ impl<'a> HtmlParser<'a> {
                     } else if children.len() == 1 {
                         Some(children.into_iter().next().unwrap())
                     } else {
-                        Some(Node::Paragraph { children })
+                        Some(Node::Paragraph {
+                            children,
+                            source: None,
+                        })
                     };
                 }
                 let url = urls::resolve(self.base.as_ref(), el.value().attr("href").unwrap_or(""));
@@ -363,7 +439,10 @@ impl<'a> HtmlParser<'a> {
                 } else if children.len() == 1 {
                     Some(children.into_iter().next().unwrap())
                 } else {
-                    Some(Node::Paragraph { children })
+                    Some(Node::Paragraph {
+                        children,
+                        source: None,
+                    })
                 }
             }
         }
@@ -383,7 +462,10 @@ impl<'a> HtmlParser<'a> {
         } else if nodes.is_empty() {
             None
         } else if nodes.iter().all(Node::is_inline) {
-            Some(Node::Paragraph { children: nodes })
+            Some(Node::Paragraph {
+                children: nodes,
+                source: None,
+            })
         } else {
             None
         }
@@ -410,11 +492,15 @@ impl<'a> HtmlParser<'a> {
         let mut children = normalize_blocks(nodes);
         if !children.is_empty() && children.iter().all(Node::is_inline) {
             trim_edge_text(&mut children);
-            children = vec![Node::Paragraph { children }];
+            children = vec![Node::Paragraph {
+                children,
+                source: None,
+            }];
         }
         Some(Node::Figure {
             children,
             caption: Some(caption),
+            source: None,
         })
     }
 
@@ -432,7 +518,10 @@ impl<'a> HtmlParser<'a> {
         if items.is_empty() {
             return None;
         }
-        Some(Node::DefinitionList { items })
+        Some(Node::DefinitionList {
+            items,
+            source: None,
+        })
     }
 
     fn collect_definitions(
@@ -519,11 +608,20 @@ impl<'a> HtmlParser<'a> {
             if children.iter().all(Node::is_inline) {
                 trim_edge_text(&mut children);
                 if !children.is_empty() {
-                    children = vec![Node::Paragraph { children }];
+                    children = vec![Node::Paragraph {
+                        children,
+                        source: None,
+                    }];
                 }
             }
             if !children.is_empty() {
-                out.push(Node::FootnoteDefinition { label, children });
+                let mut def = Node::FootnoteDefinition {
+                    label,
+                    children,
+                    source: None,
+                };
+                self.mark_source(&mut def, li);
+                out.push(def);
             }
         }
     }
@@ -605,7 +703,10 @@ impl<'a> HtmlParser<'a> {
                 if checked.is_some() {
                     if children.iter().all(Node::is_inline) {
                         trim_edge_text(&mut children);
-                    } else if let Some(Node::Paragraph { children: first }) = children.first_mut() {
+                    } else if let Some(Node::Paragraph {
+                        children: first, ..
+                    }) = children.first_mut()
+                    {
                         trim_edge_text(first);
                     }
                 }
@@ -689,6 +790,7 @@ impl<'a> HtmlParser<'a> {
             alignments,
             headers,
             rows,
+            source: None,
         })
     }
 
@@ -900,7 +1002,10 @@ fn flush_inline_run(run: &mut Vec<Node>, out: &mut Vec<Node>) {
     let mut children = std::mem::take(run);
     trim_edge_text(&mut children);
     if !children.is_empty() {
-        out.push(Node::Paragraph { children });
+        out.push(Node::Paragraph {
+            children,
+            source: None,
+        });
     }
 }
 

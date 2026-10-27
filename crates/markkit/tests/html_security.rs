@@ -233,3 +233,15 @@ fn deep_definition_lists_bounded() {
     let html = "<dl><dd>".repeat(500) + "x" + &"</dd></dl>".repeat(500);
     let _ = convert(&html);
 }
+
+#[test]
+fn source_tracking_many_siblings_is_linear() {
+    // 200k siblings: per-block XPath must not rescan siblings (O(n^2)).
+    let html = "<p>x</p>".repeat(200_000);
+    let m = Markkit::builder().track_sources(true).build();
+    let start = std::time::Instant::now();
+    let doc = m.parse_html(&html).unwrap();
+    assert!(start.elapsed().as_secs() < 20);
+    let last = doc.nodes.last().unwrap().source().unwrap();
+    assert_eq!(last.path.as_deref(), Some("/html[1]/body[1]/p[200000]"));
+}

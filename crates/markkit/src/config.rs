@@ -44,6 +44,10 @@ pub struct MarkkitBuilder {
     /// against (a document `<base href>` applies on top). `extract_url` uses the
     /// final response URL instead. Default: none (relative URLs kept as is).
     pub base_url: Option<String>,
+    /// Record per-block provenance ([`crate::ir::Source`]) in the IR:
+    /// HTML element XPath, DOCX block index, spreadsheet sheet and range.
+    /// Default: false (no cost, no `source` in IR JSON).
+    pub track_sources: bool,
 }
 
 impl Default for MarkkitBuilder {
@@ -74,6 +78,7 @@ impl Default for MarkkitBuilder {
             allowed_hosts: Vec::new(),
             max_redirects: 5,
             base_url: None,
+            track_sources: false,
         }
     }
 }
@@ -96,6 +101,12 @@ impl MarkkitBuilder {
 
     pub fn preserve_images(mut self, yes: bool) -> Self {
         self.preserve_images = yes;
+        self
+    }
+
+    /// Record per-block provenance in the IR (see [`MarkkitBuilder::track_sources`] field).
+    pub fn track_sources(mut self, yes: bool) -> Self {
+        self.track_sources = yes;
         self
     }
 
