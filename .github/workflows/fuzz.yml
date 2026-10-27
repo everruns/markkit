@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [html, document, docx_xml, xlsx_xml, xlsb_bin, ods_xml, xls_biff, pdf, markdown, render_ir]
+        target: [html, document, docx_xml, xlsx_xml, xlsb_bin, ods_xml, xls_biff, pdf, markdown, csv, render_ir]
     steps:
       - uses: actions/checkout@v4
         with:

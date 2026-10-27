@@ -101,3 +101,10 @@ path = "fuzz_targets/markdown.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "csv"
+path = "fuzz_targets/csv.rs"
+test = false
+doc = false
+bench = false

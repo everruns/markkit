@@ -47,6 +47,7 @@ long nightly runs that find what generators miss. See
 | `xls_biff` | BIFF8 `Workbook` stream in a valid OLE2 file | XLS pre-scan, calamine BIFF reader (T6b-c) |
 | `pdf` | Raw bytes, `.pdf` hint | PDF pre-scan, hayro parsing, text layer (T8) |
 | `markdown` | Raw bytes, `.md` hint | Markdown re-parse and render (T7) |
+| `csv` | Raw bytes, `.csv` / `.tsv` hint | CSV/TSV reader and table caps |
 | `render_ir` | Arbitrary IR tree (`arbitrary`) | Renderer on trees no parser emits yet |
 
 Seeds: `fuzz/seeds/<target>/` (committed, small) plus `tests/fixtures/html`
