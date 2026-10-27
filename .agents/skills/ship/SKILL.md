@@ -1,15 +1,17 @@
 ---
 name: ship
-description: Run the full Markkit ship flow — verify quality, ensure test coverage, update artifacts, smoke test, push, create PR, and merge when CI is green. Trigger when user says ship, ship it, fix and ship, asks to push and merge a branch, or runs maintenance.
+description: Run the full Markkit ship flow — verify quality, ensure test coverage, update artifacts, smoke test, push, create PR, merge when CI is green, and confirm main is green after merge. Trigger when user says ship, ship it, fix and ship, asks to push and merge a branch, or runs maintenance.
 user_invocable: true
 metadata:
   internal: true
 ---
 
 Run the full ship flow: verify quality, ensure test coverage, update artifacts,
-smoke test, then push, create PR, and merge when CI is green.
+smoke test, then push, create PR, merge when CI is green, and verify `main`.
 
-Implements the Pre-PR Checklist in `AGENTS.md`. Execute ALL phases, not just push/merge.
+Implements the Shipping definition and Pre-PR Checklist in `AGENTS.md`. "Ship" =
+change landed on `main`, every CI check green on the PR and on the merge commit,
+tested, ready to release. Execute ALL phases, not just push/merge.
 
 ## Arguments
 
@@ -19,8 +21,9 @@ Implements the Pre-PR Checklist in `AGENTS.md`. Execute ALL phases, not just pus
 
 1. Confirm not on `main`
 2. Detached `HEAD` with task changes: create a branch first
-3. Uncommitted changes belong to the task: keep going. Unrelated: stop and tell the user
+3. Uncommitted changes belong to the task: keep going, validate and commit them. Unrelated: stop and tell the user
 4. `git config user.name`/`user.email` are human (see `AGENTS.md` Commit Attribution)
+5. Branch's PR already merged: restart branch from `origin/main`, new PR; never stack on merged history
 
 ## Phase 2: Test Coverage
 
@@ -34,6 +37,7 @@ Review `git diff origin/main...HEAD` and `git log origin/main..HEAD`:
    - **Security**: parsing, limits, or URL fetching changes add tests per
      `knowledge/security/threat-model.md` and update its Test Coverage map
    - **Golden fixtures**: HTML conversion changes add `tests/fixtures/html/<name>.{html,md}`
+   - **Bindings**: exported API changes extend the smoke calls in `python.yml` / `js.yml` (no binding test suites yet)
 4. `just test` green
 
 ## Phase 3: Artifact Updates
@@ -45,7 +49,7 @@ Skip what isn't affected.
 3. **AGENTS.md**: new commands, knowledge concepts, workflow changes
 4. **README.md / docs/**: user-facing behavior, flags, API
 5. **Binding READMEs**: exported function changes in `markkit-python` / `markkit-js`
-6. **CHANGELOG.md**: Unreleased entry for user-facing changes
+6. **CHANGELOG.md**: Unreleased entry for user-facing changes (release notes come from it)
 
 ## Phase 3b: Simplification
 
@@ -64,13 +68,17 @@ Fix, add regression tests, update the threat model.
 ## Phase 3d: Design Quality
 
 Real domain types over stringly-typed interfaces; specific error variants; no
-compatibility shims (fix call sites); no premature generics; visibility protects invariants.
+compatibility shims (fix call sites); no premature generics; visibility protects
+invariants. If refactored, back to Phase 2.
 
 ## Phase 4: Smoke Testing
 
 1. CLI: `just run extract --file <file>` on realistic input (indented HTML, office docs); read the output
 2. Examples: `just examples`
-3. Bindings changed: build them (`maturin develop` / `napi build`) and call the changed function
+3. Bindings or core changed: build them (`maturin develop` / `napi build`) and call the changed function
+4. Packaging changed (`Cargo.toml` metadata, features, included files): `just publish-dry-run`
+
+Issues found: fix, back to Phase 2.
 
 ## Phase 5: Quality Gates
 
@@ -79,7 +87,8 @@ git fetch origin main && git rebase origin/main
 just pre-pr
 ```
 
-Fix root causes; never bypass hooks or weaken tests/audit policy.
+- Resolve rebase conflicts, rerun affected checks; ask only when a conflict needs a user decision
+- Fix root causes; never bypass hooks or weaken tests/audit policy
 
 ## Phase 6: Push and PR
 
@@ -87,7 +96,7 @@ Fix root causes; never bypass hooks or weaken tests/audit policy.
 git push -u origin <branch>
 ```
 
-Create or update the PR:
+Existing PR for the branch: update title/body if needed. Otherwise create one:
 
 - **Title**: conventional commit style
 - **Body**: `.github/pull_request_template.md`; functional change and impact, not a file walkthrough
@@ -95,17 +104,29 @@ Create or update the PR:
 
 ## Phase 7: CI and Merge
 
-- Wait for CI with bounded checks; elapsed time alone is not a blocker
-- Failure: read logs, fix root cause, push, wait again
-- All required checks green and review threads resolved: squash-merge, confirm it merged
+- Wait for CI with bounded checks (`gh pr checks` or GitHub MCP); elapsed time alone is not a blocker
+- "Green" = every check on the PR passed: `ci.yml` aggregate `Check`, `coverage.yml`, and
+  `python.yml` / `js.yml` when path-triggered. Pending or cancelled is not green
+- Failure: read logs, fix root cause, push, wait again. Red on `main` too: fix it here or
+  in a prerequisite PR; never merge over it
+- All checks green and review threads resolved: squash-merge, confirm the PR state is merged.
+  Enabling auto-merge alone is not completion
 - **NEVER** merge red CI
 
-## Phase 8: Post-merge
+## Phase 8: Post-merge Verification
 
-Report the merged PR URL.
+Shipping ends on `main`, not at the merge button.
+
+1. Find the push-triggered runs for the squash commit on `main` (`ci.yml`, `coverage.yml`,
+   path-triggered `python.yml` / `js.yml`); wait until they finish
+2. Any red: fix forward immediately (new branch from `origin/main`, new PR, same flow); not shipped until green
+3. Report: merged PR URL, merge commit, `main` CI result, and whether `CHANGELOG.md`
+   Unreleased is ready for a release (`knowledge/operations/release-process.md`)
 
 ## Rules
 
 - Phases 2-4 are the quality core; never skip them
+- Not done until Phase 8 confirms `main` green
 - "Fix and ship": implement first, then ship
 - Partial issue coverage: `Part of #N`, not `Closes #N`
+- Ship ≠ release: don't tag or publish unless asked ("Create release v0.X.Y")

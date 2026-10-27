@@ -28,7 +28,7 @@ use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::format::Format;
-use crate::ir::{Document, Node, TableCell};
+use crate::ir::{Document, Node, Source, TableCell};
 use crate::render::escape_table_cell;
 
 pub(crate) struct SheetOutput {
@@ -228,24 +228,27 @@ fn fmt_ref(d: &DataRef<'_>) -> String {
 
 // ─── Grid collection (bounded) ──────────────────────────────────────
 
-/// Excel column letters for a 0-based index (`0` → `A`, `26` → `AA`).
-fn col_name(c: u32) -> String {
-    let mut n = u64::from(c) + 1;
-    let mut out = Vec::new();
-    while n > 0 {
-        n -= 1;
-        out.push(b'A' + (n % 26) as u8);
-        n /= 26;
-    }
-    out.reverse();
-    String::from_utf8(out).unwrap_or_default()
-}
-
 struct SheetTable {
+    /// A1 range of the rendered block (bounding box of kept rows/columns).
+    range: String,
     header: Vec<String>,
     rows: Vec<Vec<String>>,
     truncated_rows: bool,
     truncated_cols: bool,
+}
+
+/// Column letters for a 0-based column index (`0` -> `A`, `26` -> `AA`).
+fn col_name(mut col: u32) -> String {
+    let mut out = Vec::new();
+    loop {
+        out.push(b'A' + (col % 26) as u8);
+        if col < 26 {
+            break;
+        }
+        col = col / 26 - 1;
+    }
+    out.reverse();
+    String::from_utf8(out).expect("ASCII")
 }
 
 /// Sparse, capped cell store: keeps the first `max_rows + 1` non-empty rows
@@ -312,6 +315,15 @@ impl Grid {
         } else {
             span
         };
+        let first_row = *self.rows.keys().next()?;
+        let last_row = *self.rows.keys().next_back()?;
+        let range = format!(
+            "{}{}:{}{}",
+            col_name(min_col),
+            first_row as u64 + 1,
+            col_name(min_col + (width as u32 - 1)),
+            last_row as u64 + 1
+        );
         let mut rows = self.rows.into_values().map(|cells| {
             let mut row = vec![String::new(); width];
             for (c, v) in cells {
@@ -333,6 +345,7 @@ impl Grid {
             (first, rest)
         };
         Some(SheetTable {
+            range,
             header,
             rows,
             truncated_rows: self.truncated_rows,
@@ -388,6 +401,7 @@ impl<'c> Collector<'c> {
     fn push_sheet(&mut self, name: &str, grid: Grid) {
         let (max_rows, max_cols) = (grid.max_rows, grid.max_cols);
         let Some(SheetTable {
+            range,
             header,
             rows,
             truncated_rows: trunc_rows,
@@ -415,9 +429,12 @@ impl<'c> Collector<'c> {
                 vec![Node::Text(s)]
             })
         };
+        let track = self.config.track_sources;
+        let src = |range: Option<String>| track.then(|| Box::new(Source::sheet(name, range)));
         self.nodes.push(Node::Heading {
             level: 2,
             children: vec![Node::Text(name.replace(['\r', '\n'], " "))],
+            source: src(None),
         });
         self.nodes.push(Node::Table {
             alignments: Vec::new(),
@@ -426,6 +443,7 @@ impl<'c> Collector<'c> {
                 .into_iter()
                 .map(|r| r.into_iter().map(cell).collect())
                 .collect(),
+            source: src(Some(range)),
         });
     }
 
@@ -540,9 +558,7 @@ fn summary_title(d: &[u8]) -> Option<String> {
     let n = read_u32(d, at + 4)? as usize;
     let start = at + 8;
     let raw = match typ {
-        VT_LPWSTR => {
-            utf16le(d.get(start..start.checked_add(n.checked_mul(2)?)?)?)
-        }
+        VT_LPWSTR => utf16le(d.get(start..start.checked_add(n.checked_mul(2)?)?)?),
         VT_LPSTR => {
             let bytes = d.get(start..start.checked_add(n)?)?;
             match codepage {

@@ -50,7 +50,9 @@ impl MarkdownRenderer {
 
     fn render_node(&mut self, node: &Node, depth: usize) {
         match node {
-            Node::Heading { level, children } => {
+            Node::Heading {
+                level, children, ..
+            } => {
                 let prefix = "#".repeat(*level as usize);
                 self.buf.push_str(&prefix);
                 self.buf.push(' ');
@@ -60,7 +62,7 @@ impl MarkdownRenderer {
                 self.buf.push('\n');
             }
 
-            Node::Paragraph { children } => {
+            Node::Paragraph { children, .. } => {
                 let start = self.buf.len();
                 self.render_inline(children);
                 trim_trailing_inline(&mut self.buf, start);
@@ -71,11 +73,12 @@ impl MarkdownRenderer {
                 ordered,
                 start,
                 items,
+                ..
             } => {
                 self.render_list(*ordered, *start, items, depth);
             }
 
-            Node::BlockQuote { children } => {
+            Node::BlockQuote { children, .. } => {
                 let inner = {
                     let mut sub = MarkdownRenderer::new();
                     sub.render_nodes(children, depth);
@@ -92,7 +95,7 @@ impl MarkdownRenderer {
                 }
             }
 
-            Node::CodeBlock { language, code } => {
+            Node::CodeBlock { language, code, .. } => {
                 self.buf.push_str("```");
                 if let Some(lang) = language {
                     self.buf.push_str(lang);
@@ -109,6 +112,7 @@ impl MarkdownRenderer {
                 alignments,
                 headers,
                 rows,
+                ..
             } => {
                 self.render_table(alignments, headers, rows);
             }
@@ -117,9 +121,11 @@ impl MarkdownRenderer {
                 self.buf.push_str("---\n");
             }
 
-            Node::DefinitionList { items } => self.render_definition_list(items, depth),
+            Node::DefinitionList { items, .. } => self.render_definition_list(items, depth),
 
-            Node::Figure { children, caption } => {
+            Node::Figure {
+                children, caption, ..
+            } => {
                 self.render_nodes(children, depth);
                 if let Some(caption) = caption {
                     self.buf.push('\n');
@@ -132,7 +138,9 @@ impl MarkdownRenderer {
                 }
             }
 
-            Node::FootnoteDefinition { label, children } => {
+            Node::FootnoteDefinition {
+                label, children, ..
+            } => {
                 let inner = render_blocks(children, depth);
                 self.buf.push_str("[^");
                 self.buf.push_str(&footnote_label(label));
@@ -200,7 +208,7 @@ impl MarkdownRenderer {
                     if first {
                         first = false;
                         match child {
-                            Node::Paragraph { children } => {
+                            Node::Paragraph { children, .. } => {
                                 self.render_inline(children);
                                 self.buf.push('\n');
                             }
@@ -208,6 +216,7 @@ impl MarkdownRenderer {
                                 ordered: sub_ord,
                                 start: sub_start,
                                 items: sub_items,
+                                ..
                             } => {
                                 self.buf.push('\n');
                                 self.render_list(*sub_ord, *sub_start, sub_items, depth + 1);
@@ -226,6 +235,7 @@ impl MarkdownRenderer {
                                 ordered: sub_ord,
                                 start: sub_start,
                                 items: sub_items,
+                                ..
                             } => {
                                 self.render_list(*sub_ord, *sub_start, sub_items, depth + 1);
                             }

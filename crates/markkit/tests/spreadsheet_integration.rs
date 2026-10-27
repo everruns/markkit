@@ -391,3 +391,33 @@ fn xlsb_content_type_is_not_xlsx() {
     assert_eq!(Format::from_content_type(ct), Format::Xlsb);
     assert_eq!(Format::from_file_name("book.xlsb"), Format::Xlsb);
 }
+
+// ─── Provenance ──────────────────────────────────────────────────────
+
+#[test]
+fn xlsx_sources_record_sheet_and_range() {
+    let bytes = xlsx(&[Sheet::new(
+        "Data",
+        vec![
+            vec![Empty, Empty],
+            vec![Empty, S("h1"), S("h2")],
+            vec![Empty, S("a"), S("b")],
+        ],
+    )]);
+    let m = Markkit::builder().track_sources(true).build();
+    let p = m
+        .parse_document_sync(&bytes, DocumentHint::default())
+        .unwrap();
+    let nodes = &p.document.nodes;
+    let heading = nodes[0].source().unwrap();
+    assert_eq!(heading.sheet.as_deref(), Some("Data"));
+    assert_eq!(heading.range, None);
+    let table = nodes[1].source().unwrap();
+    assert_eq!(table.range.as_deref(), Some("B2:C3"));
+    // Off by default.
+    let p = Markkit::builder()
+        .build()
+        .parse_document_sync(&bytes, DocumentHint::default())
+        .unwrap();
+    assert!(p.document.nodes.iter().all(|n| n.source().is_none()));
+}
