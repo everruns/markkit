@@ -23,8 +23,12 @@ use std::collections::HashMap;
 use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
-use crate::ir::{Document, ListItem, Node, Source, TableCell};
+use crate::ir::{Document, Node, Source, TableCell};
 use crate::limits::Budget;
+use crate::ooxml::{
+    Fmt, ListEntry, Relationship, Seg, build_inline, build_list, is_blank, parse_rels, plain_text,
+    rel_target_by_type, resolve_target, split_dir, table_cell,
+};
 use crate::xml::{self, Element, XmlError};
 
 /// Result of parsing a DOCX package.
@@ -68,73 +72,6 @@ impl Parts<'_, '_> {
             None => Ok(None),
         }
     }
-}
-
-/// Resolve a relationship target relative to the directory of the source part.
-fn resolve_target(base_dir: &str, target: &str) -> String {
-    if let Some(abs) = target.strip_prefix('/') {
-        return abs.to_string();
-    }
-    let mut parts: Vec<&str> = base_dir.split('/').filter(|s| !s.is_empty()).collect();
-    for seg in target.split('/') {
-        match seg {
-            "" | "." => {}
-            ".." => {
-                parts.pop();
-            }
-            s => parts.push(s),
-        }
-    }
-    parts.join("/")
-}
-
-fn split_dir(path: &str) -> (&str, &str) {
-    match path.rsplit_once('/') {
-        Some((d, f)) => (d, f),
-        None => ("", path),
-    }
-}
-
-struct Relationship {
-    rel_type: String,
-    target: String,
-    external: bool,
-}
-
-fn parse_rels(root: Option<Element>) -> HashMap<String, Relationship> {
-    let mut map = HashMap::new();
-    let Some(root) = root else { return map };
-    let Some(rels) = root.child("Relationships") else {
-        return map;
-    };
-    for r in rels.elements().filter(|e| e.name == "Relationship") {
-        if let (Some(id), Some(target)) = (r.attr("Id"), r.attr("Target")) {
-            map.insert(
-                id.to_string(),
-                Relationship {
-                    rel_type: r.attr("Type").unwrap_or_default().to_string(),
-                    target: target.to_string(),
-                    external: r
-                        .attr("TargetMode")
-                        .is_some_and(|m| m.eq_ignore_ascii_case("External")),
-                },
-            );
-        }
-    }
-    map
-}
-
-fn rel_target_by_type<'a>(
-    rels: &'a HashMap<String, Relationship>,
-    suffix: &str,
-) -> Option<&'a str> {
-    // Deterministic choice if several match.
-    let mut matches: Vec<(&String, &Relationship)> = rels
-        .iter()
-        .filter(|(_, r)| r.rel_type.ends_with(suffix) && !r.external)
-        .collect();
-    matches.sort_by(|a, b| a.0.cmp(b.0));
-    matches.first().map(|(_, r)| r.target.as_str())
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────
@@ -326,32 +263,6 @@ impl Numbering {
 
 // ─── Inline content ─────────────────────────────────────────────────
 
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
-struct Fmt {
-    bold: bool,
-    italic: bool,
-    strike: bool,
-}
-
-enum Seg {
-    Text {
-        text: String,
-        fmt: Fmt,
-        link: Option<String>,
-    },
-    Break {
-        link: Option<String>,
-    },
-}
-
-impl Seg {
-    fn link(&self) -> Option<&str> {
-        match self {
-            Seg::Text { link, .. } | Seg::Break { link } => link.as_deref(),
-        }
-    }
-}
-
 fn toggle_on(el: Option<&Element>) -> bool {
     match el {
         None => false,
@@ -386,7 +297,7 @@ struct Ctx<'a> {
 
 impl Ctx<'_> {
     fn hyperlink_url(&self, el: &Element) -> Option<String> {
-        if let Some(rel) = el.attr("id").and_then(|id| self.rels.get(id)) {
+        if let Some(rel) = el.attr_prefixed("id").and_then(|id| self.rels.get(id)) {
             let mut url = rel.target.replace(' ', "%20");
             if let Some(anchor) = el.attr("anchor") {
                 url.push('#');
@@ -455,177 +366,7 @@ impl Ctx<'_> {
     }
 }
 
-/// Merge segments and turn them into IR inline nodes.
-fn build_inline(segs: Vec<Seg>) -> Vec<Node> {
-    // 1. Merge adjacent text with identical formatting and link.
-    let mut merged: Vec<Seg> = Vec::with_capacity(segs.len());
-    for seg in segs {
-        if let (
-            Some(Seg::Text {
-                text: prev,
-                fmt: pf,
-                link: pl,
-            }),
-            Seg::Text { text, fmt, link },
-        ) = (merged.last_mut(), &seg)
-            && pf == fmt
-            && pl == link
-        {
-            prev.push_str(text);
-            continue;
-        }
-        merged.push(seg);
-    }
-
-    // 2. Group by link.
-    let mut out: Vec<Node> = Vec::new();
-    let mut i = 0;
-    while i < merged.len() {
-        let link = merged[i].link().map(str::to_string);
-        let mut j = i;
-        while j < merged.len() && merged[j].link() == link.as_deref() {
-            j += 1;
-        }
-        let nodes = format_nodes(&merged[i..j]);
-        match link {
-            Some(url) if !is_blank(&nodes) => {
-                let (lead, core, trail) = split_ws_nodes(nodes);
-                out.extend(lead);
-                out.push(Node::Link {
-                    url,
-                    title: None,
-                    children: core,
-                });
-                out.extend(trail);
-            }
-            _ => out.extend(nodes),
-        }
-        i = j;
-    }
-    tidy_inline(out)
-}
-
-fn format_nodes(segs: &[Seg]) -> Vec<Node> {
-    let mut out = Vec::new();
-    for seg in segs {
-        match seg {
-            Seg::Break { .. } => out.push(Node::LineBreak),
-            Seg::Text { text, fmt, .. } => {
-                let core = text.trim();
-                if core.is_empty() || *fmt == Fmt::default() {
-                    out.push(Node::Text(text.clone()));
-                    continue;
-                }
-                let start = text.len() - text.trim_start().len();
-                let lead = &text[..start];
-                let trail = &text[start + core.len()..];
-                if !lead.is_empty() {
-                    out.push(Node::Text(lead.to_string()));
-                }
-                let mut node = Node::Text(core.to_string());
-                if fmt.strike {
-                    node = Node::Strikethrough {
-                        children: vec![node],
-                    };
-                }
-                if fmt.italic {
-                    node = Node::Italic {
-                        children: vec![node],
-                    };
-                }
-                if fmt.bold {
-                    node = Node::Bold {
-                        children: vec![node],
-                    };
-                }
-                out.push(node);
-                if !trail.is_empty() {
-                    out.push(Node::Text(trail.to_string()));
-                }
-            }
-        }
-    }
-    out
-}
-
-/// Split leading/trailing whitespace text out of a node list (for link text).
-fn split_ws_nodes(mut nodes: Vec<Node>) -> (Vec<Node>, Vec<Node>, Vec<Node>) {
-    let mut lead = Vec::new();
-    let mut trail = Vec::new();
-    if let Some(Node::Text(t)) = nodes.first_mut() {
-        let trimmed = t.trim_start().to_string();
-        if trimmed.len() != t.len() {
-            lead.push(Node::Text(t[..t.len() - trimmed.len()].to_string()));
-            *t = trimmed;
-        }
-    }
-    if let Some(Node::Text(t)) = nodes.last_mut() {
-        let trimmed = t.trim_end().to_string();
-        if trimmed.len() != t.len() {
-            trail.push(Node::Text(t[trimmed.len()..].to_string()));
-            *t = trimmed;
-        }
-    }
-    nodes.retain(|n| !matches!(n, Node::Text(t) if t.is_empty()));
-    (lead, nodes, trail)
-}
-
-/// Merge adjacent text nodes and strip leading/trailing line breaks.
-fn tidy_inline(nodes: Vec<Node>) -> Vec<Node> {
-    let mut out: Vec<Node> = Vec::with_capacity(nodes.len());
-    for n in nodes {
-        match (out.last_mut(), n) {
-            (Some(Node::Text(prev)), Node::Text(t)) => prev.push_str(&t),
-            (_, Node::Text(t)) if t.is_empty() => {}
-            (_, n) => out.push(n),
-        }
-    }
-    while matches!(out.first(), Some(Node::LineBreak)) {
-        out.remove(0);
-    }
-    while matches!(out.last(), Some(Node::LineBreak)) {
-        out.pop();
-    }
-    out
-}
-
-fn is_blank(nodes: &[Node]) -> bool {
-    nodes.iter().all(|n| match n {
-        Node::Text(t) => t.trim().is_empty(),
-        Node::LineBreak => true,
-        Node::Bold { children }
-        | Node::Italic { children }
-        | Node::Strikethrough { children }
-        | Node::Link { children, .. } => is_blank(children),
-        _ => false,
-    })
-}
-
-fn plain_text(nodes: &[Node], out: &mut String) {
-    for n in nodes {
-        match n {
-            Node::Text(t) | Node::InlineCode(t) => out.push_str(t),
-            Node::LineBreak => out.push(' '),
-            Node::Bold { children }
-            | Node::Italic { children }
-            | Node::Strikethrough { children }
-            | Node::Link { children, .. }
-            | Node::Heading { children, .. }
-            | Node::Paragraph { children, .. } => plain_text(children, out),
-            _ => {}
-        }
-    }
-}
-
 // ─── Block content ──────────────────────────────────────────────────
-
-struct ListEntry {
-    level: u32,
-    ordered: bool,
-    start: Option<u64>,
-    content: Vec<Node>,
-    index: usize,
-}
 
 #[derive(Default)]
 struct Body {
@@ -661,43 +402,6 @@ impl Body {
             node.set_source(Source::index(index));
         }
         self.blocks.push(node);
-    }
-}
-
-/// Build a (nested) list starting at `entries[*pos]` for `level`.
-fn build_list(entries: &[ListEntry], pos: &mut usize, level: u32) -> Node {
-    let first = &entries[*pos];
-    let ordered = first.ordered;
-    let start = if ordered {
-        first.start.filter(|&s| s != 1)
-    } else {
-        None
-    };
-    let mut items: Vec<ListItem> = Vec::new();
-    while *pos < entries.len() {
-        let e = &entries[*pos];
-        if e.level < level || (e.level == level && e.ordered != ordered) {
-            break;
-        }
-        if e.level > level {
-            let sub = build_list(entries, pos, e.level);
-            match items.last_mut() {
-                Some(last) => last.children.push(sub),
-                None => items.push(ListItem::new(vec![sub])),
-            }
-            continue;
-        }
-        items.push(ListItem::new(vec![Node::Paragraph {
-            children: e.content.clone(),
-            source: None,
-        }]));
-        *pos += 1;
-    }
-    Node::List {
-        ordered,
-        start,
-        items,
-        source: None,
     }
 }
 
@@ -890,35 +594,6 @@ impl Ctx<'_> {
             source: None,
         })
     }
-}
-
-/// Make cell content single-line: hard breaks become spaces (the renderer escapes pipes).
-fn table_cell(nodes: Vec<Node>) -> Vec<Node> {
-    fn fix(n: Node) -> Node {
-        match n {
-            Node::LineBreak => Node::Text(" ".into()),
-            Node::Bold { children } => Node::Bold {
-                children: children.into_iter().map(fix).collect(),
-            },
-            Node::Italic { children } => Node::Italic {
-                children: children.into_iter().map(fix).collect(),
-            },
-            Node::Strikethrough { children } => Node::Strikethrough {
-                children: children.into_iter().map(fix).collect(),
-            },
-            Node::Link {
-                url,
-                title,
-                children,
-            } => Node::Link {
-                url,
-                title,
-                children: children.into_iter().map(fix).collect(),
-            },
-            other => other,
-        }
-    }
-    tidy_inline(nodes.into_iter().map(fix).collect())
 }
 
 // ─── Entry point ────────────────────────────────────────────────────

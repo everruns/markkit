@@ -1,7 +1,7 @@
 //! Security tests for office-document parsing: zip bombs, resource caps,
 //! malformed input, XML entity tricks, oversized spreadsheet grids.
 
-#![cfg(any(feature = "docx", feature = "spreadsheet"))]
+#![cfg(any(feature = "docx", feature = "pptx", feature = "spreadsheet"))]
 
 mod common;
 
@@ -25,6 +25,7 @@ fn hints() -> Vec<DocumentHint<'static>> {
         DocumentHint::content_type("application/vnd.ms-excel"),
         DocumentHint::content_type("application/vnd.oasis.opendocument.spreadsheet"),
         DocumentHint::content_type("application/vnd.ms-excel.sheet.binary.macroEnabled.12"),
+        DocumentHint::content_type(PPTX_CT),
     ]
 }
 
@@ -470,6 +471,75 @@ fn docx_billion_laughs_not_expanded() {
     }
 }
 
+#[cfg(feature = "pptx")]
+#[test]
+fn pptx_zip_bomb_slide_rejected() {
+    let mut text = String::from("x");
+    text.push_str(&" ".repeat(8 * 1024 * 1024));
+    let bytes = pptx(&[PSlide::new(p_shape(None, &a_para(&text)))]);
+    assert!(bytes.len() < 256 * 1024);
+    let m = Markkit::builder()
+        .max_archive_entry_size(1024 * 1024)
+        .build();
+    let err = run(&m, &bytes, PPTX_CT).unwrap_err();
+    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+}
+
+#[cfg(feature = "pptx")]
+#[test]
+fn pptx_repeated_slide_references_bounded_by_total_size() {
+    // 2000 slide ids all point at one 64 KiB slide: re-reading it must count
+    // against the total decompressed budget.
+    let big = p_shape(None, &a_para(&"y".repeat(64 * 1024)));
+    let base = pptx(&[PSlide::new(big)]);
+    let ids: String = (0..2000)
+        .map(|i| format!(r#"<p:sldId id="{}" r:id="rId1"/>"#, 256 + i))
+        .collect();
+    let pres = format!(
+        r#"<p:presentation xmlns:p="p" xmlns:r="r"><p:sldIdLst>{ids}</p:sldIdLst></p:presentation>"#
+    );
+    let bytes = rezip(
+        &base,
+        &["ppt/presentation.xml"],
+        &[("ppt/presentation.xml", pres.as_bytes())],
+    );
+    let m = Markkit::builder()
+        .max_archive_total_size(16 * 1024 * 1024)
+        .build();
+    let err = run(&m, &bytes, PPTX_CT).unwrap_err();
+    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+}
+
+#[cfg(feature = "pptx")]
+#[test]
+fn pptx_billion_laughs_and_deep_groups() {
+    let laughs = r#"<?xml version="1.0"?><!DOCTYPE l [<!ENTITY a "aaaaaaaaaa"><!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;"><!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;&b;&b;">]><p:sld xmlns:p="p" xmlns:a="a"><p:cSld><p:spTree><p:sp><p:txBody><a:p><a:r><a:t>&c;safe</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>"#;
+    let base = pptx(&[PSlide::new(String::new())]);
+    let bytes = rezip(
+        &base,
+        &["ppt/slides/slide1.xml"],
+        &[("ppt/slides/slide1.xml", laughs.as_bytes())],
+    );
+    let e = run(&Markkit::builder().build(), &bytes, PPTX_CT).unwrap();
+    assert!(e.markdown.contains("safe"));
+    assert!(
+        !e.markdown.contains("aaaaaaaaaaaaaaaaaaaa"),
+        "{}",
+        e.markdown
+    );
+
+    // Group shapes nested past the XML depth cap fail cleanly, no stack overflow.
+    let deep = format!(
+        "{}{}{}",
+        "<p:grpSp>".repeat(10_000),
+        p_shape(None, &a_para("deep")),
+        "</p:grpSp>".repeat(10_000)
+    );
+    let bytes = pptx(&[PSlide::new(deep)]);
+    let err = run(&Markkit::builder().build(), &bytes, PPTX_CT).unwrap_err();
+    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+}
+
 #[cfg(feature = "docx")]
 #[test]
 fn docx_external_entity_not_resolved() {
@@ -543,6 +613,21 @@ fn valid_fixtures() -> Vec<Vec<u8>> {
         title: Some("t"),
         ..Default::default()
     }));
+    #[cfg(feature = "pptx")]
+    {
+        let mut slide = PSlide::new(
+            p_shape(Some("title"), &a_para("T")) + &p_shape(Some(""), &a_para("bullet")),
+        );
+        slide.notes = Some("note");
+        v.push(pptx(&[slide]));
+        v.push(
+            std::fs::read(format!(
+                "{}/tests/fixtures/pptx/deck.pptx",
+                env!("CARGO_MANIFEST_DIR")
+            ))
+            .unwrap(),
+        );
+    }
     #[cfg(feature = "spreadsheet")]
     {
         v.push(xlsx(&[Sheet::new(
@@ -649,7 +734,7 @@ proptest! {
     /// Byte flips in valid documents never panic.
     #[test]
     fn mutated_fixtures_never_panic(
-        idx in 0usize..9,
+        idx in 0usize..11,
         flips in proptest::collection::vec((any::<prop::sample::Index>(), any::<u8>()), 1..16),
     ) {
         let fixtures = valid_fixtures();

@@ -28,8 +28,10 @@ pub enum Format {
     Xls,
     /// OpenDocument spreadsheet (`.ods`).
     Ods,
-    /// Office Open XML presentation (`.pptx`). Detected but not supported.
+    /// Office Open XML presentation (`.pptx`, `.pptm`, `.ppsx`, `.potx`).
     Pptx,
+    /// Legacy PowerPoint 97-2003 binary (`.ppt`). Detected but not supported.
+    Ppt,
     /// Comma (or `;` / `|`) separated values (`.csv`).
     Csv,
     /// Tab separated values (`.tsv`, `.tab`).
@@ -89,6 +91,7 @@ impl Format {
             Format::Xls => "xls",
             Format::Ods => "ods",
             Format::Pptx => "pptx",
+            Format::Ppt => "ppt",
             Format::Csv => "csv",
             Format::Tsv => "tsv",
             Format::PlainText => "text",
@@ -117,8 +120,11 @@ impl Format {
             Format::Xls
         } else if ct.contains("opendocument.spreadsheet") {
             Format::Ods
-        } else if ct.contains("presentationml") || ct.contains("ms-powerpoint") {
+        } else if ct.contains("presentationml") || ct.contains("ms-powerpoint.") {
+            // `ms-powerpoint.presentation.macroEnabled.12` & co. are OOXML.
             Format::Pptx
+        } else if ct.contains("ms-powerpoint") {
+            Format::Ppt
         } else if ct.contains("tab-separated-values") {
             Format::Tsv
         } else if ct.contains("text/csv") || ct.contains("application/csv") {
@@ -143,7 +149,8 @@ impl Format {
             "xlsb" => Format::Xlsb,
             "xls" | "xlt" => Format::Xls,
             "ods" => Format::Ods,
-            "pptx" | "pptm" | "ppt" => Format::Pptx,
+            "pptx" | "pptm" | "ppsx" | "ppsm" | "potx" | "potm" => Format::Pptx,
+            "ppt" | "pps" | "pot" => Format::Ppt,
             "csv" => Format::Csv,
             "tsv" | "tab" => Format::Tsv,
             "txt" | "text" => Format::PlainText,
@@ -232,6 +239,8 @@ fn sniff_ole2(bytes: &[u8]) -> Format {
     let utf16 = |s: &str| -> Vec<u8> { s.encode_utf16().flat_map(u16::to_le_bytes).collect() };
     if contains(bytes, &utf16("WordDocument")) {
         Format::Doc
+    } else if contains(bytes, &utf16("PowerPoint Document")) {
+        Format::Ppt
     } else if contains(bytes, &utf16("Workbook")) || contains(bytes, &utf16("Book")) {
         Format::Xls
     } else {
@@ -297,6 +306,20 @@ mod tests {
         assert_eq!(
             Format::from_content_type("application/vnd.ms-excel"),
             Format::Xls
+        );
+        assert_eq!(
+            Format::from_content_type(
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            ),
+            Format::Pptx
+        );
+        assert_eq!(
+            Format::from_content_type("application/vnd.ms-powerpoint.presentation.macroEnabled.12"),
+            Format::Pptx
+        );
+        assert_eq!(
+            Format::from_content_type("application/vnd.ms-powerpoint"),
+            Format::Ppt
         );
     }
 

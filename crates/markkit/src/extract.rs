@@ -117,6 +117,7 @@ impl ParsedDocument {
     #[cfg(any(
         feature = "html",
         feature = "docx",
+        feature = "pptx",
         feature = "spreadsheet",
         feature = "pdf",
         feature = "markdown"
@@ -232,7 +233,7 @@ impl Markkit {
         .map(|e| e.markdown)
     }
 
-    /// Convert a document (HTML, PDF, DOCX, XLSX/XLSB/XLS/ODS, plain text, Markdown, CSV/TSV)
+    /// Convert a document (HTML, PDF, DOCX, PPTX, XLSX/XLSB/XLS/ODS, plain text, Markdown, CSV/TSV)
     /// to Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
@@ -269,6 +270,7 @@ impl Markkit {
         #[cfg(any(
             feature = "html",
             feature = "docx",
+            feature = "pptx",
             feature = "spreadsheet",
             feature = "pdf",
             feature = "markdown"
@@ -279,6 +281,7 @@ impl Markkit {
         #[cfg(not(any(
             feature = "html",
             feature = "docx",
+            feature = "pptx",
             feature = "spreadsheet",
             feature = "pdf",
             feature = "markdown"
@@ -286,7 +289,7 @@ impl Markkit {
         Ok(parsed.render())
     }
 
-    /// Parse a document (HTML, DOCX, XLSX/XLS/ODS, plain text, Markdown) into the IR without
+    /// Parse a document (HTML, PDF, DOCX, PPTX, XLSX/XLSB/XLS/ODS, plain text, Markdown) into the IR without
     /// rendering. Same detection and errors as [`Markkit::extract_document`].
     pub async fn parse_document(
         &self,
@@ -331,8 +334,9 @@ impl Markkit {
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
-            Format::Pptx => Err(Error::UnsupportedFormat(
-                "presentations (.pptx) are not supported".into(),
+            Format::Pptx => self.parse_pptx(bytes, budget),
+            Format::Ppt => Err(Error::UnsupportedFormat(
+                "legacy PowerPoint 97-2003 (.ppt) presentations are not supported".into(),
             )),
             other => Err(Error::UnsupportedFormat(match hint.content_type {
                 Some(ct) => format!("{ct} ({other})"),
@@ -441,6 +445,28 @@ impl Markkit {
     fn parse_docx(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
         Err(Error::UnsupportedFormat(
             "DOCX support requires the 'docx' feature".to_string(),
+        ))
+    }
+
+    #[cfg(feature = "pptx")]
+    fn parse_pptx(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
+        let out = guarded("PPTX", Error::PptxExtract, || {
+            crate::pptx::parse(bytes, &self.config, budget)
+        })?;
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, Format::Pptx);
+        p.title = out.title;
+        p.warnings = out.warnings;
+        p.stats.pages = Some(out.slides);
+        p.stats.tables = Some(out.tables);
+        Ok(p)
+    }
+
+    #[cfg(not(feature = "pptx"))]
+    fn parse_pptx(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
+        Err(Error::UnsupportedFormat(
+            "PPTX support requires the 'pptx' feature".to_string(),
         ))
     }
 

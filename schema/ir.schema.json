@@ -675,7 +675,7 @@
           ]
         },
         "page": {
-          "description": "Paged formats: 1-based page number.",
+          "description": "Paged formats: 1-based page number (PPTX: slide number).",
           "format": "uint32",
           "minimum": 0,
           "type": [

@@ -9,11 +9,11 @@ Add markkit to your `Cargo.toml`:
 markkit = "0.1"
 ```
 
-For PDF, DOCX and spreadsheets:
+For PDF, DOCX, PPTX and spreadsheets:
 
 ```toml
 [dependencies]
-markkit = { version = "0.1", features = ["pdf", "docx", "spreadsheet"] }
+markkit = { version = "0.1", features = ["pdf", "docx", "pptx", "spreadsheet"] }
 ```
 
 ## Basic Usage

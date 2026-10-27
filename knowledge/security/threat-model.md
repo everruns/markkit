@@ -234,7 +234,7 @@ the proxy, or use `allow_host`.
 - `html_security::very_long_text_node` (100KB text node)
 - `html_proptest::no_panic_on_arbitrary_input`
 
-### T6: Malicious Office Documents (DOCX / XLSX / XLSB / XLS / ODS)
+### T6: Malicious Office Documents (DOCX / PPTX / XLSX / XLSB / XLS / ODS)
 
 **Description**: Crafted containers aimed at exhausting memory/CPU, crashing the
 process, or smuggling content past a human reviewer.
@@ -285,6 +285,10 @@ process, or smuggling content past a human reviewer.
   and XF indexes by lookup. Malformed cell records are skipped; a truncated part fails that
   sheet with `sheet_error`. Cells stream into the capped grid, so `BrtWsDim` claims never
   allocate. Proptests drive the reader directly, outside `catch_unwind`.
+- PPTX reuses the DOCX stack: every part through `ZipGuard`, depth-capped XML tree, entities
+  never expanded. Each slide reference re-reads its part through the same guard, so a
+  presentation listing one slide thousands of times is bounded by `max_archive_total_size`.
+  Group shapes recurse only as deep as the XML tree (256).
 - XLS `SummaryInformation` title parsing is bounds-checked (1 MiB stream cap, checked
   offsets, 1024-property cap); failures yield no title, never an error.
 
@@ -298,6 +302,7 @@ process, or smuggling content past a human reviewer.
 #### T6e: Macros and hidden content
 - No code execution: VBA projects and XLM macro sheets are never read or rendered;
   formulas are not evaluated (cached values only).
+- Hidden PPTX slides skipped by default (`hidden_slide_skipped`), same rationale as sheets.
 - Hidden / very hidden sheets skipped by default (`hidden_sheet_skipped` warning) since
   invisible content is a prompt-injection vector. DOCX deleted revisions and field
   instructions are dropped.
@@ -323,6 +328,8 @@ process, or smuggling content past a human reviewer.
   `spreadsheet_integration::xlsx_malformed_core_properties_do_not_fail_extraction`
 - `truncated_fixtures_never_panic`, `random_bytes_never_panic`,
   `random_container_bytes_never_panic`, `mutated_fixtures_never_panic`
+- `pptx_zip_bomb_slide_rejected`, `pptx_repeated_slide_references_bounded_by_total_size`,
+  `pptx_billion_laughs_and_deep_groups`, `pptx_integration::hidden_slides_skipped_by_default`
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
   `spreadsheet_integration::xlsm_with_vba_project_extracts_values_only`
 
