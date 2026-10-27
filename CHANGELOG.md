@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   UTF-8/UTF-16 BOM decoding, control characters dropped, `invalid_utf8` warning on lossy decode.
 - Markdown input (`markdown` feature, in `all_formats`; `text/markdown`, `.md`): re-parsed with
   pulldown-cmark and rendered back, so raw HTML never passes through. Front matter `title:` or the
-  first `# ` heading becomes `Extraction::title`. Available in the CLI, Python and Node bindings.
+  first `# ` heading becomes `Extraction::title`. Available in the CLI, Python, Node and WASM packages; `format` serializes as
+  `"text"` and `"markdown"`.
 - HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
   `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
   canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and
@@ -32,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   toolkit-library contract (builder, OpenAI tool definition, input/output schemas, `tower::Service`,
   single-use `ToolExecution`, `en-US`/`uk-UA` text). One call converts a `url`, `html` or base64
   document to Markdown, with output capped by `max_output_chars`. Example: `examples/agent_tool.rs`.
+- `@everruns/markkit-wasm`: browser / edge WebAssembly package (`crates/markkit-wasm`), single-threaded,
+  no special headers. `Markkit` class (HTML, DOCX, XLSX/XLS/ODS with validated camelCase options) and
+  `MarkkitTool`. Built by `crates/markkit-wasm/scripts/build.sh`, published by `publish-wasm.yml`.
 - `Markkit::extract_url_document`: `extract_url` with format, title, warnings and stats.
 
 ### Security

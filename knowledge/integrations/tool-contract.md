@@ -12,7 +12,7 @@ tags:
 # Tool Contract
 
 ## Status
-Implemented (Rust core, `tool` feature). Bindings, WASM and an MCP server are not wired yet.
+Implemented (Rust core, `tool` feature) and exposed in the [WASM Package](../runtimes/wasm-package.md) as `MarkkitTool` (no `url` source there). Python/Node bindings and an MCP server are not wired yet.
 
 ## Summary
 

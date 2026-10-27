@@ -1,0 +1,4 @@
+# wasm-bindgen build output (scripts/build.sh)
+/pkg/
+node_modules/
+*.tgz

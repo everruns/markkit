@@ -30,6 +30,8 @@ pub enum Format {
     Pptx,
     Csv,
     /// Plain text (`text/plain`, `.txt`). Never sniffed from bytes.
+    /// Serialized as `"text"`, same as `as_str`.
+    #[serde(rename = "text")]
     PlainText,
     /// Markdown (`text/markdown`, `.md`), passed through normalized.
     Markdown,
@@ -238,6 +240,28 @@ fn looks_like_html(bytes: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn serde_name_matches_as_str() {
+        for f in [
+            Format::Html,
+            Format::Pdf,
+            Format::Docx,
+            Format::Doc,
+            Format::Xlsx,
+            Format::Xls,
+            Format::Ods,
+            Format::Pptx,
+            Format::Csv,
+            Format::PlainText,
+            Format::Markdown,
+            Format::Unknown,
+        ] {
+            let json = serde_json::to_string(&f).unwrap();
+            assert_eq!(json, format!("\"{}\"", f.as_str()));
+            assert_eq!(serde_json::from_str::<Format>(&json).unwrap(), f);
+        }
+    }
 
     #[test]
     fn test_content_type_detection() {
