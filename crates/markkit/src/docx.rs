@@ -30,6 +30,7 @@ use crate::xml::{self, Element, XmlError};
 /// Result of parsing a DOCX package.
 pub(crate) struct DocxOutput {
     pub doc: Document,
+    pub warnings: Vec<String>,
     pub title: Option<String>,
     pub paragraphs: usize,
     pub tables: usize,
@@ -377,6 +378,10 @@ struct Ctx<'a> {
     styles: &'a Styles,
     numbering: &'a Numbering,
     budget: &'a Budget,
+    /// Render `w:vanish` runs (threat model T9).
+    include_hidden: bool,
+    /// Hidden runs skipped so far.
+    hidden_runs: std::cell::Cell<usize>,
 }
 
 impl Ctx<'_> {
@@ -415,7 +420,12 @@ impl Ctx<'_> {
     }
 
     fn run_segs(&self, run: &Element, link: Option<&str>, segs: &mut Vec<Seg>) {
-        let fmt = run_fmt(run.child("rPr"));
+        let rpr = run.child("rPr");
+        if !self.include_hidden && toggle_on(rpr.and_then(|r| r.child("vanish"))) {
+            self.hidden_runs.set(self.hidden_runs.get() + 1);
+            return;
+        }
+        let fmt = run_fmt(rpr);
         let link = link.map(str::to_string);
         let push_text = |segs: &mut Vec<Seg>, t: String| {
             segs.push(Seg::Text {
@@ -966,6 +976,8 @@ pub(crate) fn parse(
         styles: &styles,
         numbering: &numbering,
         budget,
+        include_hidden: config.include_hidden_content,
+        hidden_runs: std::cell::Cell::new(0),
     };
     let mut body = Body {
         track: config.track_sources,
@@ -980,6 +992,12 @@ pub(crate) fn parse(
         paragraphs: body.paragraphs,
         tables: body.tables,
         doc: Document::new(body.blocks),
+        warnings: match ctx.hidden_runs.get() {
+            0 => Vec::new(),
+            n => vec![format!(
+                "hidden_content_skipped: {n} hidden text run(s) skipped"
+            )],
+        },
     })
 }
 

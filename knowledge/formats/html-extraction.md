@@ -155,6 +155,14 @@ are skipped entirely (no children processed).
 Note: `script`, `style`, `noscript` are also in the non-content element list in the parser,
 providing defense-in-depth.
 
+## Hidden Content
+
+Elements a reader never sees are skipped by default (threat model T9): `hidden`
+(except `until-found`), `aria-hidden="true"`, inline `display:none`,
+`visibility:hidden|collapse`, `opacity:0`, `font-size:0`, and `<template>`.
+`include_hidden_content(true)` renders them. Exclude selectors and the hidden check
+also apply to `<li>`, `<tr>`, `<th>` and `<td>`; an excluded cell renders empty.
+
 ## Content Extraction Strategies
 
 - **CSS selectors** (implemented): include/exclude selectors, with the defaults below

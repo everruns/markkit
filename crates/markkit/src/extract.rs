@@ -391,6 +391,7 @@ impl Markkit {
         self.config.transforms.apply(&mut doc)?;
         let mut p = ParsedDocument::new(doc, Format::Docx);
         p.title = out.title;
+        p.warnings = out.warnings;
         p.stats.paragraphs = Some(out.paragraphs);
         p.stats.tables = Some(out.tables);
         Ok(p)

@@ -76,7 +76,7 @@ only the Markdown. Parsing is CPU-bound; async callers should use the sync varia
 `spawn_blocking`.
 
 Warning codes: `truncated_sheet`, `hidden_sheet_skipped`, `sheet_error`, `truncated_pdf`,
-`pdf_unmapped_font`, `pdf_no_text`, `invalid_utf8`.
+`pdf_unmapped_font`, `pdf_no_text`, `invalid_utf8`, `hidden_content_skipped`.
 
 ## Format Detection
 
@@ -113,6 +113,7 @@ mislabelled as another Excel type still parses.
 | `w:br` / `w:cr` | Hard line break (page/column breaks ignored); `w:tab` → space |
 | `w:ins`, `w:sdt`, `w:smartTag`, `w:customXml`, `w:fldSimple` | Unwrapped |
 | `w:del`, `w:instrText`, drawings/text boxes, comments, headers/footers, footnotes | Skipped |
+| Runs with direct `w:vanish` (hidden text) | Skipped with `hidden_content_skipped` unless `include_hidden_content(true)` |
 
 The main part is located through `_rels/.rels` (fallback `word/document.xml`); styles and
 numbering through the main part's relationships.

@@ -39,6 +39,45 @@ use url::Url;
 use super::metadata::PageInfo;
 use super::{readability, urls};
 
+/// Hidden-content policy (threat model T9): an element a reader never sees is
+/// skipped unless `include_hidden_content(true)`. Only signals on the element
+/// itself count (`hidden`, `aria-hidden="true"`, inline `style`); stylesheet and
+/// class-based hiding (`.sr-only`, off-screen positioning) is not detected.
+fn is_hidden(el: &scraper::node::Element) -> bool {
+    if el
+        .attr("hidden")
+        .is_some_and(|v| !v.eq_ignore_ascii_case("until-found"))
+    {
+        return true;
+    }
+    if el
+        .attr("aria-hidden")
+        .is_some_and(|v| v.trim().eq_ignore_ascii_case("true"))
+    {
+        return true;
+    }
+    let Some(style) = el.attr("style") else {
+        return false;
+    };
+    style.split(';').any(|decl| {
+        let Some((prop, value)) = decl.split_once(':') else {
+            return false;
+        };
+        let prop = prop.trim().to_ascii_lowercase();
+        let value = value.to_ascii_lowercase();
+        let value = value.trim().trim_end_matches("!important").trim();
+        match prop.as_str() {
+            "display" => value == "none",
+            "visibility" => value == "hidden" || value == "collapse",
+            "opacity" | "font-size" => {
+                let num = value.trim_end_matches(|c: char| c.is_ascii_alphabetic() || c == '%');
+                num.parse::<f64>().is_ok_and(|n| n == 0.0)
+            }
+            _ => false,
+        }
+    })
+}
+
 /// Outcome of a matching element rule.
 enum RuleHit {
     Skip,
@@ -271,6 +310,7 @@ impl<'a> HtmlParser<'a> {
     fn is_excluded(&self, el: &scraper::ElementRef<'_>, exclude: &[Selector]) -> bool {
         exclude.iter().any(|sel| sel.matches(el))
             || (self.drop_unlikely.get() && readability::is_unlikely(*el))
+            || (!self.config.include_hidden_content && is_hidden(el.value()))
     }
 
     fn convert_children(
@@ -569,9 +609,9 @@ impl<'a> HtmlParser<'a> {
             "hr" => Some(Node::ThematicBreak),
 
             // Skip non-content elements
-            "script" | "style" | "noscript" | "iframe" | "object" | "embed" | "form" | "input"
-            | "button" | "select" | "textarea" | "svg" | "canvas" | "video" | "audio"
-            | "source" | "track" | "map" | "area" => None,
+            "script" | "style" | "noscript" | "template" | "iframe" | "object" | "embed"
+            | "form" | "input" | "button" | "select" | "textarea" | "svg" | "canvas" | "video"
+            | "audio" | "source" | "track" | "map" | "area" => None,
 
             // Unknown element: try to extract inline content
             _ => {
@@ -967,6 +1007,7 @@ impl<'a> HtmlParser<'a> {
         for child in list_el.children() {
             if let Some(el) = scraper::ElementRef::wrap(child)
                 && el.value().name() == "li"
+                && !self.is_excluded(&el, exclude)
             {
                 let mut children = Vec::new();
                 self.convert_children(el, exclude, &mut children, depth + 1);
@@ -1026,6 +1067,9 @@ impl<'a> HtmlParser<'a> {
             };
 
         for tr in body_rows {
+            if self.is_excluded(&tr, exclude) {
+                continue;
+            }
             let row = row_cells(tr, &["td", "th"]);
             // A leading all-<th> row is the header.
             if headers.is_empty()
@@ -1080,7 +1124,14 @@ impl<'a> HtmlParser<'a> {
                 n.min(MAX_ROWSPAN)
             }
         });
-        TableCell::new(self.collect_inline(cell, exclude, depth + 1)).with_span(colspan, rowspan)
+        // An excluded or hidden cell stays as an empty cell so columns keep
+        // their alignment.
+        let children = if self.is_excluded(&cell, exclude) {
+            Vec::new()
+        } else {
+            self.collect_inline(cell, exclude, depth + 1)
+        };
+        TableCell::new(children).with_span(colspan, rowspan)
     }
 }
 

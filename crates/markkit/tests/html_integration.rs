@@ -364,6 +364,18 @@ fn include_selector() {
 }
 
 #[test]
+fn exclude_selector_applies_to_list_items_and_table_parts() {
+    let html = r#"<ul><li class="ad">AD</li><li>keep</li></ul>
+<table><tr><th>h1</th><th>h2</th></tr><tr class="ad"><td>AD</td><td>AD</td></tr>
+<tr><td class="ad">AD</td><td>cell</td></tr></table>"#;
+    let md = convert_with(html, |b| b.exclude_selector(".ad"));
+    assert!(!md.contains("AD"), "{md}");
+    assert!(md.contains("- keep"), "{md}");
+    // Excluded cell stays as an empty cell so columns keep alignment.
+    assert!(md.contains("|  | cell |"), "{md}");
+}
+
+#[test]
 fn exclude_selector_custom() {
     let html = r#"<p>Keep this</p><div class="ad">Buy stuff</div><p>And this</p>"#;
     let md = convert_with(html, |b| b.exclude_selector(".ad"));

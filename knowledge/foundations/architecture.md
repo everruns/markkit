@@ -68,6 +68,7 @@ Via `MarkkitBuilder`:
 - CSS selectors for include/exclude
 - Link and image preservation
 - Office-document limits (archive entries/sizes, sheet rows/cols, grid cells, hidden sheets)
+- Hidden content (`include_hidden_content`, default off): HTML hidden elements, DOCX hidden runs
 - URL fetch policy (`allow_private_networks`, `allow_host`, `max_redirects`)
 - Base URL for relative links, images and metadata URLs (`base_url`)
 - Provenance (`track_sources`): per-block `Source` in the IR (off by default)
