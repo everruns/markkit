@@ -102,7 +102,7 @@ pub struct Warning {
 pub struct Extraction {
     pub markdown: String,
     pub title: Option<String>,
-    /// Detected format (`html`, `docx`, `pptx`, `xlsx`, `xlsb`, `xls`, `ods`, `text`, `markdown`, `csv`, `tsv`, `ipynb`, `eml`).
+    /// Detected format (`html`, `docx`, `pptx`, `xlsx`, `xlsb`, `xls`, `ods`, `text`, `markdown`, `csv`, `tsv`, `ipynb`, `eml`, `odt`).
     pub format: String,
     pub warnings: Vec<Warning>,
     pub stats: ExtractionStats,

@@ -113,6 +113,7 @@ impl Element {
     }
 
     /// `val` attribute of the named child (common OOXML property pattern).
+    #[cfg_attr(not(feature = "docx"), allow(dead_code))]
     pub fn child_val(&self, local: &str) -> Option<&str> {
         self.child(local).and_then(|c| c.attr("val"))
     }

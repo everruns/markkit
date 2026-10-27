@@ -20,6 +20,8 @@ pub enum Format {
     Docx,
     /// Legacy Word 97-2003 binary (`.doc`). Detected but not supported.
     Doc,
+    /// OpenDocument text (`.odt`, `.ott`).
+    Odt,
     /// Office Open XML spreadsheet (`.xlsx`, `.xlsm`, `.xltx`).
     Xlsx,
     /// Excel binary workbook (`.xlsb`).
@@ -82,6 +84,7 @@ impl<'a> DocumentHint<'a> {
 
 const OLE2_MAGIC: &[u8] = b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
 const ODS_MIMETYPE: &[u8] = b"mimetypeapplication/vnd.oasis.opendocument.spreadsheet";
+const ODT_MIMETYPE: &[u8] = b"mimetypeapplication/vnd.oasis.opendocument.text";
 
 impl Format {
     /// Short lowercase name (`"docx"`, `"xlsx"`, …).
@@ -91,6 +94,7 @@ impl Format {
             Format::Pdf => "pdf",
             Format::Docx => "docx",
             Format::Doc => "doc",
+            Format::Odt => "odt",
             Format::Xlsx => "xlsx",
             Format::Xlsb => "xlsb",
             Format::Xls => "xls",
@@ -125,6 +129,8 @@ impl Format {
             Format::Xlsx
         } else if ct.contains("ms-excel") {
             Format::Xls
+        } else if ct.contains("opendocument.text") {
+            Format::Odt
         } else if ct.contains("opendocument.spreadsheet") {
             Format::Ods
         } else if ct.contains("presentationml") || ct.contains("ms-powerpoint.") {
@@ -160,6 +166,7 @@ impl Format {
             "xlsb" => Format::Xlsb,
             "xls" | "xlt" => Format::Xls,
             "ods" => Format::Ods,
+            "odt" | "ott" => Format::Odt,
             "pptx" | "pptm" | "ppsx" | "ppsm" | "potx" | "potm" => Format::Pptx,
             "ppt" | "pps" | "pot" => Format::Ppt,
             "csv" => Format::Csv,
@@ -231,8 +238,11 @@ fn contains(haystack: &[u8], needle: &[u8]) -> bool {
 fn sniff_zip(bytes: &[u8]) -> Format {
     // ODF stores an uncompressed `mimetype` entry first; OOXML part names are
     // stored uncompressed in local and central directory headers.
-    if contains(&bytes[..bytes.len().min(256)], ODS_MIMETYPE) {
+    let head = &bytes[..bytes.len().min(256)];
+    if contains(head, ODS_MIMETYPE) {
         Format::Ods
+    } else if contains(head, ODT_MIMETYPE) {
+        Format::Odt
     } else if contains(bytes, b"word/document") {
         Format::Docx
     } else if contains(bytes, b"xl/workbook.bin") {
@@ -293,6 +303,7 @@ mod tests {
             Format::Tsv,
             Format::Notebook,
             Format::Eml,
+            Format::Odt,
             Format::PlainText,
             Format::Markdown,
             Format::Unknown,

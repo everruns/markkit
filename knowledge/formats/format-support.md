@@ -1,7 +1,7 @@
 ---
 type: Subsystem Design
 title: Format Support
-description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet, PDF, plain text, Markdown, CSV/TSV, Jupyter notebook and email mapping.
+description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet, PDF, plain text, Markdown, CSV/TSV, Jupyter notebook, email and ODT mapping.
 tags:
   - markkit
   - formats
@@ -13,6 +13,7 @@ tags:
   - csv
   - notebook
   - email
+  - odt
 ---
 
 # Format Support
@@ -29,6 +30,7 @@ tags:
 ### Tier 2 (Feature-gated)
 - **DOCX** (`docx`): Word documents via a direct `zip` + `quick-xml` reader (no docx-rs)
 - **PPTX/PPTM/PPSX/POTX** (`pptx`): presentations via the same direct reader
+- **ODT** (`odt`): OpenDocument text via the same bounded `zip` + `quick-xml` reader as DOCX
 - **XLSX/XLSM, XLS, ODS** (`spreadsheet`): Workbooks to Markdown tables via calamine
 - **XLSB** (`spreadsheet`): Excel binary workbooks via markkit's own bounds-checked BIFF12
   reader (calamine's XLSB reader panics on malformed records)
@@ -103,7 +105,7 @@ Priority order (`Format::detect`):
    `application/octet-stream` map to `Unknown` and fall through.
 2. File extension (`DocumentHint::file_name`; URL query/fragment ignored).
 3. Magic bytes (`Format::sniff`):
-   - `PK\x03\x04` ZIP: ODF `mimetype` entry → ODS; `word/document*` → DOCX;
+   - `PK\x03\x04` ZIP: ODF `mimetype` entry → ODS or ODT; `word/document*` → DOCX;
      `xl/workbook.bin` → XLSB; `xl/workbook.*` → XLSX; `ppt/presentation.*` → PPTX (part names are stored
      uncompressed, so no archive parsing is needed for detection).
    - OLE2 (`D0 CF 11 E0`): UTF-16 `WordDocument` stream → DOC; `PowerPoint Document` →
@@ -178,6 +180,28 @@ trees intern element names and attribute values per part.
 
 A slide whose relationship is dangling or whose part is missing emits `slide_error`; the
 other slides still render. `stats.pages` counts rendered slides, `stats.tables` tables.
+
+## ODT Mapping
+
+| OpenDocument text | Markdown |
+|---|---|
+| `text:h` (`outline-level`, default 1) / paragraph style with `default-outline-level` | `#`..`######` (clamped) |
+| Paragraph style `Title` (name or display name, via parents) | `#`, and the title fallback after `meta.xml` `dc:title` |
+| `text:p` | Paragraph (empty dropped) |
+| `text:span` style: `font-weight` bold/≥600, `font-style` italic/oblique, `text-line-through-style` ≠ none | `**`, `*`, `~~`; adjacent equal runs merged, edge whitespace outside |
+| `text:a xlink:href` | `[text](url)`, spaces → `%20` |
+| `text:list` + `list-level-style-number` / `-bullet` | `1.` / `-`, nested by level |
+| `table:table` (incl. header rows, row groups) | GFM table, first row header, covered cells empty, nested tables flattened, pipes escaped |
+| `text:s c=N` (≤ 64), `text:tab`, `text:line-break` | Spaces, space, hard break |
+| `text:section`, fields | Unwrapped |
+| Notes, annotations, tracked changes, frames/drawings, table of contents, bookmarks | Skipped |
+| Hidden: style chain with `text:display="none"`, `text:section text:display="none"`, `text:hidden-text`, `text:hidden-paragraph` | Skipped with `hidden_content_skipped` unless `include_hidden_content(true)` |
+
+Styles come from `styles.xml` and both automatic-style containers; parent chains stop after
+16 hops (cycles terminate). Repeated columns/rows are capped by `max_sheet_cols` /
+`max_sheet_rows`; trailing empty cells and rows (producers pad to 1024 columns and ~1M rows)
+are dropped, and `truncated_table` is emitted only when a non-empty cell was cut. Text is
+kept raw in the IR and escaped by the renderer (S17).
 
 ## Spreadsheet Mapping
 

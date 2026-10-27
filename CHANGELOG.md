@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `markkit mcp`: Model Context Protocol server over stdio exposing the `markkit` tool
   (`tools/list`, `tools/call`). URL fetching keeps the SSRF guard; `--no-url` keeps it offline,
   the `extract` limit flags and `--max-output-chars` bound each call.
+- ODT input (`odt` feature, in `all_formats`; `.odt`, OpenDocument text content type, sniffed from the
+  ODF `mimetype`): headings, Title style, bold/italic/strike, links, lists, tables, with the same
+  bounded ZIP/XML reader as DOCX. New `Format::Odt`, `Error::OdtExtract`.
 - Email input (`email` feature, in `all_formats`; `.eml`, `message/rfc822`): subject as title, From /
   To / Cc / Date, plain-text body (HTML alternative converted when there is no plain part) and an
   attachment list. New `Format::Eml`, `Error::EmailExtract`, `ExtractionStats::attachments`, `WarningCode::EncodingProblem`.

@@ -31,7 +31,7 @@ Markkit processes untrusted input from the internet. Key threats:
 - **Mitigation**: http/https only, optional host allowlist, redirect limit, body bounded by `max_input_size`, fetch bounded by `timeout`
 - **Residual**: an environment proxy resolves names itself; see [Threat Model](threat-model.md) T3
 
-### TM-DOC: Malicious office documents
+### TM-DOC: Malicious office documents (DOCX, ODT, spreadsheets)
 - **Mitigation**: Bounded ZIP decompression (entry count, per-entry and total size)
 - **Mitigation**: Spreadsheet grid pre-scan / streaming (no dense-grid amplification)
 - **Mitigation**: No macro execution, no formula evaluation, hidden sheets skipped by default
