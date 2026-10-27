@@ -114,13 +114,6 @@ impl ParsedDocument {
     }
 
     /// [`ParsedDocument::render`] with `max_output_size` and the deadline enforced.
-    #[cfg(any(
-        feature = "html",
-        feature = "docx",
-        feature = "spreadsheet",
-        feature = "pdf",
-        feature = "markdown"
-    ))]
     fn render_bounded(self, max_output: usize, budget: &Budget) -> crate::Result<Extraction> {
         let markdown = crate::render::MarkdownRenderer::new().render_bounded(
             &self.document,
@@ -267,24 +260,7 @@ impl Markkit {
         budget: &Budget,
     ) -> crate::Result<Extraction> {
         let parsed = self.parse_document_with(bytes, hint, budget)?;
-        #[cfg(any(
-            feature = "html",
-            feature = "docx",
-            feature = "spreadsheet",
-            feature = "pdf",
-            feature = "markdown"
-        ))]
-        {
-            parsed.render_bounded(self.config.limits.max_output_size, budget)
-        }
-        #[cfg(not(any(
-            feature = "html",
-            feature = "docx",
-            feature = "spreadsheet",
-            feature = "pdf",
-            feature = "markdown"
-        )))]
-        Ok(parsed.render())
+        parsed.render_bounded(self.config.limits.max_output_size, budget)
     }
 
     /// Parse a document (HTML, DOCX, XLSX/XLS/ODS, plain text, Markdown) into the IR without
@@ -360,6 +336,7 @@ impl Markkit {
 
     fn parse_plain_text(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let decoded = crate::text::decode(bytes);
+        budget.check_time()?;
         let (mut doc, paragraphs) = crate::text::plain_to_ir(&decoded.text, budget)?;
         self.config.transforms.apply(&mut doc)?;
         let mut p = ParsedDocument::new(doc, Format::PlainText);
@@ -375,6 +352,7 @@ impl Markkit {
         budget: &Budget,
     ) -> crate::Result<ParsedDocument> {
         let decoded = crate::text::decode(bytes);
+        budget.check_time()?;
         let out = crate::csv::parse(&decoded.text, format == Format::Tsv, &self.config, budget)?;
         let mut doc = out.doc;
         self.config.transforms.apply(&mut doc)?;
@@ -388,6 +366,7 @@ impl Markkit {
 
     fn parse_notebook(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let decoded = crate::text::decode(bytes);
+        budget.check_time()?;
         let out = crate::notebook::parse(&decoded.text, &self.config, budget)?;
         let mut doc = out.doc;
         self.config.transforms.apply(&mut doc)?;
@@ -401,6 +380,7 @@ impl Markkit {
     #[cfg(feature = "markdown")]
     fn parse_markdown(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let decoded = crate::text::decode(bytes);
+        budget.check_time()?;
         let out = crate::markdown::parse(&decoded.text, &self.config, budget)?;
         let mut doc = out.doc;
         self.config.transforms.apply(&mut doc)?;

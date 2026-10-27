@@ -63,7 +63,7 @@ each security test states exactly which bytes it feeds the parser.
 
 `ci.yml` runs fmt, clippy, rustdoc (`-D warnings`), the knowledge bundle check,
 `cargo audit` + `cargo deny`, `cargo test --workspace` (default and all features),
-the `docx,spreadsheet,markdown` no-HTTP build with a reqwest leak check, and every example.
+`--no-default-features` (always-on formats keep every limit), the `docx,spreadsheet,markdown` no-HTTP build with a reqwest leak check, and every example.
 `nightly.yml` repeats build + test on nightly Rust daily; `coverage.yml` uploads
 tarpaulin coverage (`--engine llvm`; ptrace segfaults on threaded socket tests). All must pass before merge.
 

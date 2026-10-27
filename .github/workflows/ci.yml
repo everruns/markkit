@@ -82,6 +82,8 @@ jobs:
             echo "HTTP client leaked into the default feature set"
             exit 1
           fi
+          # Always-on formats (text, CSV, notebooks) must keep every limit with no format feature.
+          cargo test -p markkit --no-default-features
           cargo test -p markkit --no-default-features --features docx,spreadsheet,markdown
           if cargo tree -p markkit --no-default-features --features docx,spreadsheet,markdown -e normal | grep -E 'reqwest|hyper'; then
             echo "HTTP client leaked into the docx,spreadsheet,markdown feature set"
