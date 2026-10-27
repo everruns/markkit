@@ -634,7 +634,7 @@ fn layout_table<'a>(rows: &[&'a [TableCell]], spans: bool) -> Option<Vec<GridRow
         for p in pending.iter_mut() {
             *p = p.saturating_sub(1);
         }
-        let mut out: GridRow<'a> = Vec::new();
+        let mut out: GridRow<'a> = Vec::with_capacity(row.len());
         let mut col = 0usize;
         for cell in row.iter() {
             while busy.get(col).copied().unwrap_or(false) {
