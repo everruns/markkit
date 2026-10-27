@@ -321,6 +321,46 @@ pub fn ods_float_cell(v: f64) -> String {
     )
 }
 
+// ─── ODT ────────────────────────────────────────────────────────────
+
+pub const ODT_MIME: &str = "application/vnd.oasis.opendocument.text";
+
+const ODF_NS: &str = r#"xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0""#;
+
+/// ODT with `automatic` styles + `body` in content.xml, optional styles.xml
+/// `<office:styles>` inner XML and meta.xml title.
+pub fn odt_with(automatic: &str, body: &str, styles: Option<&str>, title: Option<&str>) -> Vec<u8> {
+    let content = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?><office:document-content {ODF_NS} office:version="1.3"><office:automatic-styles>{automatic}</office:automatic-styles><office:body><office:text>{body}</office:text></office:body></office:document-content>"#
+    );
+    let styles_xml = styles.map(|s| {
+        format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?><office:document-styles {ODF_NS} office:version="1.3"><office:styles>{s}</office:styles></office:document-styles>"#
+        )
+    });
+    let meta = title.map(|t| {
+        format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?><office:document-meta {ODF_NS} office:version="1.3"><office:meta><dc:title>{}</dc:title></office:meta></office:document-meta>"#,
+            xml_escape(t)
+        )
+    });
+    let mut entries: Vec<(&str, &[u8])> = vec![
+        ("mimetype", ODT_MIME.as_bytes()),
+        ("content.xml", content.as_bytes()),
+    ];
+    if let Some(s) = &styles_xml {
+        entries.push(("styles.xml", s.as_bytes()));
+    }
+    if let Some(m) = &meta {
+        entries.push(("meta.xml", m.as_bytes()));
+    }
+    zip_bytes(&entries)
+}
+
+pub fn odt(body: &str) -> Vec<u8> {
+    odt_with("", body, None, None)
+}
+
 // ─── XLS (BIFF8 in an OLE2 compound file) ───────────────────────────
 
 fn record(out: &mut Vec<u8>, typ: u16, data: &[u8]) {

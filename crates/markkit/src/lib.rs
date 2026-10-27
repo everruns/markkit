@@ -36,6 +36,7 @@
 //! - **PPTX** (`pptx`): Convert PowerPoint presentations, one section per slide
 //! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLSB, XLS and ODS workbooks to tables
 //! - **Plain text** (always on): `text/plain`, `.txt`
+//! - **ODT** (`odt`): OpenDocument text documents
 //! - **Email** (`email`): `.eml` / `message/rfc822`, headers, body and attachment list
 //! - **Jupyter notebooks** (always on): `.ipynb`, cells and text outputs
 //! - **CSV / TSV** (always on): `text/csv`, `text/tab-separated-values`, `.csv`, `.tsv`, one table
@@ -51,7 +52,12 @@
 //! `Markkit::extract_url`. Office formats only, no HTML:
 //! `markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }`.
 
-#[cfg(any(feature = "docx", feature = "pptx", feature = "spreadsheet"))]
+#[cfg(any(
+    feature = "docx",
+    feature = "pptx",
+    feature = "spreadsheet",
+    feature = "odt"
+))]
 mod archive;
 pub mod config;
 mod csv;
@@ -71,6 +77,8 @@ pub mod limits;
 #[cfg(feature = "markdown")]
 mod markdown;
 mod notebook;
+#[cfg(feature = "odt")]
+mod odt;
 #[cfg(any(feature = "docx", feature = "pptx"))]
 mod ooxml;
 #[cfg(feature = "pdf")]
@@ -86,7 +94,12 @@ mod text;
 #[cfg(feature = "tool")]
 pub mod tool;
 pub mod transform;
-#[cfg(any(feature = "docx", feature = "pptx", feature = "spreadsheet"))]
+#[cfg(any(
+    feature = "docx",
+    feature = "pptx",
+    feature = "spreadsheet",
+    feature = "odt"
+))]
 #[cfg_attr(not(feature = "docx"), allow(dead_code))] // DOCX uses every helper
 mod xml;
 

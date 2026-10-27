@@ -13,6 +13,8 @@ pub enum Error {
 
     #[error("PPTX extraction error: {0}")]
     PptxExtract(String),
+    #[error("ODT extraction error: {0}")]
+    OdtExtract(String),
 
     #[error("Spreadsheet extraction error: {0}")]
     SpreadsheetExtract(String),

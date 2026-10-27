@@ -20,7 +20,7 @@ tags:
 | `crates/markkit/tests/hidden_content.rs` | Hidden HTML elements and DOCX `w:vanish` runs skipped by default (T9) |
 | `crates/markkit/tests/output_safety.rs` | Renderer escaping, URL scheme allowlist, fences; pulldown-cmark oracle + proptests |
 | `crates/markkit/tests/html_proptest.rs` | Property tests: no panic, no script/style, determinism, limits |
-| `crates/markkit/tests/docx_integration.rs`, `spreadsheet_integration.rs` | Office mapping |
+| `crates/markkit/tests/docx_integration.rs`, `odt_integration.rs`, `spreadsheet_integration.rs` | Office mapping (ODT security tests included) |
 | `crates/markkit/tests/text_integration.rs`, `csv_integration.rs`, `notebook_integration.rs`, `email_integration.rs` | Plain text, Markdown, CSV/TSV, notebook and email mapping, T7 security tests |
 | `crates/markkit/tests/document_detection.rs` | Format detection order and explicit unsupported errors |
 | `crates/markkit/tests/document_security.rs` | Zip bombs, grid amplification, XML entities, malformed containers |
@@ -65,7 +65,7 @@ each security test states exactly which bytes it feeds the parser.
 
 `ci.yml` runs fmt, clippy, rustdoc (`-D warnings`), the knowledge bundle check,
 `cargo audit` + `cargo deny`, `cargo test --workspace` (default and all features),
-`--no-default-features` (always-on formats keep every limit), the `docx,spreadsheet,markdown,email` no-HTTP build with a reqwest leak check, and every example.
+`--no-default-features` (always-on formats keep every limit), the `docx,spreadsheet,markdown,email,odt` no-HTTP build with a reqwest leak check, and every example.
 `nightly.yml` repeats build + test on nightly Rust daily; `fuzz.yml` runs every
 cargo-fuzz target nightly and uploads crashes; `coverage.yml` uploads
 tarpaulin coverage (`--engine llvm`; ptrace segfaults on threaded socket tests). All must pass before merge.

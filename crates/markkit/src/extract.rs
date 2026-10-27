@@ -157,9 +157,9 @@ pub struct ExtractionStats {
     pub sheets: Option<usize>,
     /// Data rows rendered across all sheets / the CSV table (header rows excluded).
     pub rows: Option<usize>,
-    /// Non-empty paragraphs, headings and list items (DOCX, plain text, Markdown).
+    /// Non-empty paragraphs, headings and list items (DOCX, ODT, plain text, Markdown).
     pub paragraphs: Option<usize>,
-    /// Tables (DOCX, Markdown, CSV/TSV).
+    /// Tables (DOCX, ODT, Markdown, CSV/TSV).
     pub tables: Option<usize>,
     /// Non-empty cells rendered (Jupyter notebooks).
     pub cells: Option<usize>,
@@ -321,7 +321,7 @@ impl Markkit {
         .map(|e| e.markdown)
     }
 
-    /// Convert a document (HTML, PDF, DOCX, PPTX, XLSX/XLSB/XLS/ODS, plain text, Markdown,
+    /// Convert a document (HTML, PDF, DOCX, PPTX, ODT, XLSX/XLSB/XLS/ODS, plain text, Markdown,
     /// CSV/TSV, Jupyter notebooks, email) to Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
@@ -402,6 +402,7 @@ impl Markkit {
             Format::Csv | Format::Tsv => self.parse_csv(bytes, format, budget),
             Format::Notebook => self.parse_notebook(bytes, budget),
             Format::Eml => self.parse_email(bytes, budget),
+            Format::Odt => self.parse_odt(bytes, budget),
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
@@ -476,6 +477,28 @@ impl Markkit {
         p.stats.rows = Some(out.rows);
         p.stats.tables = Some(out.tables);
         Ok(p)
+    }
+
+    #[cfg(feature = "odt")]
+    fn parse_odt(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
+        let out = guarded("ODT", Error::OdtExtract, || {
+            crate::odt::parse(bytes, &self.config, budget)
+        })?;
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, Format::Odt);
+        p.title = out.title;
+        p.warnings = out.warnings;
+        p.stats.paragraphs = Some(out.paragraphs);
+        p.stats.tables = Some(out.tables);
+        Ok(p)
+    }
+
+    #[cfg(not(feature = "odt"))]
+    fn parse_odt(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
+        Err(Error::UnsupportedFormat(
+            "ODT support requires the 'odt' feature".to_string(),
+        ))
     }
 
     #[cfg(feature = "email")]
