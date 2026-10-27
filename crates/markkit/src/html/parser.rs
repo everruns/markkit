@@ -12,6 +12,10 @@
 //! - Provenance (`track_sources`): blocks get the absolute XPath of the
 //!   element they came from. Sibling indexes are computed once per parent and
 //!   cached, so cost is O(depth) per block, not O(siblings).
+//! - Math: MathML `<math>` (also inside KaTeX `.katex` / `.katex-display`
+//!   and MathJax `<mjx-container>`) maps to `Math` / `MathBlock` using the
+//!   `application/x-tex` annotation; without one, the text content is kept as
+//!   plain text. KaTeX's visual HTML duplicate is dropped.
 //! - `<figure>` becomes `Figure` only when it has a non-empty `<figcaption>`;
 //!   otherwise it stays a transparent container as before.
 
@@ -230,6 +234,11 @@ impl<'a> HtmlParser<'a> {
                             out.push(fig);
                             continue;
                         }
+                        if let Some(mut m) = self.math_wrapper(el) {
+                            self.mark_source(&mut m, el);
+                            out.push(m);
+                            continue;
+                        }
                         // Transparent containers: recurse directly into their children
                         if is_transparent_container(name) {
                             self.convert_children(el, exclude, out, depth + 1);
@@ -261,6 +270,10 @@ impl<'a> HtmlParser<'a> {
                 return None;
             }
             return Some(Node::Text(trimmed.to_string()));
+        }
+
+        if let Some(m) = self.math_wrapper(el) {
+            return Some(m);
         }
 
         let tag = el.value().name();
@@ -460,6 +473,45 @@ impl<'a> HtmlParser<'a> {
                         source: None,
                     })
                 }
+            }
+        }
+    }
+
+    /// MathML or a KaTeX / MathJax wrapper around it.
+    fn math_wrapper(&self, el: scraper::ElementRef<'_>) -> Option<Node> {
+        let v = el.value();
+        let (display, math) = match v.name() {
+            "math" => (v.attr("display") == Some("block"), el),
+            "mjx-container" => (v.attr("display") == Some("true"), find_math(el)?),
+            _ if has_class(&el, "katex-display") => (true, find_math(el)?),
+            _ if has_class(&el, "katex") => (false, find_math(el)?),
+            _ => return None,
+        };
+        let display = display || math.value().attr("display") == Some("block");
+        let annotation = math
+            .descendants()
+            .filter_map(scraper::ElementRef::wrap)
+            .find(|e| {
+                e.value().name() == "annotation"
+                    && e.value()
+                        .attr("encoding")
+                        .is_some_and(|enc| enc.eq_ignore_ascii_case("application/x-tex"))
+            });
+        match annotation {
+            Some(a) => {
+                let tex = a.text().collect::<String>().trim().to_string();
+                if tex.is_empty() {
+                    None
+                } else if display {
+                    Some(Node::MathBlock { tex, source: None })
+                } else {
+                    Some(Node::Math { tex })
+                }
+            }
+            None => {
+                let text = collapse_whitespace(&math.text().collect::<String>());
+                let text = text.trim();
+                (!text.is_empty()).then(|| Node::Text(text.to_string()))
             }
         }
     }
@@ -914,6 +966,13 @@ fn task_checkbox(li: scraper::ElementRef<'_>) -> Option<bool> {
         None
     }
     first_checkbox(li, false)
+}
+
+/// First `<math>` element inside a wrapper.
+fn find_math(el: scraper::ElementRef<'_>) -> Option<scraper::ElementRef<'_>> {
+    el.descendants()
+        .filter_map(scraper::ElementRef::wrap)
+        .find(|e| e.value().name() == "math")
 }
 
 fn has_class(el: &scraper::ElementRef<'_>, class: &str) -> bool {

@@ -218,6 +218,18 @@ impl MarkdownRenderer {
                 }
             }
 
+            Node::MathBlock { tex, .. } => {
+                let tex = tex.trim().replace("$$", "$ $");
+                if !tex.is_empty() {
+                    self.buf.push_str("$$\n");
+                    for line in tex.lines().filter(|l| !l.trim().is_empty()) {
+                        self.buf.push_str(line);
+                        self.buf.push('\n');
+                    }
+                    self.buf.push_str("$$\n");
+                }
+            }
+
             Node::FootnoteDefinition {
                 label, children, ..
             } => {
@@ -237,7 +249,8 @@ impl MarkdownRenderer {
             | Node::Link { .. }
             | Node::Image { .. }
             | Node::LineBreak
-            | Node::FootnoteReference { .. } => {
+            | Node::FootnoteReference { .. }
+            | Node::Math { .. } => {
                 self.render_inline_node(node);
             }
         }
@@ -406,6 +419,14 @@ impl MarkdownRenderer {
             Node::LineBreak => {
                 self.buf.push_str("  \n");
             }
+            Node::Math { tex } => {
+                let tex = inline_math(tex);
+                if !tex.is_empty() {
+                    self.buf.push('$');
+                    self.buf.push_str(&tex);
+                    self.buf.push('$');
+                }
+            }
             Node::FootnoteReference { label } => {
                 self.buf.push_str("[^");
                 self.buf.push_str(&footnote_label(label));
@@ -542,6 +563,20 @@ fn push_hanging(buf: &mut String, inner: &str, first: &str, rest: &str) {
     }
 }
 
+/// Inline TeX for `$...$`: one line, `$` escaped, no edge spaces (which
+/// would stop most parsers from treating it as math).
+fn inline_math(tex: &str) -> String {
+    let mut out = String::with_capacity(tex.len());
+    for c in tex.trim().chars() {
+        match c {
+            '\r' | '\n' => out.push(' '),
+            '$' if !out.ends_with('\\') => out.push_str("\\$"),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
 /// Footnote labels are emitted inside `[^...]`: keep `[A-Za-z0-9_.-]`, map
 /// everything else to `-` so a label cannot close the bracket or break the line.
 fn footnote_label(label: &str) -> String {
@@ -649,6 +684,32 @@ mod tests {
         assert_eq!(normalize_output("  \n  \n"), "");
         // Hard break preserved
         assert_eq!(normalize_output("a  \nb\n"), "a  \nb\n");
+    }
+
+    #[test]
+    fn test_inline_math() {
+        assert_eq!(inline_math(" a$b\nc "), "a\\$b c");
+        assert_eq!(inline_math("\\$"), "\\$");
+    }
+
+    #[test]
+    fn math_rendering() {
+        let doc = Document::new(vec![
+            Node::paragraph(vec![
+                Node::Text("Euler ".into()),
+                Node::Math {
+                    tex: "e^{i\\pi}".into(),
+                },
+            ]),
+            Node::MathBlock {
+                tex: "a\n\nb $$ c".into(),
+                source: None,
+            },
+        ]);
+        assert_eq!(
+            MarkdownRenderer::new().render(&doc),
+            "Euler $e^{i\\pi}$\n\n$$\na\nb $ $ c\n$$\n"
+        );
     }
 
     #[test]
