@@ -48,6 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the article body of a web page, Readability-style, dropping navigation, sidebars, comments, share
   bars and related-link blocks. Off by default; include selectors take precedence; falls back to the
   full page when no article-like block is found.
+- Every resource limit is configurable outside Rust: CLI flags (`--max-output-size`, `--timeout`,
+  `--max-nesting-depth`, `--max-nodes`, archive / sheet / redirect flags; `--max-size` kept as an
+  alias of `--max-input-size`), Python `markkit.Limits(...)` passed as `limits=` to every function,
+  and flat Node.js and WASM option keys (`maxOutputSize`, `maxNodes`, `maxNestingDepth`, plus
+  `timeout` in Node.js).
+- Node.js and WASM options gain `baseUrl` and `mainContent`; Python `extract_html_sync_with_options`
+  gains `base_url=` and `main_content=`, matching the core builder.
 
 ### Security
 
@@ -57,7 +64,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   thousands of rows); `max_nodes` (5 000 000) caps parsed HTML DOM / DOCX XML nodes;
   `max_nesting_depth` (256) is configurable, with a hard ceiling of 512 that keeps deep input off
   the host stack. Violations return `Error::ResourceLimit` naming the limit.
-
 - `extract_url` (CLI, Python and Node `extract_url` too) now refuses non-public destinations by default:
   loopback, private, link-local / cloud metadata and other reserved addresses, checked on the URL,
   after DNS resolution and on every redirect. Only `http`/`https` are fetched. Redirects are capped
