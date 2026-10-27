@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- XLSB (Excel binary workbook) support in the `spreadsheet` feature, via a new bounds-checked
+  reader: values, shared strings, dates and durations, hidden-sheet skipping, row/column caps and
+  the workbook title. Previously XLSB returned `UnsupportedFormat`.
 - HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
   `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
   canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and

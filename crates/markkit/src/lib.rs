@@ -33,7 +33,7 @@
 //!
 //! - **HTML** (`html`, default): Convert HTML to markdown with configurable rules
 //! - **DOCX** (`docx`): Convert Word documents
-//! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLS and ODS workbooks to tables
+//! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLSB, XLS and ODS workbooks to tables
 //! - **PDF** (`pdf`): Planned; currently returns [`Error::UnsupportedFormat`]
 //! - **URL fetching** (`http_client`, default): Fetch and extract from URLs via reqwest
 //! - **Agent tool** (`tool`): `markkit::tool::MarkkitTool`, an LLM tool following the
