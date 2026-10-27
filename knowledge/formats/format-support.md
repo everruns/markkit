@@ -54,7 +54,7 @@ pub struct Extraction {           // #[non_exhaustive]
     pub markdown: String,
     pub title: Option<String>,    // see "Document titles" below
     pub format: Format,
-    pub warnings: Vec<String>,    // "<code>: <message>"
+    pub warnings: Vec<Warning>,   // { code: WarningCode, detail: String }; Display "<code>: <detail>"
     pub stats: ExtractionStats,   // pages / sheets / rows / paragraphs / tables (Option each)
     pub metadata: Metadata,       // HTML page metadata, see HTML Extraction; empty otherwise
 }
@@ -82,10 +82,14 @@ malformed property part yields `None` without failing the extraction.
 only the Markdown. Parsing is CPU-bound; async callers should use the sync variant in
 `spawn_blocking`.
 
-Warning codes: `truncated_sheet`, `hidden_sheet_skipped`, `sheet_error`, `truncated_pdf`,
-`pdf_unmapped_font`, `pdf_no_text`, `invalid_utf8`, `hidden_content_skipped`,
-`hidden_slide_skipped`, `slide_error`,
-`malformed_csv`, `truncated_table`.
+Warning codes (`WarningCode`, serialized `snake_case`): `truncated_sheet`,
+`hidden_sheet_skipped`, `sheet_error`, `hidden_slide_skipped`, `slide_error`, `truncated_pdf`,
+`pdf_unmapped_font`, `pdf_no_text`, `invalid_utf8`, `hidden_content_skipped`, `malformed_csv`,
+`truncated_table`, `truncated` (agent tool only) and `other` (custom parsers). Callers match on
+`code`; `detail` is for humans and may change.
+
+`Markkit` is `Clone + Debug + Send + Sync` and holds only its configuration, so embedders can
+clone it per task instead of wrapping it in an `Arc`.
 
 ## Format Detection
 

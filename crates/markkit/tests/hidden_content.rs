@@ -102,7 +102,7 @@ mod docx {
         assert!(
             e.warnings
                 .iter()
-                .any(|w| w.starts_with("hidden_content_skipped")),
+                .any(|w| w.code == markkit::WarningCode::HiddenContentSkipped),
             "{:?}",
             e.warnings
         );

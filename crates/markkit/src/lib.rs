@@ -89,10 +89,12 @@ mod xml;
 
 pub use config::MarkkitBuilder;
 pub use error::Error;
-pub use extract::{Extraction, ExtractionStats, Markkit, Metadata, ParsedDocument};
+pub use extract::{
+    Extraction, ExtractionStats, Markkit, Metadata, ParsedDocument, Warning, WarningCode,
+};
 pub use format::{DocumentHint, Format};
 pub use ir::Document;
-pub use limits::Limits;
+pub use limits::{LimitExceeded, LimitKind, Limits};
 pub use render::MarkdownRenderer;
 
 /// Result type alias for markkit operations.

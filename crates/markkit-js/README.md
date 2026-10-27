@@ -28,7 +28,7 @@ await extractHtml(html, { includeSelectors: ['article'], excludeSelectors: ['.ad
 // URLs: non-public addresses are blocked by default.
 await extractUrl('https://docs.example.com/page', { allowedHosts: ['docs.example.com'], maxRedirects: 2 });
 
-// Documents with metadata (HTML, DOCX, XLSX/XLS/ODS).
+// Documents with metadata (HTML, DOCX, PPTX, XLSX/XLSB/XLS/ODS). `warnings` are `{ code, detail }`.
 const doc = extractDocumentSync(fs.readFileSync('report.docx'), { fileName: 'report.docx' }, { maxSheetRows: 500 });
 console.log(doc.title, doc.format, doc.warnings, doc.markdown);
 ```

@@ -88,14 +88,23 @@ pub struct Metadata {
     pub image: Option<String>,
 }
 
+/// Structured extraction warning.
+#[napi(object)]
+pub struct Warning {
+    /// Stable machine code (`truncated_sheet`, `hidden_slide_skipped`, ...).
+    pub code: String,
+    /// Human-readable detail.
+    pub detail: String,
+}
+
 /// Markdown plus metadata.
 #[napi(object)]
 pub struct Extraction {
     pub markdown: String,
     pub title: Option<String>,
-    /// Detected format (`html`, `docx`, `xlsx`, `xls`, `ods`, `text`, `markdown`, `csv`, `tsv`, `ipynb`).
+    /// Detected format (`html`, `docx`, `pptx`, `xlsx`, `xlsb`, `xls`, `ods`, `text`, `markdown`, `csv`, `tsv`, `ipynb`).
     pub format: String,
-    pub warnings: Vec<String>,
+    pub warnings: Vec<Warning>,
     pub stats: ExtractionStats,
     pub metadata: Metadata,
 }
@@ -222,7 +231,14 @@ fn to_js(e: markkit::Extraction) -> Extraction {
         markdown: e.markdown,
         title: e.title,
         format: e.format.as_str().to_string(),
-        warnings: e.warnings,
+        warnings: e
+            .warnings
+            .into_iter()
+            .map(|w| Warning {
+                code: w.code.as_str().to_string(),
+                detail: w.detail,
+            })
+            .collect(),
         stats: ExtractionStats {
             pages: count(e.stats.pages),
             sheets: count(e.stats.sheets),

@@ -191,7 +191,7 @@ fn multiple_pages_and_page_cap() {
     assert_eq!(e.markdown.trim(), "Page one");
     assert_eq!(e.stats.pages, Some(1));
     assert!(
-        e.warnings[0].starts_with("truncated_pdf:"),
+        e.warnings[0].code == markkit::WarningCode::TruncatedPdf,
         "{:?}",
         e.warnings
     );
@@ -238,8 +238,8 @@ fn unmapped_composite_font_is_skipped_with_warning() {
     let e = extract(&pdf);
     assert_eq!(e.markdown.trim(), "Visible");
     assert_eq!(e.warnings.len(), 1, "{:?}", e.warnings);
-    assert!(e.warnings[0].starts_with("pdf_unmapped_font: "));
-    assert!(e.warnings[0].contains("NoMap"));
+    assert_eq!(e.warnings[0].code, markkit::WarningCode::PdfUnmappedFont);
+    assert!(e.warnings[0].detail.contains("NoMap"));
 }
 
 #[test]
@@ -247,7 +247,7 @@ fn page_without_text_warns() {
     let e = extract(&pdf_pages(&["0 0 m 100 100 l S"]));
     assert_eq!(e.markdown.trim(), "");
     assert!(
-        e.warnings[0].starts_with("pdf_no_text:"),
+        e.warnings[0].code == markkit::WarningCode::PdfNoText,
         "{:?}",
         e.warnings
     );

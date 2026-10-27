@@ -26,7 +26,7 @@ use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::ir::{Document, Node, Source, TableCell};
-use crate::limits::Budget;
+use crate::limits::{Budget, LimitExceeded};
 use crate::ooxml::{
     Fmt, ListEntry, Relationship, Seg, build_inline, build_list, is_blank, parse_rels, plain_text,
     rel_target_by_type, resolve_target, split_dir, table_cell,
@@ -36,7 +36,7 @@ use crate::xml::{self, Element, XmlError};
 /// Result of parsing a DOCX package.
 pub(crate) struct DocxOutput {
     pub doc: Document,
-    pub warnings: Vec<String>,
+    pub warnings: Vec<crate::extract::Warning>,
     pub title: Option<String>,
     pub paragraphs: usize,
     pub tables: usize,
@@ -53,7 +53,9 @@ fn archive_err(e: ArchiveError) -> Error {
 
 fn xml_err(part: &str, e: XmlError) -> Error {
     match e {
-        XmlError::Limit(m) => Error::ResourceLimit(format!("{part}: {m}")),
+        XmlError::Limit(m) => {
+            Error::ResourceLimit(LimitExceeded::new(m.kind, format!("{part}: {}", m.detail)))
+        }
         XmlError::Invalid(m) => Error::DocxExtract(format!("{part}: {m}")),
     }
 }
@@ -693,8 +695,9 @@ pub(crate) fn parse(
         doc: Document::new(body.blocks),
         warnings: match ctx.hidden_runs.get() {
             0 => Vec::new(),
-            n => vec![format!(
-                "hidden_content_skipped: {n} hidden text run(s) skipped"
+            n => vec![crate::extract::Warning::new(
+                crate::extract::WarningCode::HiddenContentSkipped,
+                format!("{n} hidden text run(s) skipped"),
             )],
         },
     })

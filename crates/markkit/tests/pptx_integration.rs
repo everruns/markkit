@@ -5,7 +5,7 @@
 mod common;
 
 use common::*;
-use markkit::{DocumentHint, Error, Markkit, format::Format};
+use markkit::{DocumentHint, Error, Markkit, Warning, WarningCode, format::Format};
 
 fn extract_with(m: &Markkit, bytes: &[u8]) -> markkit::Extraction {
     m.extract_document_sync(bytes, DocumentHint::default())
@@ -133,7 +133,7 @@ fn hidden_slides_skipped_by_default() {
     assert!(
         e.warnings
             .iter()
-            .any(|w| w == "hidden_slide_skipped: slide 2 is hidden"),
+            .any(|w| w.to_string() == "hidden_slide_skipped: slide 2 is hidden"),
         "{:?}",
         e.warnings
     );
@@ -189,7 +189,7 @@ fn broken_slide_references_warn_and_other_slides_render() {
     assert!(
         e.warnings
             .iter()
-            .any(|w| w.starts_with("slide_error: slide 1")),
+            .any(|w| w.code == WarningCode::SlideError && w.detail.starts_with("slide 1")),
         "{:?}",
         e.warnings
     );
@@ -220,7 +220,10 @@ fn real_deck_from_python_pptx() {
     );
     assert_eq!(
         e.warnings,
-        vec!["hidden_slide_skipped: slide 4 is hidden".to_string()]
+        vec![Warning::new(
+            WarningCode::HiddenSlideSkipped,
+            "slide 4 is hidden"
+        )]
     );
 }
 

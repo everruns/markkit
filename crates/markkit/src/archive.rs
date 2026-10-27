@@ -12,12 +12,13 @@ use zip::ZipArchive;
 use zip::result::ZipError;
 
 use crate::config::MarkkitBuilder;
+use crate::limits::{LimitExceeded, LimitKind};
 
 /// Archive failure, split so callers can map limit violations to
 /// [`crate::Error::ResourceLimit`] and everything else to a format error.
 #[derive(Debug)]
 pub(crate) enum ArchiveError {
-    Limit(String),
+    Limit(LimitExceeded),
     Invalid(String),
 }
 
@@ -42,10 +43,13 @@ impl<'a> ZipGuard<'a> {
     pub fn open(bytes: &'a [u8], config: &MarkkitBuilder) -> Result<Self, ArchiveError> {
         let archive = ZipArchive::new(Cursor::new(bytes))?;
         if archive.len() > config.limits.max_archive_entries {
-            return Err(ArchiveError::Limit(format!(
-                "archive has {} entries, limit is {}",
-                archive.len(),
-                config.limits.max_archive_entries
+            return Err(ArchiveError::Limit(LimitExceeded::new(
+                LimitKind::MaxArchiveEntries,
+                format!(
+                    "archive has {} entries, limit is {}",
+                    archive.len(),
+                    config.limits.max_archive_entries
+                ),
             )));
         }
         let names = archive
@@ -115,9 +119,9 @@ impl<'a> ZipGuard<'a> {
     fn add_total(&mut self, n: u64) -> Result<(), ArchiveError> {
         self.total = self.total.saturating_add(n);
         if self.total > self.max_total {
-            return Err(ArchiveError::Limit(format!(
-                "archive decompresses to more than {} bytes",
-                self.max_total
+            return Err(ArchiveError::Limit(LimitExceeded::new(
+                LimitKind::MaxArchiveTotalSize,
+                format!("archive decompresses to more than {} bytes", self.max_total),
             )));
         }
         Ok(())
@@ -136,8 +140,9 @@ fn copy_capped<R: Read, W: std::io::Write>(
     let n = std::io::copy(&mut reader.take(cap.saturating_add(1)), out)
         .map_err(|e| ArchiveError::Invalid(format!("cannot read entry '{name}': {e}")))?;
     if n > cap {
-        return Err(ArchiveError::Limit(format!(
-            "entry '{name}' decompresses to more than {cap} bytes"
+        return Err(ArchiveError::Limit(LimitExceeded::new(
+            LimitKind::MaxArchiveEntrySize,
+            format!("entry '{name}' decompresses to more than {cap} bytes"),
         )));
     }
     Ok(n)

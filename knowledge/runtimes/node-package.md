@@ -25,7 +25,7 @@ const sync = m.extractHtmlSync('<h1>Hello</h1>');
 const fromUrl = await m.extractUrl('https://example.com', { allowedHosts: ['example.com'] });
 const fromBuffer = await m.extractBytes(Buffer.from('<h1>Hello</h1>'), 'text/html');
 const doc = m.extractDocumentSync(buf, { fileName: 'report.docx' });
-// { markdown, title, format, warnings, stats, metadata }
+// { markdown, title, format, warnings: [{ code, detail }], stats, metadata }
 ```
 
 Every function takes an optional trailing `options` object (`MarkkitOptions`):

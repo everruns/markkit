@@ -61,11 +61,17 @@ export interface Metadata {
   image: string | null;
 }
 
+export interface Warning {
+  /** Stable machine code (`truncated_sheet`, `hidden_slide_skipped`, ...). */
+  code: string;
+  detail: string;
+}
+
 export interface Extraction {
   markdown: string;
   title: string | null;
   format: string;
-  warnings: string[];
+  warnings: Warning[];
   stats: ExtractionStats;
   metadata: Metadata;
 }

@@ -51,7 +51,7 @@ pub(crate) struct PdfOutput {
     pub doc: Document,
     pub title: Option<String>,
     pub pages: usize,
-    pub warnings: Vec<String>,
+    pub warnings: Vec<crate::extract::Warning>,
 }
 
 pub(crate) fn parse(
@@ -120,24 +120,30 @@ pub(crate) fn parse(
         page_lines.push(build_lines(std::mem::take(&mut interp.spans)));
     }
     if pages.len() > cfg.limits.max_pdf_pages {
-        warnings.push(format!(
-            "truncated_pdf: rendered {} of {} pages (max_pdf_pages)",
-            cfg.limits.max_pdf_pages,
-            pages.len()
+        warnings.push(crate::extract::Warning::new(
+            crate::extract::WarningCode::TruncatedPdf,
+            format!(
+                "rendered {} of {} pages (max_pdf_pages)",
+                cfg.limits.max_pdf_pages,
+                pages.len()
+            ),
         ));
     }
     let mut unmapped: Vec<&String> = interp.unmapped.iter().collect();
     unmapped.sort();
     for name in unmapped {
-        warnings.push(format!(
-            "pdf_unmapped_font: text in font {name} has no Unicode mapping and was skipped"
+        warnings.push(crate::extract::Warning::new(
+            crate::extract::WarningCode::PdfUnmappedFont,
+            format!("text in font {name} has no Unicode mapping and was skipped"),
         ));
     }
 
     let nodes = build_nodes(page_lines, cfg.track_sources);
     if nodes.is_empty() && !pages.is_empty() {
-        warnings
-            .push("pdf_no_text: no text layer found (scanned PDF? OCR is not supported)".into());
+        warnings.push(crate::extract::Warning::new(
+            crate::extract::WarningCode::PdfNoText,
+            "no text layer found (scanned PDF? OCR is not supported)",
+        ));
     }
     Ok(PdfOutput {
         doc: Document::new(nodes),
@@ -252,7 +258,11 @@ struct Interpreter<'c> {
 }
 
 fn limit() -> Error {
-    Error::ResourceLimit("PDF content exceeds max_pdf_decoded_size".into())
+    crate::limits::LimitExceeded::new(
+        crate::limits::LimitKind::MaxPdfDecodedSize,
+        "PDF content exceeds max_pdf_decoded_size",
+    )
+    .into()
 }
 
 fn num(o: Option<&Object<'_>>) -> f32 {
