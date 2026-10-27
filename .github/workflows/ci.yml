@@ -89,7 +89,7 @@ jobs:
           fi
       - name: Run examples
         run: |
-          for ex in basic custom_selectors configuration ir_access; do
+          for ex in basic custom_selectors configuration ir_access transforms; do
             cargo run -q -p markkit --example "$ex"
           done
           cargo run -q -p markkit --features tool --example agent_tool

@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   no longer dropped.
 - `Document.ir_version` (`markkit::ir::IR_VERSION = 2`) is serialized with the IR JSON.
 - Math: `$tex$` and `$$` blocks from MathML (`application/x-tex` annotation), KaTeX and MathJax output.
+- IR transforms: `MarkkitBuilder::transform(..)` runs `Transform` passes after parsing and before
+  rendering, for every format. Built-ins `transform::NormalizeHeadings` and `transform::DropImages`;
+  `transform::from_fn` for closures; `Document::visit` / `visit_mut` to walk the tree.
 - JSON Schema for the IR at `schema/ir.schema.json`; `json-schema` feature adds `markkit::ir::json_schema()`.
 - Per-block provenance: `MarkkitBuilder::track_sources(true)` records a `Source` on each IR block
   (HTML element XPath, DOCX body block index, spreadsheet sheet and A1 range) for citations.
@@ -48,11 +51,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   fetch by `max_processing_secs`. New builder options `allow_private_networks(true)` and `allow_host(..)`;
   refusals return the new `Error::UrlBlocked`.
 
+### Added
+
+- `markkit-bench` harness (`just bench`): per-case latency, ops/s, throughput, heap allocations and
+  peak heap, plus process peak RSS, over a generated HTML/DOCX/XLSX/ODS corpus. Runs are saved as
+  JSON + Markdown in `crates/markkit-bench/results/` and committed.
+
 ### Changed
 
 - **Breaking (features):** `http_client` is no longer a default feature; the default build pulls in
   no HTTP/TLS stack. Library users calling `extract_url` add `features = ["http_client"]`. The CLI and
   the Python/Node packages still enable it, so their `extract_url` is unchanged.
+- **Breaking:** `Error` is `#[non_exhaustive]` (new `Error::Transform`); matches need a `_` arm.
 - **Breaking (IR API):** `Node`, `Document`, `ListItem` and the new IR structs are `#[non_exhaustive]`;
   matches need a `_` arm and structs are built with constructors. `Node::Table` cells are now
   `TableCell` (`children`, `colspan`, `rowspan`) with an `alignments` field. Block variants gain a
@@ -60,7 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   carried as `colspan`.
 - Design docs moved from `specs/` to an OKF v0.2 knowledge bundle in `knowledge/`, validated in CI.
 - CI workflows declare read-only default permissions and do not persist checkout credentials.
-- CI runs every example; `just bench` now runs the criterion benchmarks.
+- CI runs every example; criterion benchmarks run with `just bench-criterion`.
 - README, SECURITY and binding docs corrected: Python module is `markkit`.
 - Dependencies: drop unused `async-trait`, `futures`, `regex`, `unicode-segmentation`, `encoding_rs`,
   `base64`, `mime`, `lol_html` (core) and `tracing-subscriber`, plus unused deps of the CLI, bindings

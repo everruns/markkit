@@ -1217,6 +1217,11 @@ version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
+ "markkit",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "zip",
 ]
 
 [[package]]
