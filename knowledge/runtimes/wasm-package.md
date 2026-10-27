@@ -31,7 +31,7 @@ import { initMarkkit, Markkit, MarkkitTool, version } from "@everruns/markkit-wa
 await initMarkkit();                          // once; idempotent
 const mk = new Markkit({ includeSelectors: ["article"] });
 mk.extractHtml(html);                         // string
-mk.extractDocument(bytes, { fileName });      // { markdown, title, format, warnings, stats, metadata }
+mk.extractDocument(bytes, { fileName });      // { markdown, title, format, warnings: [{ code, detail }], stats, metadata }
 mk.extractBytes(bytes, contentType);          // string
 const tool = new MarkkitTool({ locale, maxOutputChars });
 tool.toolDefinition(); await tool.execute(args);

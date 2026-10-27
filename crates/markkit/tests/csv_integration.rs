@@ -97,7 +97,7 @@ fn security_row_cap_stops_reading() {
     assert_eq!(e.stats.rows, Some(3));
     assert_eq!(e.markdown.lines().count(), 5);
     assert_eq!(
-        e.warnings,
+        warns(&e),
         vec!["truncated_table: table truncated to 3 rows"]
     );
 }
@@ -113,7 +113,7 @@ fn security_column_cap_never_stores_extra_fields() {
     );
     assert_eq!(e.markdown, "| a |  |\n| --- | --- |\n");
     assert_eq!(
-        e.warnings,
+        warns(&e),
         vec!["truncated_table: table truncated to 2 columns"]
     );
 }
@@ -135,7 +135,7 @@ fn security_unterminated_quote_warns() {
     let input = format!("a,\"{}", "x\n".repeat(100_000));
     let e = extract(input.as_bytes(), DocumentHint::file_name("a.csv"));
     assert_eq!(e.markdown.lines().count(), 2);
-    assert_eq!(e.warnings, vec!["malformed_csv: unterminated quoted field"]);
+    assert_eq!(warns(&e), vec!["malformed_csv: unterminated quoted field"]);
 }
 
 #[test]
@@ -154,7 +154,7 @@ fn security_control_chars_and_invalid_utf8() {
         DocumentHint::file_name("a.tsv"),
     );
     assert_eq!(e.markdown, "| h\\[2J |\n| --- |\n| \u{FFFD}v |\n");
-    assert!(e.warnings[0].starts_with("invalid_utf8:"));
+    assert_eq!(e.warnings[0].code, markkit::WarningCode::InvalidUtf8);
 }
 
 #[test]
@@ -205,4 +205,8 @@ fn security_timeout_applies() {
         matches!(&r, Err(markkit::Error::ResourceLimit(msg)) if msg.contains("timeout")),
         "{r:?}"
     );
+}
+
+fn warns(e: &markkit::Extraction) -> Vec<String> {
+    e.warnings.iter().map(ToString::to_string).collect()
 }

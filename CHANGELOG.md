@@ -147,6 +147,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   no HTTP/TLS stack. Library users calling `extract_url` add `features = ["http_client"]`. The CLI and
   the Python/Node packages still enable it, so their `extract_url` is unchanged.
 - **Breaking:** `Error` is `#[non_exhaustive]` (new `Error::Transform`); matches need a `_` arm.
+- **Breaking:** `Extraction::warnings` and `ParsedDocument::warnings` are `Vec<Warning>`
+  (`code: WarningCode` + `detail: String`) instead of `"code: detail"` strings, so callers can match
+  on the code. `Warning`'s `Display` keeps the old string form; JSON serializes
+  `{"code": "truncated_sheet", "detail": "..."}`. The agent tool output is unchanged.
+  Node and WASM `extractDocument` return `warnings` as `{ code, detail }` objects too.
+- `Markkit` implements `Clone` and `Debug`.
 - **Breaking (IR API):** `Node`, `Document`, `ListItem` and the new IR structs are `#[non_exhaustive]`;
   matches need a `_` arm and structs are built with constructors. `Node::Table` cells are now
   `TableCell` (`children`, `colspan`, `rowspan`) with an `alignments` field. Block variants gain a

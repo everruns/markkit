@@ -6,7 +6,7 @@
 mod common;
 
 use common::*;
-use markkit::{DocumentHint, Error, Markkit};
+use markkit::{DocumentHint, Error, Markkit, WarningCode};
 use proptest::prelude::*;
 
 const DOCX_CT: &str = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -156,7 +156,11 @@ fn xlsb_huge_declared_dimensions_do_not_allocate() {
         .unwrap();
     assert!(e.markdown.contains("far"));
     assert!(e.markdown.len() < 64 * 1024);
-    assert!(e.warnings.iter().any(|w| w.starts_with("truncated_sheet:")));
+    assert!(
+        e.warnings
+            .iter()
+            .any(|w| w.code == WarningCode::TruncatedSheet)
+    );
 }
 
 #[cfg(feature = "spreadsheet")]

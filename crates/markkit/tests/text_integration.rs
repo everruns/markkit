@@ -127,7 +127,7 @@ fn security_invalid_utf8_lossy_with_warning() {
     let e = extract(b"caf\xE9 \xC3", DocumentHint::file_name("a.txt"));
     assert_eq!(e.markdown, "caf\u{FFFD} \u{FFFD}\n");
     assert_eq!(e.warnings.len(), 1);
-    assert!(e.warnings[0].starts_with("invalid_utf8:"));
+    assert_eq!(e.warnings[0].code, markkit::WarningCode::InvalidUtf8);
 }
 
 #[test]

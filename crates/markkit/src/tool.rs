@@ -62,7 +62,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
-use crate::extract::{Extraction, Markkit};
+use crate::extract::{Extraction, Markkit, Warning, WarningCode};
 use crate::format::DocumentHint;
 
 type ToolExecutionFuture = Pin<Box<dyn Future<Output = Result<ToolOutput, ToolError>> + Send>>;
@@ -655,9 +655,9 @@ async fn run(inner: &ToolInner, req: Request) -> Result<Extraction, ToolError> {
             .map_or(extraction.markdown.len(), |(i, _)| i);
         let full_chars = extraction.markdown.chars().count();
         extraction.markdown.truncate(cut);
-        extraction.warnings.push(format!(
-            "truncated: output cut at {} of {full_chars} chars",
-            req.max_chars
+        extraction.warnings.push(Warning::new(
+            WarningCode::Truncated,
+            format!("output cut at {} of {full_chars} chars", req.max_chars),
         ));
     }
     Ok(extraction)
@@ -695,7 +695,7 @@ fn output_from_extraction(
     let truncated = extraction
         .warnings
         .iter()
-        .any(|w| w.starts_with("truncated:"));
+        .any(|w| w.code == WarningCode::Truncated);
     let stats = serde_json::to_value(&extraction.stats)
         .map_err(|e| ToolError::Internal(format!("failed to serialize stats: {e}")))?;
     let chars = extraction.markdown.chars().count();
@@ -704,7 +704,8 @@ fn output_from_extraction(
             "markdown": extraction.markdown,
             "title": extraction.title,
             "format": extraction.format,
-            "warnings": extraction.warnings,
+            // Tool contract: warnings are `"<code>: <detail>"` strings.
+            "warnings": extraction.warnings.iter().map(ToString::to_string).collect::<Vec<_>>(),
             "truncated": truncated,
         }),
         images: Vec::new(),
@@ -763,7 +764,7 @@ fn output_schema() -> serde_json::Value {
         "properties": {
             "markdown": { "type": "string", "description": "Extracted Markdown" },
             "title": { "type": ["string", "null"], "description": "Document title when known" },
-            "format": { "type": "string", "description": "Detected format (html, docx, xlsx, xls, ods)" },
+            "format": { "type": "string", "description": "Detected format (html, docx, pptx, xlsx, xlsb, xls, ods)" },
             "warnings": {
                 "type": "array",
                 "items": { "type": "string" },

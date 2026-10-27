@@ -20,15 +20,101 @@ pub struct Extraction {
     pub title: Option<String>,
     /// Format the document was parsed as.
     pub format: Format,
-    /// Non-fatal issues, each prefixed with a stable code
-    /// (`truncated_sheet:`, `hidden_sheet_skipped:`, `sheet_error:`,
-    /// `truncated_pdf:`, `pdf_unmapped_font:`, `pdf_no_text:`, `invalid_utf8:`,
-    /// `malformed_csv:`, `truncated_table:`).
-    pub warnings: Vec<String>,
+    /// Non-fatal issues, each with a stable [`WarningCode`].
+    pub warnings: Vec<Warning>,
     /// Format-specific counters.
     pub stats: ExtractionStats,
     /// Document metadata (HTML `<meta>`, Open Graph, JSON-LD); empty when unknown.
     pub metadata: Metadata,
+}
+
+/// Stable code of a [`Warning`]. Serialized (and displayed) in `snake_case`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum WarningCode {
+    /// A sheet exceeded `max_sheet_rows` / `max_sheet_cols` and was cut.
+    TruncatedSheet,
+    /// A hidden sheet was skipped (`include_hidden_sheets` is off).
+    HiddenSheetSkipped,
+    /// A sheet could not be read; the other sheets still render.
+    SheetError,
+    /// A hidden slide was skipped (`include_hidden_content` is off).
+    HiddenSlideSkipped,
+    /// A slide could not be read; the other slides still render.
+    SlideError,
+    /// Hidden HTML elements or DOCX runs were skipped (`include_hidden_content` is off).
+    HiddenContentSkipped,
+    /// PDF pages past the page cap were not extracted.
+    TruncatedPdf,
+    /// A PDF font has no Unicode mapping; its text may be garbled or missing.
+    PdfUnmappedFont,
+    /// A PDF has no extractable text layer (scanned images, no OCR).
+    PdfNoText,
+    /// Input was not valid UTF-8 and was decoded lossily.
+    InvalidUtf8,
+    /// A CSV/TSV row was malformed (ragged or unterminated quote).
+    MalformedCsv,
+    /// A CSV/TSV table exceeded the row/column caps and was cut.
+    TruncatedTable,
+    /// Output was cut to a caller's size limit (agent tool `max_chars`).
+    Truncated,
+    /// Any other issue, e.g. from a custom [`crate::registry::FormatParser`].
+    Other,
+}
+
+impl WarningCode {
+    /// The `snake_case` code, e.g. `"truncated_sheet"`.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            WarningCode::TruncatedSheet => "truncated_sheet",
+            WarningCode::HiddenSheetSkipped => "hidden_sheet_skipped",
+            WarningCode::SheetError => "sheet_error",
+            WarningCode::HiddenSlideSkipped => "hidden_slide_skipped",
+            WarningCode::SlideError => "slide_error",
+            WarningCode::HiddenContentSkipped => "hidden_content_skipped",
+            WarningCode::TruncatedPdf => "truncated_pdf",
+            WarningCode::PdfUnmappedFont => "pdf_unmapped_font",
+            WarningCode::PdfNoText => "pdf_no_text",
+            WarningCode::InvalidUtf8 => "invalid_utf8",
+            WarningCode::MalformedCsv => "malformed_csv",
+            WarningCode::TruncatedTable => "truncated_table",
+            WarningCode::Truncated => "truncated",
+            WarningCode::Other => "other",
+        }
+    }
+}
+
+impl std::fmt::Display for WarningCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// A non-fatal issue found while converting a document.
+///
+/// Match on [`Warning::code`]; `detail` is human-readable and may change.
+/// `Display` renders `"<code>: <detail>"`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub struct Warning {
+    pub code: WarningCode,
+    pub detail: String,
+}
+
+impl Warning {
+    pub fn new(code: WarningCode, detail: impl Into<String>) -> Self {
+        Self {
+            code,
+            detail: detail.into(),
+        }
+    }
+}
+
+impl std::fmt::Display for Warning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.code, self.detail)
+    }
 }
 
 /// Document-level metadata. Every field is `None` when absent.
@@ -86,7 +172,7 @@ pub struct ParsedDocument {
     /// Format the document was parsed as.
     pub format: Format,
     /// Non-fatal issues (see [`Extraction::warnings`]).
-    pub warnings: Vec<String>,
+    pub warnings: Vec<Warning>,
     /// Format-specific counters.
     pub stats: ExtractionStats,
     /// Document metadata (see [`Extraction::metadata`]).
@@ -160,7 +246,10 @@ fn guarded<T>(
 
 /// Core extraction engine.
 ///
-/// Use [`MarkkitBuilder`] to create a configured instance.
+/// Use [`MarkkitBuilder`] to create a configured instance. Holds only its
+/// configuration: cloning is cheap enough to give each task its own copy, and
+/// one instance can be shared across threads (`Send + Sync`).
+#[derive(Debug, Clone)]
 pub struct Markkit {
     config: MarkkitBuilder,
 }
@@ -564,6 +653,45 @@ mod tests {
         let m = Markkit::builder().build();
         assert_eq!(m.config().limits.max_input_size, 50 * 1024 * 1024);
         assert!(m.config().preserve_links);
+    }
+
+    #[test]
+    fn markkit_is_clone_debug_send_sync() {
+        fn assert_traits<T: Clone + std::fmt::Debug + Send + Sync + 'static>() {}
+        assert_traits::<Markkit>();
+        let m = Markkit::builder().max_sheet_rows(7).build();
+        let c = m.clone();
+        assert_eq!(c.config().limits.max_sheet_rows, 7);
+        assert!(format!("{m:?}").contains("max_sheet_rows: 7"));
+    }
+
+    #[test]
+    fn warnings_display_and_serialize_structured() {
+        let w = Warning::new(
+            WarningCode::TruncatedSheet,
+            "sheet 'S' truncated to 10 rows",
+        );
+        assert_eq!(
+            w.to_string(),
+            "truncated_sheet: sheet 'S' truncated to 10 rows"
+        );
+        assert_eq!(
+            serde_json::to_value(&w).unwrap(),
+            serde_json::json!({"code": "truncated_sheet", "detail": "sheet 'S' truncated to 10 rows"})
+        );
+        for code in [
+            WarningCode::TruncatedSheet,
+            WarningCode::HiddenSheetSkipped,
+            WarningCode::SheetError,
+            WarningCode::HiddenSlideSkipped,
+            WarningCode::SlideError,
+            WarningCode::Truncated,
+        ] {
+            assert_eq!(
+                serde_json::to_value(code).unwrap(),
+                serde_json::Value::String(code.as_str().into())
+            );
+        }
     }
 
     #[tokio::test]

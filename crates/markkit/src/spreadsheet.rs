@@ -37,6 +37,7 @@ use quick_xml::events::{BytesStart, Event};
 use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
+use crate::extract::{Warning, WarningCode};
 use crate::format::Format;
 use crate::ir::{Document, Node, Source, TableCell};
 use crate::limits::Budget;
@@ -47,7 +48,7 @@ pub(crate) struct SheetOutput {
     pub doc: Document,
     pub format: Format,
     pub title: Option<String>,
-    pub warnings: Vec<String>,
+    pub warnings: Vec<Warning>,
     pub sheets: usize,
     pub rows: usize,
 }
@@ -148,7 +149,7 @@ pub(crate) fn parse(
                 budget.check_time()?;
                 match res {
                     Ok(()) => out.push_sheet(&name, grid),
-                    Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
+                    Err(e) => out.warn(WarningCode::SheetError, format!("sheet '{name}': {e}")),
                 }
             }
             out.finish(Format::Xlsx, title)
@@ -202,7 +203,10 @@ fn parse_xlsb(
             continue;
         };
         let Some(data) = zip.read(part).map_err(archive_err)? else {
-            out.warn(format!("sheet_error: sheet '{name}': missing part {part}"));
+            out.warn(
+                WarningCode::SheetError,
+                format!("sheet '{name}': missing part {part}"),
+            );
             continue;
         };
         let mut grid = Grid::new(config);
@@ -219,7 +223,7 @@ fn parse_xlsb(
         budget.check_time()?;
         match res {
             Ok(()) => out.push_sheet(&name, grid),
-            Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
+            Err(e) => out.warn(WarningCode::SheetError, format!("sheet '{name}': {e}")),
         }
     }
     out.finish(Format::Xlsb, title)
@@ -256,7 +260,7 @@ where
                 budget.check_time()?;
                 out.push_sheet(&name, grid);
             }
-            Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
+            Err(e) => out.warn(WarningCode::SheetError, format!("sheet '{name}': {e}")),
         }
     }
     Ok(())
@@ -468,7 +472,7 @@ impl Grid {
 struct Collector<'c> {
     config: &'c MarkkitBuilder,
     nodes: Vec<Node>,
-    warnings: Vec<String>,
+    warnings: Vec<Warning>,
     sheets: usize,
     rows: usize,
 }
@@ -484,8 +488,8 @@ impl<'c> Collector<'c> {
         }
     }
 
-    fn warn(&mut self, w: String) {
-        self.warnings.push(w);
+    fn warn(&mut self, code: WarningCode, detail: String) {
+        self.warnings.push(Warning::new(code, detail));
     }
 
     /// Sheet names in workbook order, flagged with whether to render them.
@@ -497,10 +501,10 @@ impl<'c> Collector<'c> {
             }
             let hidden = s.visible != SheetVisible::Visible;
             if hidden && !self.config.include_hidden_sheets {
-                self.warn(format!(
-                    "hidden_sheet_skipped: sheet '{}' is hidden",
-                    s.name
-                ));
+                self.warn(
+                    WarningCode::HiddenSheetSkipped,
+                    format!("sheet '{}' is hidden", s.name),
+                );
                 out.push((s.name.clone(), false));
             } else {
                 out.push((s.name.clone(), true));
@@ -522,14 +526,16 @@ impl<'c> Collector<'c> {
             return;
         };
         if trunc_rows {
-            self.warn(format!(
-                "truncated_sheet: sheet '{name}' truncated to {max_rows} rows"
-            ));
+            self.warn(
+                WarningCode::TruncatedSheet,
+                format!("sheet '{name}' truncated to {max_rows} rows"),
+            );
         }
         if trunc_cols {
-            self.warn(format!(
-                "truncated_sheet: sheet '{name}' truncated to {max_cols} columns"
-            ));
+            self.warn(
+                WarningCode::TruncatedSheet,
+                format!("sheet '{name}' truncated to {max_cols} columns"),
+            );
         }
         self.sheets += 1;
         self.rows += rows.len();

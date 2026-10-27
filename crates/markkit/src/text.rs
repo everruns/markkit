@@ -19,7 +19,7 @@ use crate::limits::Budget;
 /// Decoded text plus non-fatal warnings.
 pub(crate) struct Decoded {
     pub text: String,
-    pub warnings: Vec<String>,
+    pub warnings: Vec<crate::extract::Warning>,
 }
 
 /// Decode bytes to normalized text (see module docs).
@@ -40,17 +40,24 @@ pub(crate) fn decode(bytes: &[u8]) -> Decoded {
     }
 }
 
-fn utf8(bytes: &[u8], warnings: &mut Vec<String>) -> String {
+fn utf8(bytes: &[u8], warnings: &mut Vec<crate::extract::Warning>) -> String {
     match std::str::from_utf8(bytes) {
         Ok(s) => s.to_string(),
         Err(_) => {
-            warnings.push("invalid_utf8: invalid UTF-8 sequences replaced with U+FFFD".into());
+            warnings.push(crate::extract::Warning::new(
+                crate::extract::WarningCode::InvalidUtf8,
+                "invalid UTF-8 sequences replaced with U+FFFD",
+            ));
             String::from_utf8_lossy(bytes).into_owned()
         }
     }
 }
 
-fn utf16(bytes: &[u8], read: fn([u8; 2]) -> u16, warnings: &mut Vec<String>) -> String {
+fn utf16(
+    bytes: &[u8],
+    read: fn([u8; 2]) -> u16,
+    warnings: &mut Vec<crate::extract::Warning>,
+) -> String {
     let units = bytes.as_chunks::<2>().0.iter().map(|c| read(*c));
     let mut lossy = !bytes.len().is_multiple_of(2);
     let s: String = char::decode_utf16(units)
@@ -62,7 +69,10 @@ fn utf16(bytes: &[u8], read: fn([u8; 2]) -> u16, warnings: &mut Vec<String>) -> 
         })
         .collect();
     if lossy {
-        warnings.push("invalid_utf8: invalid UTF-16 sequences replaced with U+FFFD".into());
+        warnings.push(crate::extract::Warning::new(
+            crate::extract::WarningCode::InvalidUtf8,
+            "invalid UTF-16 sequences replaced with U+FFFD",
+        ));
     }
     s
 }
@@ -157,7 +167,7 @@ mod tests {
     fn decode_invalid_utf8_warns() {
         let d = decode(b"ok \xFF\xFE!");
         assert_eq!(d.text, "ok \u{FFFD}\u{FFFD}!");
-        assert!(d.warnings[0].starts_with("invalid_utf8:"));
+        assert_eq!(d.warnings[0].code, crate::extract::WarningCode::InvalidUtf8);
     }
 
     #[test]

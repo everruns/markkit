@@ -34,7 +34,7 @@ use crate::xml::{self, Element, XmlError};
 /// Result of parsing a DOCX package.
 pub(crate) struct DocxOutput {
     pub doc: Document,
-    pub warnings: Vec<String>,
+    pub warnings: Vec<crate::extract::Warning>,
     pub title: Option<String>,
     pub paragraphs: usize,
     pub tables: usize,
@@ -669,8 +669,9 @@ pub(crate) fn parse(
         doc: Document::new(body.blocks),
         warnings: match ctx.hidden_runs.get() {
             0 => Vec::new(),
-            n => vec![format!(
-                "hidden_content_skipped: {n} hidden text run(s) skipped"
+            n => vec![crate::extract::Warning::new(
+                crate::extract::WarningCode::HiddenContentSkipped,
+                format!("{n} hidden text run(s) skipped"),
             )],
         },
     })

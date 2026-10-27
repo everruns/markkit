@@ -24,6 +24,7 @@ use std::collections::HashMap;
 use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
+use crate::extract::{Warning, WarningCode};
 use crate::ir::{Document, Node, Source, TableCell};
 use crate::limits::Budget;
 use crate::ooxml::{
@@ -36,7 +37,7 @@ use crate::xml::{self, Element, XmlError};
 pub(crate) struct PptxOutput {
     pub doc: Document,
     pub title: Option<String>,
-    pub warnings: Vec<String>,
+    pub warnings: Vec<Warning>,
     pub slides: usize,
     pub tables: usize,
 }
@@ -439,19 +440,31 @@ pub(crate) fn parse(
         let n = i + 1;
         budget.check_time()?;
         let Some(path) = internal_target(&rels, rid, "/slide", dir) else {
-            warnings.push(format!("slide_error: slide {n}: dangling relationship"));
+            warnings.push(Warning::new(
+                WarningCode::SlideError,
+                format!("slide {n}: dangling relationship"),
+            ));
             continue;
         };
         let Some(xml) = zip.read_xml(&path)? else {
-            warnings.push(format!("slide_error: slide {n}: missing part {path}"));
+            warnings.push(Warning::new(
+                WarningCode::SlideError,
+                format!("slide {n}: missing part {path}"),
+            ));
             continue;
         };
         let Some(sld) = xml.child("sld") else {
-            warnings.push(format!("slide_error: slide {n}: not a p:sld"));
+            warnings.push(Warning::new(
+                WarningCode::SlideError,
+                format!("slide {n}: not a p:sld"),
+            ));
             continue;
         };
         if matches!(sld.attr("show"), Some("0" | "false")) && !config.include_hidden_content {
-            warnings.push(format!("hidden_slide_skipped: slide {n} is hidden"));
+            warnings.push(Warning::new(
+                WarningCode::HiddenSlideSkipped,
+                format!("slide {n} is hidden"),
+            ));
             continue;
         }
         let slide_rels = zip.part_rels(&path)?;
