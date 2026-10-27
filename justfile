@@ -91,13 +91,25 @@ extract-file path:
 
 # ─── Benchmarks ──────────────────────────────────────────────
 
-# Run criterion benchmarks for the core crate
-bench *args:
-    cargo bench -p markkit --bench extraction {{args}}
+# Run the benchmark harness and save JSON/Markdown results to crates/markkit-bench/results/
+bench:
+    cargo run -p markkit-bench --release -- --save
 
-# Run the markkit-bench harness (stub, not yet implemented)
-bench-harness *args:
+# Benchmark with more iterations for accuracy and save results
+bench-accurate:
+    cargo run -p markkit-bench --release -- --iterations 100 --warmup 10 --save
+
+# Exploratory run, nothing saved (e.g. just bench-quick --category html)
+bench-quick *args:
     cargo run -p markkit-bench --release -- {{args}}
+
+# List benchmark cases
+bench-list:
+    cargo run -p markkit-bench --release -- --list
+
+# Run criterion micro-benchmarks for the core crate
+bench-criterion *args:
+    cargo bench -p markkit --bench extraction {{args}}
 
 # ─── Eval ────────────────────────────────────────────────────
 
