@@ -19,9 +19,17 @@
 //! - XLSB is read by our own bounds-checked BIFF12 reader ([`xlsb`]), streaming
 //!   cells into the same capped grid; calamine's XLSB reader panics on
 //!   malformed records.
+//! - calamine's BIFF reader indexes records without bounds checks. `catch_unwind`
+//!   only helps where panics unwind (not WASM or `panic = "abort"` embedders),
+//!   so the XLS pre-scan also rejects every
+//!   record shape known to panic it (found by `fuzz/xls_biff`). Formula token
+//!   streams are not validated but neutralised (`cce = 0`): markkit renders
+//!   cached values only, and calamine's formula decompiler has too many
+//!   unchecked reads to mirror. calamine then reads a container rebuilt from the
+//!   exact stream we scanned, so its own CFB reader cannot see different bytes.
 
 use std::collections::BTreeMap;
-use std::io::{Cursor, Read, Seek};
+use std::io::{Cursor, Read, Seek, Write};
 
 use calamine::{Data, DataRef, Ods, Reader, SheetType, SheetVisible, Xls, Xlsx};
 use quick_xml::events::{BytesStart, Event};
@@ -109,7 +117,7 @@ pub(crate) fn parse(
     } else if bytes.starts_with(OLE2_MAGIC) {
         let mut comp = cfb::CompoundFile::open(Cursor::new(bytes))
             .map_err(|e| err(format!("invalid XLS container: {e}")))?;
-        prescan_xls(&mut comp, config)?;
+        patched = Some(prescan_xls(&mut comp, config)?);
         (Container::Xls, xls_title(&mut comp))
     } else {
         return Err(err("not a spreadsheet (expected XLSX, XLSB, XLS or ODS)"));
@@ -696,20 +704,159 @@ fn read_u32(d: &[u8], at: usize) -> Option<u32> {
 
 /// Iterate BIFF records `(type, data)` until EOF record or end of stream.
 fn records(stream: &[u8]) -> impl Iterator<Item = (u16, &[u8])> {
+    records_at(stream).map(|(_, typ, data)| (typ, data))
+}
+
+/// [`records`] with the offset of each record's data.
+fn records_at(stream: &[u8]) -> impl Iterator<Item = (usize, u16, &[u8])> {
     let mut pos = 0usize;
     std::iter::from_fn(move || {
         let typ = read_u16(stream, pos)?;
         let len = read_u16(stream, pos + 2)? as usize;
         let data = stream.get(pos + 4..pos + 4 + len)?;
         pos += 4 + len;
-        Some((typ, data))
+        Some((pos - len, typ, data))
     })
 }
 
+const CONTINUE: u16 = 0x003C;
+
+/// CONTINUE chunks that calamine appends to the record ending at `end`.
+fn continues(stream: &[u8], mut end: usize) -> Vec<&[u8]> {
+    let mut out = Vec::new();
+    while stream.len() > end + 4 && read_u16(stream, end) == Some(CONTINUE) {
+        let len = read_u16(stream, end + 2).unwrap_or(0) as usize;
+        let Some(d) = stream.get(end + 4..end + 4 + len) else {
+            break;
+        };
+        out.push(d);
+        end += 4 + len;
+    }
+    out
+}
+
+/// Mirror of calamine's SST walk (`parse_sst` / `read_rich_extended_string`):
+/// `Err` where calamine would index out of bounds. Stops (`Ok`) wherever
+/// calamine returns its own error.
+fn check_sst(data: &[u8], cont: &[&[u8]]) -> Result<(), Error> {
+    let bad = || err("malformed XLS SST record");
+    let Some(mut d) = data.get(8..) else {
+        return Ok(());
+    };
+    let mut cont = cont.iter().copied();
+    loop {
+        if d.is_empty() {
+            match cont.next() {
+                Some(c) => d = c,
+                None => return Ok(()),
+            }
+            if d.is_empty() {
+                continue;
+            }
+        }
+        if d.len() < 3 {
+            return Ok(());
+        }
+        let mut cch = read_u16(d, 0).unwrap_or(0) as usize;
+        let flags = d[2];
+        d = &d[3..];
+        let mut skip = 0usize;
+        if flags & 0x8 != 0 {
+            skip += 4 * read_u16(d, 0).ok_or_else(bad)? as usize;
+            d = &d[2..];
+        }
+        if flags & 0x4 != 0 {
+            skip = skip.saturating_add(read_u32(d, 0).ok_or_else(bad)? as i32 as usize);
+            d = &d[4..];
+        }
+        let mut wide = flags & 0x1 != 0;
+        while cch > 0 {
+            let l = cch.min(if wide { d.len() / 2 } else { d.len() });
+            d = &d[if wide { 2 * l } else { l }..];
+            cch -= l;
+            if cch > 0 {
+                match cont.next() {
+                    Some(c) => d = c,
+                    None => return Ok(()),
+                }
+                // calamine reads the fHighByte flag without a length check.
+                if d.is_empty() {
+                    return Err(bad());
+                }
+                wide = d[0] & 0x1 != 0;
+                d = &d[1..];
+            }
+        }
+        while skip > 0 {
+            if d.is_empty() {
+                match cont.next() {
+                    Some(c) => d = c,
+                    None => return Ok(()),
+                }
+            }
+            let l = skip.min(d.len());
+            d = &d[l..];
+            skip -= l;
+        }
+    }
+}
+
+/// Reject globals records calamine reads without length checks.
+fn check_globals_record(typ: u16, data: &[u8], biff8: bool) -> Result<(), Error> {
+    let min = match typ {
+        // FILEPASS, CODEPAGE, DATEMODE, BOF
+        0x002F | 0x0042 | 0x0022 | 0x0809 => 2,
+        // BOUNDSHEET: lbPlyPos, hsState, dt
+        0x0085 => 6,
+        // LBL: fixed header up to the name
+        0x0018 => 14,
+        // EXTERNSHEET (BIFF8 cXTI)
+        0x0017 if biff8 => 2,
+        _ => 0,
+    };
+    if data.len() < min {
+        return Err(err(format!("truncated XLS record 0x{typ:04X}")));
+    }
+    if typ == 0x0018 {
+        // calamine decodes the first token of `rgce` (the last cce bytes).
+        let cce = read_u16(data, 4).unwrap_or(0) as usize;
+        let rgce = data
+            .len()
+            .checked_sub(cce)
+            .map(|at| &data[at..])
+            .ok_or_else(|| err("malformed XLS LBL record"))?;
+        // PtgRef3d / PtgArea3d / PtgRefErr3d + PtgAreaErr3d, all token classes.
+        let need = match (rgce.first(), biff8) {
+            (Some(0x3A | 0x5A | 0x7A), true) => 7,
+            (Some(0x3B | 0x5B | 0x7B), true) => 11,
+            (Some(0x3C | 0x5C | 0x7C | 0x3D | 0x5D | 0x7D), true) => 3,
+            (Some(0x3A | 0x5A | 0x7A), false) => 18,
+            (Some(0x3B | 0x5B | 0x7B), false) => 21,
+            (Some(0x3C | 0x5C | 0x7C | 0x3D | 0x5D | 0x7D), false) => 13,
+            _ => 0,
+        };
+        if rgce.len() < need {
+            return Err(err("malformed XLS LBL record"));
+        }
+    }
+    Ok(())
+}
+
+/// calamine's BIFF version detection from a BOF record (`parse_bof`).
+fn bof_is_biff8(data: &[u8]) -> bool {
+    match read_u16(data, 0).unwrap_or(0) {
+        0x0200 | 0x0002 | 0x0007 | 0x0300 | 0x0400 | 0x0500 => false,
+        0 => read_u16(data, 2) != Some(0x1000),
+        _ => true,
+    }
+}
+
+/// Scan the workbook stream and return a fresh OLE2 container holding only the
+/// scanned (and formula-neutralised) stream, which is what calamine reads.
 fn prescan_xls<F: Read + Seek>(
     comp: &mut cfb::CompoundFile<F>,
     config: &MarkkitBuilder,
-) -> Result<(), Error> {
+) -> Result<Vec<u8>, Error> {
     let name = ["/Workbook", "/Book", "/WORKBOOK", "/BOOK"]
         .into_iter()
         .find(|n| comp.is_stream(n))
@@ -726,20 +873,44 @@ fn prescan_xls<F: Read + Seek>(
             "XLS Workbook stream exceeds {cap} bytes"
         )));
     }
-    scan_biff(&stream, config.limits.max_spreadsheet_cells)
+    // Neutralising rewrites bytes, which can reframe records of an overlapping
+    // sheet; rescan until stable. Honest files settle on the second pass.
+    for _ in 0..3 {
+        let edits = scan_biff(&stream, config.limits.max_spreadsheet_cells)?;
+        if edits.is_empty() {
+            return wrap_workbook(&stream);
+        }
+        for at in edits {
+            stream[at..at + 2].fill(0);
+        }
+    }
+    Err(err("malformed XLS: overlapping sheet records"))
+}
+
+fn wrap_workbook(stream: &[u8]) -> Result<Vec<u8>, Error> {
+    let werr = |e: std::io::Error| err(format!("cannot rebuild XLS container: {e}"));
+    let mut comp = cfb::CompoundFile::create(Cursor::new(Vec::new())).map_err(werr)?;
+    comp.create_stream("/Workbook")
+        .and_then(|mut s| s.write_all(stream))
+        .map_err(werr)?;
+    comp.flush().map_err(werr)?;
+    Ok(comp.into_inner().into_inner())
 }
 
 /// Estimate the cells calamine will allocate and reject inputs that would
-/// exceed `max_cells`, or that trip calamine's unchecked arithmetic.
-fn scan_biff(stream: &[u8], max_cells: u64) -> Result<(), Error> {
+/// exceed `max_cells`, or that trip calamine's unchecked reads. Returns the
+/// offsets of non-zero formula `cce` fields to neutralise.
+fn scan_biff(stream: &[u8], max_cells: u64) -> Result<Vec<usize>, Error> {
     let mut offsets = Vec::new();
+    let mut biff8 = true;
+    let mut end = 0usize;
     for (typ, data) in records(stream) {
+        end += 4 + data.len();
+        check_globals_record(typ, data, biff8)?;
         match typ {
-            0x0085 => {
-                if let Some(pos) = read_u32(data, 0) {
-                    offsets.push(pos as usize);
-                }
-            }
+            0x0809 => biff8 = bof_is_biff8(data),
+            0x0085 => offsets.push(read_u32(data, 0).unwrap_or(0) as usize),
+            0x00FC => check_sst(data, &continues(stream, end))?,
             0x000A => break,
             _ => {}
         }
@@ -747,20 +918,24 @@ fn scan_biff(stream: &[u8], max_cells: u64) -> Result<(), Error> {
     let limit =
         |n: u64| Error::ResourceLimit(format!("XLS grid of {n} cells exceeds limit {max_cells}"));
     let mut total: u64 = 0;
+    let mut edits = Vec::new();
     for pos in offsets {
         let sheet = stream
             .get(pos..)
             .filter(|s| !s.is_empty())
             .ok_or_else(|| err("XLS sheet offset out of range"))?;
-        total = total.saturating_add(scan_biff_sheet(sheet)?);
+        let cells = scan_biff_sheet(sheet, |at| edits.push(pos + at))?;
+        total = total.saturating_add(cells);
         if total > max_cells {
             return Err(limit(total));
         }
     }
-    Ok(())
+    edits.sort_unstable();
+    edits.dedup();
+    Ok(edits)
 }
 
-fn scan_biff_sheet(sheet: &[u8]) -> Result<u64, Error> {
+fn scan_biff_sheet(sheet: &[u8], mut neutralise: impl FnMut(usize)) -> Result<u64, Error> {
     let mut reserved: u64 = 0;
     let mut bounds: Option<(u32, u32, u32, u32)> = None;
     let mut see = |r: u32, c: u32| {
@@ -769,8 +944,22 @@ fn scan_biff_sheet(sheet: &[u8]) -> Result<u64, Error> {
             Some((r0, r1, c0, c1)) => (r0.min(r), r1.max(r), c0.min(c), c1.max(c)),
         });
     };
-    for (typ, data) in records(sheet) {
+    // calamine skips nested substreams (embedded charts) and reads on past
+    // their EOF; the first BOF belongs to the sheet itself.
+    let mut seen_bof = false;
+    let mut depth = 0usize;
+    for (at, typ, data) in records_at(sheet) {
+        if depth > 0 {
+            match typ {
+                0x0809 => depth += 1,
+                0x000A => depth -= 1,
+                _ => {}
+            }
+            continue;
+        }
         match typ {
+            0x0809 if seen_bof => depth += 1,
+            0x0809 => seen_bof = true,
             0x000A => break,
             // DIMENSIONS: calamine reserves rows × cols up front.
             0x0200 => {
@@ -781,7 +970,7 @@ fn scan_biff_sheet(sheet: &[u8]) -> Result<u64, Error> {
                         read_u16(data, 4).unwrap_or(0) as u32,
                         read_u16(data, 6).unwrap_or(0) as u32,
                     ),
-                    14 => (
+                    14 | 16 => (
                         read_u32(data, 0).unwrap_or(0),
                         read_u32(data, 4).unwrap_or(0),
                         read_u16(data, 8).unwrap_or(0) as u32,
@@ -793,7 +982,9 @@ fn scan_biff_sheet(sheet: &[u8]) -> Result<u64, Error> {
                     cf = 0;
                 }
                 if rl >= 1 && cl >= 1 {
-                    if rl - 1 < rf {
+                    // calamine computes (last - first + 1) on u32: underflows
+                    // when either range is empty.
+                    if rl - 1 < rf || cl - 1 < cf {
                         return Err(err("malformed XLS DIMENSIONS record"));
                     }
                     reserved = reserved
@@ -801,9 +992,28 @@ fn scan_biff_sheet(sheet: &[u8]) -> Result<u64, Error> {
                 }
             }
             // Cell records starting with (row, col).
-            0x0203 | 0x0204 | 0x00D6 | 0x0205 | 0x027E | 0x00FD | 0x0006 => {
+            0x0203 | 0x0204 | 0x00D6 | 0x0205 | 0x027E | 0x00FD => {
                 if let (Some(r), Some(c)) = (read_u16(data, 0), read_u16(data, 2)) {
                     see(r.into(), c.into());
+                }
+            }
+            // FORMULA: calamine decompiles `rgce` (cce at offset 20) from 22 bytes on.
+            0x0006 if data.len() >= 20 => {
+                if data.len() < 22 {
+                    return Err(err("truncated XLS FORMULA record"));
+                }
+                if data[20..22] != [0, 0] {
+                    neutralise(at + 20);
+                }
+                if let (Some(r), Some(c)) = (read_u16(data, 0), read_u16(data, 2)) {
+                    see(r.into(), c.into());
+                }
+            }
+            // MERGECELLS: count, then count × 8-byte ranges (unchecked in calamine).
+            0x00E5 => {
+                let n = read_u16(data, 0).unwrap_or(0) as usize;
+                if data.len() < 2 + 8 * n {
+                    return Err(err("malformed XLS MERGECELLS record"));
                 }
             }
             // MULRK: row, first col, …, last col.
@@ -811,7 +1021,8 @@ fn scan_biff_sheet(sheet: &[u8]) -> Result<u64, Error> {
                 let r = read_u16(data, 0).unwrap_or(0);
                 let first = read_u16(data, 2).unwrap_or(0);
                 let last = read_u16(data, data.len() - 2).unwrap_or(0);
-                if last < first {
+                // calamine computes (last - first + 1) on u16.
+                if last < first || last - first == u16::MAX {
                     return Err(err("malformed XLS MULRK record"));
                 }
                 see(r.into(), first.into());
@@ -1079,6 +1290,6 @@ mod tests {
         s.extend_from_slice(&0x00BDu16.to_le_bytes());
         s.extend_from_slice(&6u16.to_le_bytes());
         s.extend_from_slice(&[0, 0, 5, 0, 1, 0]);
-        assert!(scan_biff_sheet(&s).is_err());
+        assert!(scan_biff_sheet(&s, |_| {}).is_err());
     }
 }

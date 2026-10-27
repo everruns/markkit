@@ -44,6 +44,8 @@ each security test states exactly which bytes it feeds the parser.
 - **Property** (`proptest`): arbitrary input never panics, output never contains
   `<script>`/`<style>`, extraction is deterministic, limits hold, source
   indentation between blocks never changes output
+- **Fuzz** (cargo-fuzz, nightly): seven targets assert the S17 output oracle; see
+  [Fuzzing](../security/fuzzing.md)
 - **Security**: one or more tests per mitigated threat; the
   [Threat Model](../security/threat-model.md) maps threats to test names
 - **Benchmarks**: `just bench` runs `markkit-bench` (ops/s, throughput, allocations)
@@ -64,7 +66,8 @@ each security test states exactly which bytes it feeds the parser.
 `ci.yml` runs fmt, clippy, rustdoc (`-D warnings`), the knowledge bundle check,
 `cargo audit` + `cargo deny`, `cargo test --workspace` (default and all features),
 the `docx,spreadsheet,markdown` no-HTTP build with a reqwest leak check, and every example.
-`nightly.yml` repeats build + test on nightly Rust daily; `coverage.yml` uploads
+`nightly.yml` repeats build + test on nightly Rust daily; `fuzz.yml` runs every
+cargo-fuzz target nightly and uploads crashes; `coverage.yml` uploads
 tarpaulin coverage (`--engine llvm`; ptrace segfaults on threaded socket tests). All must pass before merge.
 
 ## See also

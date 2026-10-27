@@ -31,6 +31,7 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 | formats/format-support | Formats, bytes-in API, detection order, DOCX + spreadsheet mapping |
 | integrations/tool-contract | `MarkkitTool` LLM tool (`tool` feature), Everruns toolkit contract |
 | security/security-model | One-page threat/invariant summary |
+| security/fuzzing | cargo-fuzz targets, S17 oracle, nightly workflow, crash triage |
 | security/threat-model | Threats T1-T9, mitigations, test map, resource limits, invariants S1-S21 |
 | runtimes/python-package | PyO3 `markkit` module, maturin, PyPI |
 | runtimes/wasm-package | wasm-bindgen `@everruns/markkit-wasm`, browser/edge, build + tests |

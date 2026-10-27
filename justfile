@@ -89,6 +89,16 @@ extract url:
 extract-file path:
     cargo run -p markkit-cli -- extract --file {{path}}
 
+# ─── Fuzzing (nightly + cargo-fuzz) ──────────────────────────
+
+# Fuzz one target (html, document, docx_xml, xlsx_xml, ods_xml, xls_biff, render_ir)
+fuzz target secs="60":
+    cd crates/markkit && mkdir -p fuzz/corpus/{{target}} && cargo +nightly fuzz run -O {{target}} fuzz/corpus/{{target}} $(ls -d fuzz/seeds/{{target}} 2>/dev/null) -- -max_total_time={{secs}} -max_len=65536
+
+# Build every fuzz target (no run)
+fuzz-build:
+    cd crates/markkit && cargo +nightly fuzz build -O
+
 # ─── Benchmarks ──────────────────────────────────────────────
 
 # Run the benchmark harness and save JSON/Markdown results to crates/markkit-bench/results/
