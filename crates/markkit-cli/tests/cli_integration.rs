@@ -117,6 +117,11 @@ fn extract_text_and_markdown_files() {
             "Title\n=====\n\n* a\n\n<script>x()</script>\n",
             "# Title\n\n- a\n",
         ),
+        (
+            "data.csv",
+            "a;b\n1;2\n",
+            "| a | b |\n| --- | --- |\n| 1 | 2 |\n",
+        ),
     ];
     for (name, input, expected) in cases {
         let file_path = dir.path().join(name);

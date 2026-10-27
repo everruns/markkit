@@ -317,15 +317,17 @@ process, or smuggling content past a human reviewer.
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
   `spreadsheet_integration::xlsm_with_vba_project_extracts_values_only`
 
-### T7: Text and Markdown Input
+### T7: Text, Markdown and CSV Input
 
-**Description**: Plain text or Markdown carrying terminal escapes, NULs, invalid encodings,
+**Description**: Plain text, Markdown or CSV/TSV carrying terminal escapes, NULs, invalid encodings,
 raw HTML (`<script>`, event handlers) or pathological nesting.
 
 **Impact**: Medium -- raw HTML passed through re-introduces T1; deep nesting can crash.
 
 **Mitigations**:
-- Text and Markdown are never sniffed; a content type or extension must select them
+- CSV/TSV reading stops at `max_sheet_rows`; fields past `max_sheet_cols` are never stored
+  (a 5 MB row of commas allocates two cells)
+- Text, Markdown and CSV are never sniffed; a content type or extension must select them
 - Decoding is total: invalid UTF-8/UTF-16 is replaced (U+FFFD) with an `invalid_utf8` warning
 - C0 controls (except tab/newline) and DEL are dropped before parsing
 - Markdown is re-parsed (pulldown-cmark) into the IR; raw HTML is never copied. HTML blocks
@@ -344,6 +346,8 @@ in a `.txt`) is emitted as `Node::Text` and escaped by the renderer (S17), like 
 - `security_input_size_limit`, `security_output_bounded_by_input`
 - `security_text_and_markdown_share_limits` (timeout, `max_nodes`)
 - `security_plain_text_markup_is_escaped`
+- `csv_integration::security_*`: row/column caps, unterminated quotes, control characters,
+  random bytes always yield well-formed table rows
 
 ### T8: Malicious PDFs
 
@@ -465,7 +469,7 @@ style, is not detected.
 | PDF decoded total / interpreted content | 256 MiB | `max_pdf_decoded_size(usize)` | Pre-scan; interpretation budget |
 | PDF pages | 10 000 | `max_pdf_pages(usize)` | Page loop (truncate + warn) |
 | PDF form XObject depth | 8 | Hardcoded `MAX_FORM_DEPTH` | `Do` operator |
-| Rows / columns per sheet | 10 000 / 256 | `max_sheet_rows`, `max_sheet_cols` | While collecting cells (truncate + warn) |
+| Rows / columns per sheet or CSV table | 10 000 / 256 | `max_sheet_rows`, `max_sheet_cols` | While collecting cells (truncate + warn) |
 
 ## Malicious Input Categories
 
@@ -512,7 +516,7 @@ style, is not detected.
 | S15 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
 | S16 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
 | S17 | Rendered markdown has no raw HTML, no non-allowlisted link/image scheme, and document text cannot create Markdown structure | `output_safety::*` (pulldown-cmark oracle + proptests) |
-| S18 | Text and Markdown output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*` |
+| S18 | Text, Markdown and CSV/TSV output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*`, `csv_integration::security_*` |
 | S19 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
 | S20 | Hidden content is not rendered by default | `hidden_content::*` |
 | S21 | HTML parse time is linear in input whatever the nesting; flattened deep subtrees never emit non-content (script/style/template) text | `html_security::deep_*_is_linear`, `script_and_style_bodies_do_not_leak_past_max_depth` |

@@ -35,6 +35,7 @@
 //! - **DOCX** (`docx`): Convert Word documents
 //! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLSB, XLS and ODS workbooks to tables
 //! - **Plain text** (always on): `text/plain`, `.txt`
+//! - **CSV / TSV** (always on): `text/csv`, `text/tab-separated-values`, `.csv`, `.tsv`, one table
 //! - **Markdown** (`markdown`): `text/markdown`, `.md`, normalized through the IR
 //! - **PDF** (`pdf`): Text layer of PDF documents (no OCR); encrypted PDFs are
 //!   rejected with [`Error::UnsupportedFormat`]
@@ -50,6 +51,7 @@
 #[cfg(any(feature = "docx", feature = "spreadsheet"))]
 mod archive;
 pub mod config;
+mod csv;
 #[cfg(feature = "docx")]
 mod docx;
 pub mod error;
