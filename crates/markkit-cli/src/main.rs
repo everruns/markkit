@@ -6,6 +6,8 @@ use std::time::Duration;
 use clap::{Args, Parser, Subcommand};
 use markkit::{Limits, Markkit};
 
+mod mcp;
+
 #[derive(Parser)]
 #[command(
     name = "markkit",
@@ -40,6 +42,11 @@ enum Commands {
         #[arg(long = "exclude", short = 'e')]
         exclude_selectors: Vec<String>,
 
+        /// JSON file with HTML element rules, e.g.
+        /// `[{"selector": ".note", "action": "block_quote", "title": "Note"}]`
+        #[arg(long)]
+        rules: Option<std::path::PathBuf>,
+
         /// Output as JSON with metadata
         #[arg(long)]
         json: bool,
@@ -52,6 +59,27 @@ enum Commands {
         /// Keep only the detected main content (article body) of HTML pages
         #[arg(long)]
         main_content: bool,
+
+        #[command(flatten)]
+        limits: LimitArgs,
+    },
+    /// Serve the `markkit` tool over MCP (JSON-RPC on stdin/stdout)
+    Mcp {
+        /// Do not offer the `url` source (no network access)
+        #[arg(long)]
+        no_url: bool,
+
+        /// Maximum markdown characters returned per call
+        #[arg(long, default_value_t = markkit::tool::DEFAULT_MAX_OUTPUT_CHARS)]
+        max_output_chars: usize,
+
+        /// Keep only the detected main content (article body) of HTML pages
+        #[arg(long)]
+        main_content: bool,
+
+        /// Locale for tool descriptions and errors (en-US, uk-UA)
+        #[arg(long, default_value = "en-US")]
+        locale: String,
 
         #[command(flatten)]
         limits: LimitArgs,
@@ -98,6 +126,15 @@ struct LimitArgs {
     /// Maximum redirects followed when fetching a URL [default: 5]
     #[arg(long, value_name = "N")]
     max_redirects: Option<usize>,
+    /// Maximum PDF pages rendered [default: 10000]
+    #[arg(long, value_name = "N")]
+    max_pdf_pages: Option<usize>,
+    /// Maximum decoded size of one PDF stream, bytes [default: 67108864]
+    #[arg(long, value_name = "BYTES")]
+    max_pdf_stream_size: Option<usize>,
+    /// Maximum total decoded PDF content, bytes [default: 268435456]
+    #[arg(long, value_name = "BYTES")]
+    max_pdf_decoded_size: Option<usize>,
 }
 
 impl LimitArgs {
@@ -117,7 +154,10 @@ impl LimitArgs {
             max_sheet_rows,
             max_sheet_cols,
             max_spreadsheet_cells,
-            max_redirects
+            max_redirects,
+            max_pdf_pages,
+            max_pdf_stream_size,
+            max_pdf_decoded_size
         );
         l
     }
@@ -133,6 +173,24 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Mcp {
+            no_url,
+            max_output_chars,
+            main_content,
+            locale,
+            limits,
+        } => {
+            let limits = limits.apply(Limits::default());
+            let max_message = mcp::max_message_bytes(limits.max_input_size);
+            let tool = markkit::tool::MarkkitTool::builder()
+                .locale(&locale)
+                .config(Markkit::builder().limits(limits).main_content(main_content))
+                .allow_url(!no_url)
+                .max_output_chars(max_output_chars)
+                .build();
+            let stdin = tokio::io::BufReader::new(tokio::io::stdin());
+            mcp::serve(&tool, stdin, tokio::io::stdout(), max_message).await?;
+        }
         Commands::Extract {
             source,
             file,
@@ -140,6 +198,7 @@ async fn main() -> Result<()> {
             include_selectors,
             exclude_selectors,
             limits,
+            rules,
             json: output_json,
             base_url,
             main_content,
@@ -163,6 +222,12 @@ async fn main() -> Result<()> {
 
             if let Some(base) = base_url {
                 builder = builder.base_url(base);
+            }
+
+            if let Some(path) = &rules {
+                let text = std::fs::read_to_string(path)?;
+                builder.html_rules = serde_json::from_str(&text)
+                    .map_err(|e| anyhow::anyhow!("invalid rules file {}: {e}", path.display()))?;
             }
 
             let markkit = builder.build();
@@ -215,7 +280,9 @@ mod tests {
 
     fn limits_from(args: &[&str]) -> Limits {
         let cli = Cli::try_parse_from(["markkit", "extract", "x"].iter().chain(args)).unwrap();
-        let Commands::Extract { limits, .. } = cli.command;
+        let Commands::Extract { limits, .. } = cli.command else {
+            panic!("expected extract");
+        };
         limits.apply(Limits::default())
     }
 
@@ -239,6 +306,9 @@ mod tests {
             "--max-sheet-cols=9",
             "--max-spreadsheet-cells=10",
             "--max-redirects=11",
+            "--max-pdf-pages=12",
+            "--max-pdf-stream-size=13",
+            "--max-pdf-decoded-size=14",
         ]);
         let want = Limits::default()
             .max_input_size(1)
@@ -252,7 +322,10 @@ mod tests {
             .max_sheet_rows(8)
             .max_sheet_cols(9)
             .max_spreadsheet_cells(10)
-            .max_redirects(11);
+            .max_redirects(11)
+            .max_pdf_pages(12)
+            .max_pdf_stream_size(13)
+            .max_pdf_decoded_size(14);
         assert_eq!(l, want);
     }
 

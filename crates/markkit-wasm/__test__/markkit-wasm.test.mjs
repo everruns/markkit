@@ -74,6 +74,17 @@ test("extractDocument exposes page metadata in camelCase", () => {
   assert.equal(out.metadata.site_name, undefined);
 });
 
+test("extractDocument reads plain text and Markdown", () => {
+  const mk = new Markkit();
+  const txt = mk.extractDocument(new TextEncoder().encode("a\nb"), { fileName: "n.txt" });
+  assert.equal(txt.format, "text");
+  assert.equal(txt.markdown, "a  \nb\n");
+  const md = mk.extractDocument(new TextEncoder().encode("# T\n\n<script>x()</script>\n"), { fileName: "d.md" });
+  assert.equal(md.format, "markdown");
+  assert.equal(md.title, "T");
+  assert.ok(!md.markdown.includes("script"));
+});
+
 test("extractBytes and unsupported formats", () => {
   const mk = new Markkit();
   assert.equal(mk.extractBytes(new TextEncoder().encode("<p>x</p>"), "text/html"), "x\n");

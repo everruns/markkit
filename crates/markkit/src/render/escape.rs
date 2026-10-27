@@ -83,17 +83,33 @@ fn push_text_slow(buf: &mut String, s: &str, pos: Position) -> bool {
                 continue;
             }
             line_start = false;
+            // A marker only opens a block when followed by whitespace. At the end of
+            // the run the next node may supply it, so escape there too.
+            let opens = |at: usize| chars.get(at).is_none_or(|n| *n == ' ' || *n == '\t');
             match c {
-                '#' | '>' | '-' | '+' | '=' => {
+                // `-` (thematic break, setext), `=` (setext), `>` (quote): always.
+                '>' | '-' | '=' => {
                     buf.push('\\');
                     buf.push(c);
                     i += 1;
                     continue;
                 }
+                '#' | '+' => {
+                    let run = chars[i..].iter().take_while(|d| **d == c).count();
+                    if c == '#' && opens(i + run) || c == '+' && opens(i + 1) {
+                        buf.push('\\');
+                        buf.push(c);
+                        i += 1;
+                        continue;
+                    }
+                }
                 '0'..='9' => {
-                    // Ordered list marker: up to 9 digits then `.` or `)`.
+                    // Ordered list marker: up to 9 digits, `.` or `)`, then whitespace.
                     let digits = chars[i..].iter().take_while(|d| d.is_ascii_digit()).count();
-                    if digits <= 9 && matches!(chars.get(i + digits), Some('.') | Some(')')) {
+                    if digits <= 9
+                        && matches!(chars.get(i + digits), Some('.') | Some(')'))
+                        && opens(i + digits + 1)
+                    {
                         buf.extend(&chars[i..i + digits]);
                         buf.push('\\');
                         buf.push(chars[i + digits]);

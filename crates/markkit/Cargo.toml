@@ -16,9 +16,10 @@ readme = "../../README.md"
 [features]
 default = ["html"]
 html = ["dep:scraper", "dep:html5ever", "dep:ego-tree", "dep:url"]
-pdf = []
+pdf = ["dep:hayro-syntax", "dep:miniz_oxide"]
 docx = ["dep:zip", "dep:quick-xml"]
 spreadsheet = ["dep:calamine", "dep:zip", "dep:quick-xml", "dep:cfb"]
+markdown = ["dep:pulldown-cmark"]
 # Opt-in: the default build has no network stack (no reqwest/hyper/TLS).
 http_client = ["dep:reqwest", "tokio/net"]
 logging = ["dep:tracing"]
@@ -26,7 +27,7 @@ logging = ["dep:tracing"]
 tool = ["dep:tower", "dep:futures-core", "dep:base64"]
 # JSON Schema for the IR (`markkit::ir::json_schema()`)
 json-schema = ["dep:schemars"]
-all_formats = ["html", "pdf", "docx", "spreadsheet"]
+all_formats = ["html", "pdf", "docx", "spreadsheet", "markdown"]
 
 [dependencies]
 # Async
@@ -54,6 +55,13 @@ quick-xml = { workspace = true, optional = true }
 calamine = { workspace = true, optional = true }
 cfb = { workspace = true, optional = true }
 
+# PDF (optional)
+hayro-syntax = { workspace = true, optional = true }
+miniz_oxide = { workspace = true, optional = true }
+
+# Markdown (optional)
+pulldown-cmark = { workspace = true, optional = true }
+
 # HTTP client (optional)
 reqwest = { workspace = true, optional = true }
 
@@ -75,6 +83,7 @@ criterion.workspace = true
 tower = { workspace = true }
 zip = { workspace = true }
 cfb = { workspace = true }
+miniz_oxide = { workspace = true }
 
 [[example]]
 name = "basic"

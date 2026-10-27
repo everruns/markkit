@@ -21,6 +21,10 @@ pub struct MarkkitBuilder {
     pub exclude_selectors: Vec<String>,
     /// Render hidden / very hidden sheets. Default: false (skipped with a warning).
     pub include_hidden_sheets: bool,
+    /// Render content a reader never sees: HTML `hidden`, `aria-hidden="true"`,
+    /// inline `display:none` / `visibility:hidden` / `opacity:0` / `font-size:0`,
+    /// and DOCX `w:vanish` runs. Default: false (prompt-injection vector, T9).
+    pub include_hidden_content: bool,
     /// Let `extract_url` reach loopback, private, link-local and other
     /// non-public addresses. Default: false (SSRF protection).
     pub allow_private_networks: bool,
@@ -41,6 +45,9 @@ pub struct MarkkitBuilder {
     /// Readability-style. Include selectors win; falls back to the full body when
     /// nothing scores. Default: false.
     pub main_content: bool,
+    /// Declarative HTML element rules, tried in order before the built-in
+    /// mapping (see [`crate::rules`]).
+    pub html_rules: Vec<crate::rules::HtmlRule>,
 }
 
 impl Default for MarkkitBuilder {
@@ -60,12 +67,14 @@ impl Default for MarkkitBuilder {
                 "noscript".into(),
             ],
             include_hidden_sheets: false,
+            include_hidden_content: false,
             allow_private_networks: false,
             allowed_hosts: Vec::new(),
             base_url: None,
             track_sources: false,
             transforms: Default::default(),
             main_content: false,
+            html_rules: Vec::new(),
         }
     }
 }
@@ -132,6 +141,17 @@ impl MarkkitBuilder {
         self
     }
 
+    /// Add an HTML element rule: elements matching `selector` become `action`.
+    pub fn html_rule(
+        mut self,
+        selector: impl Into<String>,
+        action: crate::rules::ElementAction,
+    ) -> Self {
+        self.html_rules
+            .push(crate::rules::HtmlRule::new(selector, action));
+        self
+    }
+
     pub fn include_selector(mut self, selector: impl Into<String>) -> Self {
         self.include_selectors.push(selector.into());
         self
@@ -177,6 +197,14 @@ impl MarkkitBuilder {
         self
     }
 
+    /// Render hidden content (HTML hidden elements, DOCX hidden runs) instead of
+    /// skipping it. Hidden text is a prompt-injection vector; keep the default
+    /// (`false`) for content fed to LLMs.
+    pub fn include_hidden_content(mut self, yes: bool) -> Self {
+        self.include_hidden_content = yes;
+        self
+    }
+
     /// Allow `extract_url` to reach non-public addresses (loopback, RFC 1918,
     /// link-local, cloud metadata, ...). Only for trusted URLs.
     pub fn allow_private_networks(mut self, yes: bool) -> Self {
@@ -192,6 +220,21 @@ impl MarkkitBuilder {
 
     pub fn max_redirects(mut self, n: usize) -> Self {
         self.limits.max_redirects = n;
+        self
+    }
+
+    pub fn max_pdf_pages(mut self, n: usize) -> Self {
+        self.limits.max_pdf_pages = n;
+        self
+    }
+
+    pub fn max_pdf_stream_size(mut self, bytes: usize) -> Self {
+        self.limits.max_pdf_stream_size = bytes;
+        self
+    }
+
+    pub fn max_pdf_decoded_size(mut self, bytes: usize) -> Self {
+        self.limits.max_pdf_decoded_size = bytes;
         self
     }
 

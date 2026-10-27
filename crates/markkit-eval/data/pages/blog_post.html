@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head><title>Why we moved our build to Bazel - Lattice Engineering</title></head>
+<body>
+<div id="top-bar"><a href="/">Lattice Engineering Blog</a> | <a href="/careers">We're hiring!</a></div>
+<div class="post">
+  <h1>Why we moved our build to Bazel</h1>
+  <div class="post-meta">Posted by Jordan Alvarez on 9 January 2026 &middot; 6 min read</div>
+  <div class="share-buttons">
+    <a href="https://twitter.test/share?u=bazel">Share on X</a>
+    <a href="https://linkedin.test/share?u=bazel">Share on LinkedIn</a>
+  </div>
+  <p>Our monorepo had grown to 1.4 million lines of code, and a clean CI build took <strong>47 minutes</strong>. Incremental builds were unreliable, so engineers ran clean builds out of habit.</p>
+  <h2>What we tried first</h2>
+  <ol>
+    <li>Caching <code>node_modules</code> between CI runs</li>
+    <li>Splitting the test suite across 12 shards</li>
+    <li>Upgrading CI runners to 32 cores</li>
+  </ol>
+  <p>Each change helped a little, but none fixed the root problem: the build had no accurate dependency graph.</p>
+  <h2>Results</h2>
+  <p>After the migration, the median CI build takes 6 minutes, and 92% of builds hit the remote cache.</p>
+  <p>Thanks to the developer productivity team for leading the migration.</p>
+  <div class="author-bio">
+    <img src="/avatars/jordan.png" alt="Jordan Alvarez">
+    <p>Jordan Alvarez is a staff engineer on the platform team.</p>
+  </div>
+</div>
+<section id="comments" class="comments">
+  <h3>14 Comments</h3>
+  <div class="comment"><b>devops_dan</b> said: Great write-up! Did you consider Buck2?</div>
+  <div class="comment"><b>sarahk</b> said: How long did the migration take?</div>
+  <a href="/login">Log in to comment</a>
+</section>
+<div class="popup-overlay"><p>Subscribe to our newsletter for weekly posts!</p></div>
+<footer><p>&copy; Lattice Inc.</p></footer>
+</body>
+</html>

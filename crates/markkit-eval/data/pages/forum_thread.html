@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head><title>How do I reverse a linked list in place? - DevAnswers</title></head>
+<body>
+<header><nav><a href="/">DevAnswers</a> <a href="/questions">Questions</a> <a href="/tags">Tags</a> <a href="/users/login">Log in</a></nav></header>
+<div id="question">
+  <h1>How do I reverse a linked list in place?</h1>
+  <div class="stats">Asked 3 years ago &middot; Viewed 48k times</div>
+  <div class="votes"><button>&#9650;</button><span>312</span><button>&#9660;</button></div>
+  <div class="post-body">
+    <p>I have a singly linked list and want to reverse it without allocating a new list. My attempt loses the rest of the list after the first node:</p>
+    <pre><code>while node:
+    node.next = prev
+    prev = node
+    node = node.next</code></pre>
+  </div>
+  <div class="tags"><a href="/tags/python">python</a> <a href="/tags/linked-list">linked-list</a></div>
+</div>
+<div id="answers">
+  <h2>2 Answers</h2>
+  <div class="answer accepted">
+    <div class="votes"><span>518</span> <span class="accepted-mark">Accepted</span></div>
+    <div class="post-body">
+      <p>You overwrite <code>node.next</code> before saving it. Keep a reference to the next node first:</p>
+      <pre><code class="language-python">def reverse(head):
+    prev = None
+    node = head
+    while node:
+        nxt = node.next
+        node.next = prev
+        prev = node
+        node = nxt
+    return prev</code></pre>
+      <p>This runs in O(n) time and O(1) extra space.</p>
+    </div>
+    <div class="user-card">answered by <a href="/users/88/ada">ada</a></div>
+  </div>
+  <div class="answer">
+    <div class="votes"><span>41</span></div>
+    <div class="post-body"><p>A recursive version also works, but it uses O(n) stack space and can hit the recursion limit on long lists.</p></div>
+  </div>
+</div>
+<div class="sidebar"><h3>Hot Network Questions</h3><ul><li><a href="/q/1">Why is my CSS grid collapsing?</a></li></ul></div>
+<footer>site design / logo &copy; 2026 DevAnswers; user contributions licensed under CC BY-SA</footer>
+</body>
+</html>

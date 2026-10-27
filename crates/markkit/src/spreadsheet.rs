@@ -16,7 +16,9 @@
 //!   executed or rendered; dialog/macro/chart sheets are skipped.
 //! - Hidden sheets are skipped by default (content invisible to a human reviewer
 //!   is a prompt-injection vector); opt in with `include_hidden_sheets`.
-//! - XLSB is detected but not supported (no grid pre-scan implemented).
+//! - XLSB is read by our own bounds-checked BIFF12 reader ([`xlsb`]), streaming
+//!   cells into the same capped grid; calamine's XLSB reader panics on
+//!   malformed records.
 
 use std::collections::BTreeMap;
 use std::io::{Cursor, Read, Seek};
@@ -30,6 +32,8 @@ use crate::error::Error;
 use crate::format::Format;
 use crate::ir::{Document, Node, Source, TableCell};
 use crate::limits::Budget;
+
+mod xlsb;
 
 pub(crate) struct SheetOutput {
     pub doc: Document,
@@ -59,6 +63,7 @@ const ODS_MAX_COLS: u64 = 16_384;
 #[derive(Clone, Copy)]
 enum Container {
     Xlsx,
+    Xlsb,
     Ods,
     Xls,
 }
@@ -76,15 +81,17 @@ pub(crate) fn parse(
         let container = if has(&zip, "xl/workbook.xml") {
             Container::Xlsx
         } else if has(&zip, "xl/workbook.bin") {
-            return Err(Error::UnsupportedFormat(
-                "XLSB (binary Excel workbook) is not supported".into(),
-            ));
+            Container::Xlsb
         } else if has(&zip, "mimetype") || has(&zip, "content.xml") {
             Container::Ods
         } else {
-            return Err(err("ZIP container is not an XLSX or ODS workbook"));
+            return Err(err("ZIP container is not an XLSX, XLSB or ODS workbook"));
         };
         zip.validate_all().map_err(archive_err)?;
+        if let Container::Xlsb = container {
+            let title = read_dc_title(&mut zip, "docProps/core.xml", config, budget)?;
+            return parse_xlsb(&mut zip, config, budget, title);
+        }
         let title = if let Container::Ods = container {
             let content = zip
                 .read("content.xml")
@@ -105,7 +112,7 @@ pub(crate) fn parse(
         prescan_xls(&mut comp, config)?;
         (Container::Xls, xls_title(&mut comp))
     } else {
-        return Err(err("not a spreadsheet (expected XLSX, XLS or ODS)"));
+        return Err(err("not a spreadsheet (expected XLSX, XLSB, XLS or ODS)"));
     };
     budget.check_time()?;
     let bytes = patched.as_deref().unwrap_or(bytes);
@@ -150,7 +157,64 @@ pub(crate) fn parse(
             read_ranges(&mut wb, sel, &mut out, config, budget)?;
             out.finish(Format::Xls, title)
         }
+        Container::Xlsb => unreachable!("XLSB returns early"),
     }
+}
+
+fn parse_xlsb(
+    zip: &mut ZipGuard<'_>,
+    config: &MarkkitBuilder,
+    budget: &Budget,
+    title: Option<String>,
+) -> Result<SheetOutput, Error> {
+    let wb = xlsb::open(zip, config.limits.nesting_depth(), budget)?;
+    budget.check_time()?;
+    let meta: Vec<calamine::Sheet> = wb
+        .sheets
+        .iter()
+        .map(|s| calamine::Sheet {
+            name: s.name.clone(),
+            // Chart / dialog / macro sheets and dangling relationships have no
+            // worksheet part and are skipped like other non-worksheets.
+            typ: if s.part.is_some() {
+                SheetType::WorkSheet
+            } else {
+                SheetType::ChartSheet
+            },
+            visible: match s.visibility {
+                xlsb::Visibility::Visible => SheetVisible::Visible,
+                xlsb::Visibility::Hidden => SheetVisible::Hidden,
+            },
+        })
+        .collect();
+    let mut out = Collector::new(config);
+    let selected = out.select(&meta);
+    for ((name, include), sheet) in selected.into_iter().zip(&wb.sheets) {
+        let Some(part) = sheet.part.as_deref().filter(|_| include) else {
+            continue;
+        };
+        let Some(data) = zip.read(part).map_err(archive_err)? else {
+            out.warn(format!("sheet_error: sheet '{name}': missing part {part}"));
+            continue;
+        };
+        let mut grid = Grid::new(config);
+        let res = (|| {
+            for cell in wb.cells(&data) {
+                if budget.expired() {
+                    break;
+                }
+                let (r, c, v) = cell?;
+                grid.add(r, c, fmt_xlsb(&v, wb.is_1904));
+            }
+            Ok::<_, Error>(())
+        })();
+        budget.check_time()?;
+        match res {
+            Ok(()) => out.push_sheet(&name, grid),
+            Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
+        }
+    }
+    out.finish(Format::Xlsb, title)
 }
 
 fn read_ranges<RS, R>(
@@ -235,6 +299,26 @@ fn fmt_data(d: &Data) -> String {
         Data::DateTime(dt) => fmt_datetime(dt),
         Data::Error(e) => e.to_string(),
         Data::Empty => String::new(),
+    }
+}
+
+fn fmt_xlsb(v: &xlsb::Value, is_1904: bool) -> String {
+    use calamine::{ExcelDateTime, ExcelDateTimeType};
+    match v {
+        xlsb::Value::Number(f) => fmt_float(*f),
+        xlsb::Value::DateTime(f) => fmt_datetime(&ExcelDateTime::new(
+            *f,
+            ExcelDateTimeType::DateTime,
+            is_1904,
+        )),
+        xlsb::Value::Duration(f) => fmt_datetime(&ExcelDateTime::new(
+            *f,
+            ExcelDateTimeType::TimeDelta,
+            is_1904,
+        )),
+        xlsb::Value::Text(s) => s.clone(),
+        xlsb::Value::Bool(b) => b.to_string(),
+        xlsb::Value::Error(e) => (*e).to_string(),
     }
 }
 

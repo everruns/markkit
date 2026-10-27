@@ -19,21 +19,24 @@ package for browsers and edge runtimes.
 
 - **HTML** – Web pages and HTML documents; nav, header, footer, scripts, styles and forms stripped by default
 - **DOCX** – Headings, lists, tables, links, emphasis
-- **Spreadsheets** – XLSX/XLSM, XLS and ODS workbooks to markdown tables, one section per sheet
+- **Spreadsheets** – XLSX/XLSM, XLSB, XLS and ODS workbooks to markdown tables, one section per sheet
+- **Plain text / Markdown** – Text to paragraphs; Markdown normalized through the same IR (raw HTML never passed through)
 - **Format detection** – Content type, then file extension, then magic bytes
 - **URL fetching** – Fetch and extract in one call (`http_client` feature)
 - **Configurable** – CSS include/exclude selectors, link/image preservation, resource limits
 - **Safe by default** – No code execution (scripts, macros, formulas), bounded decompression,
   depth and size limits, [threat model](knowledge/security/threat-model.md) with a test per mitigation
-- **PDF** – Planned (currently an explicit `UnsupportedFormat` error, never an empty success)
+- **PDF** – Text layer to paragraphs, headings and bullet lists (pure Rust, no OCR; encrypted PDFs rejected)
 
 | Format | Status | Feature |
 |---|---|---|
 | HTML / XHTML | Supported | `html` (default) |
 | DOCX | Supported | `docx` |
-| XLSX, XLSM, XLS, ODS | Supported | `spreadsheet` |
-| PDF | Planned | `pdf` |
-| DOC, PPTX, XLSB | Detected, rejected explicitly | – |
+| XLSX, XLSM, XLSB, XLS, ODS | Supported | `spreadsheet` |
+| Plain text | Supported | always on |
+| Markdown | Supported | `markdown` |
+| PDF (text layer) | Supported | `pdf` |
+| DOC, PPTX | Detected, rejected explicitly | – |
 
 ## Quick Start
 
@@ -88,7 +91,16 @@ markkit extract --file page.html --base-url https://example.com/blog/
 
 # From stdin
 cat page.html | markkit extract -
+
+# Map site-specific markup with element rules (JSON file)
+# [{"selector": ".note", "action": "block_quote", "title": "Note"}, {"selector": ".ad", "action": "skip"}]
+markkit extract --file page.html --rules rules.json
+
+# MCP server (stdio) exposing the `markkit` tool to agents
+markkit mcp            # add --no-url to keep it offline
 ```
+
+MCP client config: `{"mcpServers": {"markkit": {"command": "markkit", "args": ["mcp"]}}}`.
 
 ### Python
 
@@ -180,8 +192,9 @@ let markkit = Markkit::builder()
 | `http_client` | No | URL fetching via reqwest (`extract_url`) |
 | `docx` | No | DOCX conversion (zip + quick-xml) |
 | `spreadsheet` | No | XLSX/XLSM, XLS, ODS conversion (calamine) |
-| `pdf` | No | Placeholder; PDF currently returns `UnsupportedFormat` |
-| `all_formats` | No | `html`, `pdf`, `docx`, `spreadsheet` |
+| `pdf` | No | PDF text-layer extraction (hayro-syntax, pure Rust) |
+| `markdown` | No | Markdown normalization (pulldown-cmark) |
+| `all_formats` | No | `html`, `pdf`, `docx`, `spreadsheet`, `markdown` |
 | `tool` | No | `markkit::tool::MarkkitTool` LLM agent tool (Everruns toolkit contract) |
 | `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
 
@@ -212,6 +225,9 @@ generous; violations return `Error::ResourceLimit` naming the limit.
 | `max_archive_total_size` | 256 MiB | Decompressed bytes per ZIP |
 | `max_spreadsheet_cells` | 4 000 000 | XLS/ODS grid before parsing |
 | `max_sheet_rows` / `max_sheet_cols` | 10 000 / 256 | Rendered per sheet (truncated with a warning) |
+| `max_pdf_pages` | 10 000 | PDF pages rendered (truncated with a warning) |
+| `max_pdf_stream_size` | 64 MiB | Decoded bytes per PDF stream |
+| `max_pdf_decoded_size` | 256 MiB | Decoded PDF stream bytes in total, and PDF content interpreted |
 | `max_redirects` | 5 | `extract_url` redirects |
 
 ```rust
@@ -267,7 +283,8 @@ Takeaways:
 Markkit treats every input as untrusted. HTML scripts, styles, forms, iframes and
 SVG are stripped; office containers are decompressed under measured byte limits;
 spreadsheet grids are pre-scanned so sparse cells cannot force huge allocations;
-XML entities are never expanded; macros and formulas are never executed; hidden
+XML entities are never expanded; every PDF stream is decode-checked against size
+limits before parsing; macros and formulas are never executed; hidden
 sheets are skipped by default. `extract_url` accepts only http/https, refuses
 loopback, private, link-local and cloud-metadata addresses (also after DNS
 resolution and on every redirect), caps redirects, and bounds the body by

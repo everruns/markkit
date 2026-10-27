@@ -24,10 +24,11 @@ all_formats = ["markkit/all_formats"]
 pdf = ["markkit/pdf"]
 docx = ["markkit/docx"]
 spreadsheet = ["markkit/spreadsheet"]
+markdown = ["markkit/markdown"]
 
 [dependencies]
-markkit = { path = "../markkit", version = "0.1.1", features = ["http_client"] }
-tokio = { workspace = true, features = ["macros", "net", "rt", "rt-multi-thread", "time", "fs"] }
+markkit = { path = "../markkit", version = "0.1.1", features = ["http_client", "tool"] }
+tokio = { workspace = true, features = ["macros", "net", "rt", "rt-multi-thread", "time", "fs", "io-std", "io-util"] }
 clap.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true

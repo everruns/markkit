@@ -51,7 +51,7 @@ const UNCOUNTED: &[&str] = &[
 
 /// Drop start tags that would nest deeper than `cap` (and matching end tags).
 /// Returns the input unchanged when the cap is never reached.
-pub(crate) fn cap_nesting(html: &str, cap: usize) -> Cow<'_, str> {
+pub(crate) fn cap_nesting(html: &str, cap: usize, skip_hidden: bool) -> Cow<'_, str> {
     let b = html.as_bytes();
     let mut stack: Vec<&[u8]> = Vec::new();
     let mut foreign = 0usize; // open svg/math elements on the stack
@@ -142,9 +142,12 @@ pub(crate) fn cap_nesting(html: &str, cap: usize) -> Cow<'_, str> {
             // Past the cap every start tag goes (the walker would flatten it
             // anyway), so html5ever's stack stays at the cap.
             let mut drop_to = end;
-            if !void && one_of(name, NON_CONTENT) {
+            if !void
+                && (one_of(name, NON_CONTENT) || (skip_hidden && hidden_tag(&html[name_end..end])))
+            {
                 // Dropping only the tag would expose content the walker
-                // skips; drop the whole subtree instead (same output).
+                // skips (non-content, or hidden under the T9 default); drop
+                // the whole subtree instead (same output).
                 drop_to = skip_subtree(b, end, name);
                 i = drop_to;
             } else if !uncounted {
@@ -170,6 +173,66 @@ pub(crate) fn cap_nesting(html: &str, cap: usize) -> Cow<'_, str> {
 
 /// Index just past the `>` closing a tag whose attributes start at `from`,
 /// skipping quoted values; and whether it ends in `/>`.
+/// Whether a raw start tag's attribute text (after the name) marks the element
+/// hidden, with the walker's rules (`parser::hidden_by`). Entities in values
+/// are not decoded.
+fn hidden_tag(attrs: &str) -> bool {
+    let pairs = raw_attrs(attrs);
+    super::parser::hidden_by(|want| {
+        pairs
+            .iter()
+            .find(|(n, _)| n.eq_ignore_ascii_case(want))
+            .map(|&(_, v)| v)
+    })
+}
+
+/// `(name, value)` pairs of raw attribute text; valueless attributes get "".
+fn raw_attrs(s: &str) -> Vec<(&str, &str)> {
+    let b = s.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0;
+    loop {
+        while i < b.len() && (b[i].is_ascii_whitespace() || b[i] == b'/') {
+            i += 1;
+        }
+        if i >= b.len() || b[i] == b'>' {
+            return out;
+        }
+        let start = i;
+        while i < b.len() && !(b[i].is_ascii_whitespace() || matches!(b[i], b'=' | b'>' | b'/')) {
+            i += 1;
+        }
+        let name = &s[start..i];
+        while i < b.len() && b[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i >= b.len() || b[i] != b'=' {
+            out.push((name, ""));
+            continue;
+        }
+        i += 1;
+        while i < b.len() && b[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        let value = match b.get(i) {
+            Some(&q @ (b'"' | b'\'')) => {
+                let vstart = i + 1;
+                let vend = memchr(q, &b[vstart..]).map_or(b.len(), |p| vstart + p);
+                i = (vend + 1).min(b.len());
+                &s[vstart..vend]
+            }
+            _ => {
+                let vstart = i;
+                while i < b.len() && !(b[i].is_ascii_whitespace() || b[i] == b'>') {
+                    i += 1;
+                }
+                &s[vstart..i]
+            }
+        };
+        out.push((name, value));
+    }
+}
+
 fn tag_end(b: &[u8], from: usize) -> (usize, bool) {
     let mut i = from;
     let mut quote = None;
@@ -276,13 +339,13 @@ mod tests {
     #[test]
     fn shallow_input_is_borrowed_unchanged() {
         let html = "<html><body><div><p>a<p>b<ul><li>x<li>y</ul><table><tr><td>1<td>2<tr><td>3</table></div></body></html>";
-        assert!(matches!(cap_nesting(html, 8), Cow::Borrowed(_)));
+        assert!(matches!(cap_nesting(html, 8, true), Cow::Borrowed(_)));
     }
 
     #[test]
     fn deep_divs_are_capped_and_text_kept() {
         let html = format!("{}deep text{}", "<div>".repeat(5000), "</div>".repeat(5000));
-        let capped = cap_nesting(&html, 100);
+        let capped = cap_nesting(&html, 100, true);
         assert!(capped.contains("deep text"));
         assert_eq!(capped.matches("<div>").count(), 100);
         assert_eq!(capped.matches("</div>").count(), 100);
@@ -292,7 +355,7 @@ mod tests {
     #[test]
     fn unclosed_divs_are_capped() {
         let html = "<div>x".repeat(3000);
-        let capped = cap_nesting(&html, 50);
+        let capped = cap_nesting(&html, 50, true);
         assert_eq!(capped.matches("<div>").count(), 50);
         assert_eq!(capped.matches('x').count(), 3000);
     }
@@ -300,7 +363,7 @@ mod tests {
     #[test]
     fn nested_tables_are_capped() {
         let html = "<table><tr><td>".repeat(3000);
-        let capped = cap_nesting(&html, 60);
+        let capped = cap_nesting(&html, 60, true);
         assert!(depth_of(&capped) < 300);
     }
 
@@ -308,10 +371,10 @@ mod tests {
     fn self_closing_div_still_counts_outside_svg() {
         // html5ever opens `<div/>`; only foreign content self-closes.
         let html = "<div/>".repeat(1000);
-        let capped = cap_nesting(&html, 10);
+        let capped = cap_nesting(&html, 10, true);
         assert_eq!(capped.matches("<div/>").count(), 10);
         let svg = format!("<svg>{}</svg>", "<g/>".repeat(1000));
-        assert!(matches!(cap_nesting(&svg, 10), Cow::Borrowed(_)));
+        assert!(matches!(cap_nesting(&svg, 10, true), Cow::Borrowed(_)));
     }
 
     #[test]
@@ -320,20 +383,20 @@ mod tests {
         let html = format!(
             "<!-- {divs} --><a title='{divs}' href=\"x>y\">a</a><script>{divs}</script><style>{divs}</style><textarea>{divs}</TEXTAREA>"
         );
-        assert!(matches!(cap_nesting(&html, 5), Cow::Borrowed(_)));
+        assert!(matches!(cap_nesting(&html, 5, true), Cow::Borrowed(_)));
     }
 
     #[test]
     fn optional_end_tags_and_voids_do_not_count() {
         let html = "<p>a<li>b<br><img src=x><td>c<option>d".repeat(1000);
-        assert!(matches!(cap_nesting(&html, 5), Cow::Borrowed(_)));
+        assert!(matches!(cap_nesting(&html, 5, true), Cow::Borrowed(_)));
     }
 
     #[test]
     fn implied_close_by_ancestor_end_tag() {
         // `</div>` closes the unclosed spans inside it; depth must not drift.
         let html = "<div><span><b>x</div>".repeat(1000);
-        assert!(matches!(cap_nesting(&html, 10), Cow::Borrowed(_)));
+        assert!(matches!(cap_nesting(&html, 10, true), Cow::Borrowed(_)));
     }
 
     #[test]
@@ -344,7 +407,7 @@ mod tests {
             "<div>".repeat(50),
             "</div>".repeat(50)
         );
-        let capped = cap_nesting(&html, 10);
+        let capped = cap_nesting(&html, 10, true);
         assert!(capped.contains("<script>x()</script><style>.a{}</style>"));
         assert!(capped.contains("after"));
     }
@@ -356,7 +419,7 @@ mod tests {
             "<div>".repeat(20),
             "</div>".repeat(20)
         );
-        let capped = cap_nesting(&html, 10);
+        let capped = cap_nesting(&html, 10, true);
         // Past the cap the p/li tags go too, their text stays, and their end
         // tags do not close dropped divs.
         assert!(capped.contains("ab"));
@@ -370,11 +433,47 @@ mod tests {
             "{}<template>tpl<template>in</template></template><form><b>f</b></form><p>after</p>",
             "<div>".repeat(20)
         );
-        let capped = cap_nesting(&html, 10);
+        let capped = cap_nesting(&html, 10, true);
         assert!(!capped.contains("tpl") && !capped.contains("in<") && !capped.contains("f</b>"));
         assert!(capped.contains("after"));
         let objects = "<object>".repeat(100_000) + "x";
-        assert!(!cap_nesting(&objects, 10).contains('x'));
+        assert!(!cap_nesting(&objects, 10, true).contains('x'));
+    }
+
+    #[test]
+    fn hidden_tags_past_the_cap_are_dropped_whole() {
+        // 11 divs: the last is dropped, so even optional-end tags (`p`) are
+        // in the dropped region (at the cap they would stay in the DOM, where
+        // the walker's flattener checks them).
+        let deep = "<div>".repeat(11);
+        for tag in [
+            r#"<span hidden>S</span>"#,
+            r#"<div aria-hidden = 'TRUE'>S</div>"#,
+            r#"<p class=x style="color:red; display : none !important">S</p>"#,
+            r#"<SPAN STYLE=visibility:hidden>S</SPAN>"#,
+        ] {
+            let html = format!("{deep}a{tag}b");
+            let html = html.as_str();
+            let capped = cap_nesting(html, 10, true);
+            assert!(
+                capped.contains("ab") && !capped.contains('S'),
+                "{tag}: {capped}"
+            );
+            // Opted in: only the tag goes, the text stays.
+            assert!(cap_nesting(html, 10, false).contains('S'), "{tag}");
+        }
+        let shown = format!("{deep}<span hidden=until-found>S</span><b title='x>y'>T</b>");
+        let capped = cap_nesting(&shown, 10, true);
+        assert!(capped.contains('S') && capped.contains('T'), "{capped}");
+    }
+
+    #[test]
+    fn raw_attrs_parse_quotes_and_bare_values() {
+        assert_eq!(
+            raw_attrs(r#" a b=1 c = "x y" d='z>' /"#),
+            [("a", ""), ("b", "1"), ("c", "x y"), ("d", "z>")]
+        );
+        assert_eq!(raw_attrs(r#" e="unterminated"#), [("e", "unterminated")]);
     }
 
     #[test]
@@ -382,8 +481,8 @@ mod tests {
         for s in [
             "<", "</", "<div", "<div a='", "<!--", "<!", "<script>", "</>", "<1>", "<\u{e9}>",
         ] {
-            let _ = cap_nesting(s, 1);
-            let _ = cap_nesting(&format!("<div>{s}"), 0);
+            let _ = cap_nesting(s, 1, true);
+            let _ = cap_nesting(&format!("<div>{s}"), 0, true);
         }
     }
 }
