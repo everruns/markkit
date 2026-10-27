@@ -15,7 +15,7 @@ readme = "../../README.md"
 
 [features]
 default = ["html"]
-html = ["dep:scraper", "dep:html5ever"]
+html = ["dep:scraper", "dep:html5ever", "dep:ego-tree"]
 pdf = []
 docx = ["dep:zip", "dep:quick-xml"]
 spreadsheet = ["dep:calamine", "dep:zip", "dep:quick-xml", "dep:cfb"]
@@ -39,6 +39,7 @@ serde_json.workspace = true
 
 # HTML (optional)
 scraper = { workspace = true, optional = true }
+ego-tree = { workspace = true, optional = true }
 html5ever = { workspace = true, optional = true }
 
 # Office documents (optional): DOCX + spreadsheets share the ZIP/XML stack
