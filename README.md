@@ -212,7 +212,8 @@ let markkit = Markkit::builder()
 | `tool` | No | `markkit::tool::MarkkitTool` LLM agent tool (Everruns toolkit contract) |
 | `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
 
-`http_client` is opt-in: the default build has no HTTP/TLS stack in the dependency tree.
+`http_client` is opt-in: the default build has no HTTP/TLS stack and no tokio in the dependency
+tree.
 Enable it to get `extract_url` (the CLI and the Python/Node bindings ship with it on):
 
 ```toml

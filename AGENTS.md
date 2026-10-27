@@ -98,7 +98,7 @@ just pre-pr        # Pre-PR checks
 - Stable Rust, pinned in `rust-toolchain.toml`
 - `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`
 - Licenses/advisories: `cargo deny check` (`deny.toml`), `cargo audit`
-- Format deps stay feature-gated; `http_client` opt-in (never default); default and `docx,spreadsheet` builds must not link reqwest/hyper (CI checks)
+- Format deps stay feature-gated; `http_client` opt-in (never default); default and `docx,spreadsheet` builds must not link reqwest/hyper or tokio (CI checks)
 
 ### Pre-PR Checklist
 
