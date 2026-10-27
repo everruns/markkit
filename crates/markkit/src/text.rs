@@ -14,6 +14,7 @@
 //!   escaping applies uniformly.
 
 use crate::ir::{Document, Node};
+use crate::limits::Budget;
 
 /// Decoded text plus non-fatal warnings.
 pub(crate) struct Decoded {
@@ -87,7 +88,8 @@ fn normalize(s: &str) -> String {
 }
 
 /// Plain text → IR. Returns the document and the paragraph count.
-pub(crate) fn plain_to_ir(text: &str) -> (Document, usize) {
+/// Every line ticks the call's deadline and counts against `max_nodes`.
+pub(crate) fn plain_to_ir(text: &str, budget: &Budget) -> crate::Result<(Document, usize)> {
     let mut nodes = Vec::new();
     let mut para: Vec<Node> = Vec::new();
     let flush = |para: &mut Vec<Node>, nodes: &mut Vec<Node>| {
@@ -96,6 +98,10 @@ pub(crate) fn plain_to_ir(text: &str) -> (Document, usize) {
         }
     };
     for line in text.split('\n') {
+        if budget.expired() {
+            return Err(budget.timeout_error());
+        }
+        budget.add_nodes(1)?;
         let line = line.trim_end();
         if line.is_empty() {
             flush(&mut para, &mut nodes);
@@ -108,12 +114,23 @@ pub(crate) fn plain_to_ir(text: &str) -> (Document, usize) {
     }
     flush(&mut para, &mut nodes);
     let count = nodes.len();
-    (Document::new(nodes), count)
+    Ok((Document::new(nodes), count))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn ir(text: &str) -> (Document, usize) {
+        plain_to_ir(text, &Budget::new(&crate::Limits::default())).unwrap()
+    }
+
+    #[test]
+    fn max_nodes_is_enforced() {
+        let budget = Budget::new(&crate::Limits::default().max_nodes(5));
+        let err = plain_to_ir(&"a\n".repeat(10), &budget).unwrap_err();
+        assert!(matches!(err, crate::Error::ResourceLimit(_)), "{err}");
+    }
 
     #[test]
     fn decode_strips_bom_and_controls() {
@@ -145,7 +162,7 @@ mod tests {
 
     #[test]
     fn plain_paragraphs_and_breaks() {
-        let (doc, n) = plain_to_ir("a\nb  \n\n\n c\n");
+        let (doc, n) = ir("a\nb  \n\n\n c\n");
         assert_eq!(n, 2);
         assert_eq!(
             doc.nodes[0],
@@ -155,6 +172,6 @@ mod tests {
                 Node::Text("b".into())
             ])
         );
-        assert_eq!(plain_to_ir("\n \n").1, 0);
+        assert_eq!(ir("\n \n").1, 0);
     }
 }

@@ -12,8 +12,11 @@
 //!   becomes the title, otherwise the first level-1 heading.
 //! - Soft line breaks become spaces (paragraphs reflow); hard breaks stay.
 //! - pulldown-cmark is iterative; the IR is built with an explicit stack and
-//!   capped at `MAX_DEPTH` open containers. Deeper content is flattened into
-//!   the deepest container so the recursive renderer cannot overflow.
+//!   capped at `limits.max_nesting_depth` open containers. Deeper content is
+//!   flattened into the deepest container so the recursive renderer cannot
+//!   overflow.
+//! - Shares the call's `Budget`: every event ticks the deadline, every start
+//!   tag counts against `max_nodes`, and HTML blocks use the same budget.
 
 use pulldown_cmark::{
     Alignment as MdAlignment, CodeBlockKind, Event, HeadingLevel, MetadataBlockKind, Options,
@@ -22,9 +25,7 @@ use pulldown_cmark::{
 
 use crate::config::MarkkitBuilder;
 use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, TableCell};
-
-/// Max nested containers (block quotes, lists, emphasis, …) kept as structure.
-const MAX_DEPTH: usize = 200;
+use crate::limits::Budget;
 
 /// Parsed Markdown document.
 pub(crate) struct ParsedMarkdown {
@@ -71,7 +72,7 @@ enum Kind {
     DefDesc,
     Html,
     Meta,
-    /// Beyond `MAX_DEPTH` or an unsupported container: children go to the parent.
+    /// Beyond `max_depth` or an unsupported container: children go to the parent.
     Flat,
 }
 
@@ -117,6 +118,12 @@ enum Out {
 struct Builder<'c> {
     #[cfg_attr(not(feature = "html"), allow(dead_code))]
     config: &'c MarkkitBuilder,
+    #[cfg_attr(not(feature = "html"), allow(dead_code))]
+    budget: &'c Budget,
+    /// Max open containers kept as structure (`limits.max_nesting_depth`).
+    max_depth: usize,
+    /// First error from a nested parser (HTML block); aborts the parse.
+    error: Option<crate::Error>,
     stack: Vec<Frame>,
     meta_title: Option<String>,
     paragraphs: usize,
@@ -124,7 +131,11 @@ struct Builder<'c> {
 }
 
 /// Parse Markdown text into the IR.
-pub(crate) fn parse(text: &str, config: &MarkkitBuilder) -> ParsedMarkdown {
+pub(crate) fn parse(
+    text: &str,
+    config: &MarkkitBuilder,
+    budget: &Budget,
+) -> crate::Result<ParsedMarkdown> {
     let opts = Options::ENABLE_TABLES
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_TASKLISTS
@@ -133,25 +144,40 @@ pub(crate) fn parse(text: &str, config: &MarkkitBuilder) -> ParsedMarkdown {
         | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS;
     let mut b = Builder {
         config,
+        budget,
+        max_depth: config.limits.nesting_depth(),
+        error: None,
         stack: vec![Frame::new(Kind::Root)],
         meta_title: None,
         paragraphs: 0,
         tables: 0,
     };
     for event in Parser::new_ext(text, opts) {
+        if budget.expired() {
+            return Err(budget.timeout_error());
+        }
+        if matches!(event, Event::Start(_)) {
+            budget.add_nodes(1)?;
+        }
         b.event(event);
+        if let Some(e) = b.error.take() {
+            return Err(e);
+        }
     }
     while b.stack.len() > 1 {
         b.end();
     }
+    if let Some(e) = b.error.take() {
+        return Err(e);
+    }
     let root = b.stack.pop().map(|f| f.nodes).unwrap_or_default();
     let title = b.meta_title.or_else(|| first_h1(&root));
-    ParsedMarkdown {
+    Ok(ParsedMarkdown {
         doc: Document::new(root),
         title,
         paragraphs: b.paragraphs,
         tables: b.tables,
-    }
+    })
 }
 
 impl Builder<'_> {
@@ -175,7 +201,7 @@ impl Builder<'_> {
             Event::Rule => self.push(Node::ThematicBreak),
             Event::TaskListMarker(done) => {
                 // Marker belongs to the innermost open item; text fallback when
-                // the item was flattened past `MAX_DEPTH`.
+                // the item was flattened past `max_depth`.
                 match self
                     .stack
                     .iter_mut()
@@ -196,7 +222,7 @@ impl Builder<'_> {
     }
 
     fn start(&mut self, tag: Tag<'_>) {
-        let kind = if self.stack.len() > MAX_DEPTH {
+        let kind = if self.stack.len() > self.max_depth {
             Kind::Flat
         } else {
             match tag {
@@ -417,15 +443,18 @@ impl Builder<'_> {
     }
 
     #[cfg(feature = "html")]
-    fn html_block(&self, html: &str) -> Vec<Node> {
-        crate::html::HtmlParser::new(self.config)
-            .parse(html)
-            .map(|d| d.nodes)
-            .unwrap_or_default()
+    fn html_block(&mut self, html: &str) -> Vec<Node> {
+        match crate::html::HtmlParser::with_budget(self.config, self.budget).parse(html) {
+            Ok(d) => d.nodes,
+            Err(e) => {
+                self.error.get_or_insert(e);
+                Vec::new()
+            }
+        }
     }
 
     #[cfg(not(feature = "html"))]
-    fn html_block(&self, _html: &str) -> Vec<Node> {
+    fn html_block(&mut self, _html: &str) -> Vec<Node> {
         Vec::new()
     }
 }
@@ -530,8 +559,13 @@ fn yaml_title(yaml: &str) -> Option<String> {
 mod tests {
     use super::*;
 
+    fn parsed(src: &str) -> ParsedMarkdown {
+        let cfg = MarkkitBuilder::default();
+        parse(src, &cfg, &Budget::new(&cfg.limits)).unwrap()
+    }
+
     fn md(src: &str) -> String {
-        let p = parse(src, &MarkkitBuilder::default());
+        let p = parsed(src);
         crate::render::MarkdownRenderer::new().render(&p.doc)
     }
 
@@ -554,9 +588,8 @@ mod tests {
 
     #[test]
     fn ir_v2_extensions() {
-        let p = parse(
+        let p = parsed(
             "| l | c | r |\n|:--|:-:|--:|\n| 1 | 2 | 3 |\n\n- [x] done\n\nNote[^n].\n\n[^n]: The note.\n\nTerm\n: Definition\n",
-            &MarkkitBuilder::default(),
         );
         let Node::Table { alignments, .. } = &p.doc.nodes[0] else {
             panic!("{:?}", p.doc.nodes[0])
@@ -595,14 +628,11 @@ mod tests {
 
     #[test]
     fn titles() {
-        let p = parse(
-            "---\ntitle: \"Doc\"\n---\n\n# H\n",
-            &MarkkitBuilder::default(),
-        );
+        let p = parsed("---\ntitle: \"Doc\"\n---\n\n# H\n");
         assert_eq!(p.title.as_deref(), Some("Doc"));
-        let p = parse("## sub\n\n# Real *one*\n", &MarkkitBuilder::default());
+        let p = parsed("## sub\n\n# Real *one*\n");
         assert_eq!(p.title.as_deref(), Some("Real one"));
-        assert_eq!(parse("text", &MarkkitBuilder::default()).title, None);
+        assert_eq!(parsed("text").title, None);
     }
 
     #[test]
@@ -612,9 +642,27 @@ mod tests {
 
     #[test]
     fn deep_nesting_is_flattened() {
-        let src = format!("{}x", "> ".repeat(MAX_DEPTH * 5));
+        let depth = crate::Limits::default().nesting_depth();
+        let src = format!("{}x", "> ".repeat(depth * 5));
         let out = md(&src);
         assert!(out.trim_end().ends_with('x'));
-        assert!(out.lines().next().unwrap().matches('>').count() <= MAX_DEPTH + 1);
+        assert!(out.lines().next().unwrap().matches('>').count() <= depth + 1);
+    }
+
+    #[test]
+    fn nesting_depth_follows_limits() {
+        let cfg = MarkkitBuilder::default().limits(crate::Limits::default().max_nesting_depth(3));
+        let out = parse(&"> ".repeat(10), &cfg, &Budget::new(&cfg.limits)).unwrap();
+        let rendered = crate::render::MarkdownRenderer::new().render(&out.doc);
+        assert!(rendered.matches('>').count() <= 4, "{rendered}");
+    }
+
+    #[test]
+    fn max_nodes_is_enforced() {
+        let cfg = MarkkitBuilder::default().limits(crate::Limits::default().max_nodes(10));
+        let err = parse(&"a\n\n".repeat(50), &cfg, &Budget::new(&cfg.limits))
+            .err()
+            .expect("node limit");
+        assert!(matches!(err, crate::Error::ResourceLimit(_)), "{err}");
     }
 }

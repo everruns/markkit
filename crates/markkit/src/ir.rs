@@ -19,11 +19,13 @@ use serde::{Deserialize, Serialize};
 /// Current IR schema version written by this crate.
 ///
 /// v1: initial IR (implicit, no version field). v2: footnotes, definition
-/// lists, task lists, figures, table cells with alignment and spans.
+/// lists, task lists, figures, math, table cells with alignment and spans,
+/// per-block provenance.
 pub const IR_VERSION: u32 = 2;
 
 /// A parsed document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub struct Document {
     /// IR schema version ([`IR_VERSION`] for documents built by this crate;
@@ -48,10 +50,34 @@ impl Document {
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
+
+    /// Visit every node, pre-order (parents before children).
+    pub fn visit(&self, f: &mut dyn FnMut(&Node)) {
+        fn walk(nodes: &[Node], f: &mut dyn FnMut(&Node)) {
+            for n in nodes {
+                f(n);
+                n.for_each_child_list_ref(&mut |list| walk(list, f));
+            }
+        }
+        walk(&self.nodes, f);
+    }
+
+    /// Visit every node mutably, pre-order. Children are visited after `f`
+    /// ran on their parent, so `f` may rewrite a subtree before it is walked.
+    pub fn visit_mut(&mut self, f: &mut dyn FnMut(&mut Node)) {
+        fn walk(nodes: &mut [Node], f: &mut dyn FnMut(&mut Node)) {
+            for n in nodes {
+                f(n);
+                n.for_each_child_list(&mut |list| walk(list, f));
+            }
+        }
+        walk(&mut self.nodes, f);
+    }
 }
 
 /// A block-level or inline node in the document tree.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum Node {
     /// Heading with level 1–6.
@@ -114,6 +140,12 @@ pub enum Node {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         source: Option<Box<Source>>,
     },
+    /// Display math (TeX source).
+    MathBlock {
+        tex: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source: Option<Box<Source>>,
+    },
     /// Footnote body, referenced by [`Node::FootnoteReference`] with the same label.
     FootnoteDefinition {
         label: String,
@@ -143,6 +175,8 @@ pub enum Node {
     LineBreak,
     /// Footnote marker pointing at a [`Node::FootnoteDefinition`].
     FootnoteReference { label: String },
+    /// Inline math (TeX source).
+    Math { tex: String },
 }
 
 impl Node {
@@ -160,6 +194,7 @@ impl Node {
                 | Node::DefinitionList { .. }
                 | Node::Figure { .. }
                 | Node::FootnoteDefinition { .. }
+                | Node::MathBlock { .. }
         )
     }
 
@@ -178,8 +213,93 @@ impl Node {
             | Node::Table { source, .. }
             | Node::DefinitionList { source, .. }
             | Node::Figure { source, .. }
-            | Node::FootnoteDefinition { source, .. } => Some(source),
+            | Node::FootnoteDefinition { source, .. }
+            | Node::MathBlock { source, .. } => Some(source),
             _ => None,
+        }
+    }
+
+    /// Call `f` on each child list of this node (block or inline children,
+    /// list-item children, table cells, definition terms and bodies,
+    /// figure captions). Leaves have none.
+    pub fn for_each_child_list(&mut self, f: &mut dyn FnMut(&mut Vec<Node>)) {
+        match self {
+            Node::Heading { children, .. }
+            | Node::Paragraph { children, .. }
+            | Node::BlockQuote { children, .. }
+            | Node::FootnoteDefinition { children, .. }
+            | Node::Bold { children }
+            | Node::Italic { children }
+            | Node::Strikethrough { children }
+            | Node::Link { children, .. } => f(children),
+            Node::Figure {
+                children, caption, ..
+            } => {
+                f(children);
+                if let Some(c) = caption {
+                    f(c);
+                }
+            }
+            Node::List { items, .. } => {
+                for item in items {
+                    f(&mut item.children);
+                }
+            }
+            Node::Table { headers, rows, .. } => {
+                for cell in headers.iter_mut().chain(rows.iter_mut().flatten()) {
+                    f(&mut cell.children);
+                }
+            }
+            Node::DefinitionList { items, .. } => {
+                for item in items {
+                    f(&mut item.term);
+                    for d in &mut item.definitions {
+                        f(d);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Read-only [`Node::for_each_child_list`].
+    pub fn for_each_child_list_ref(&self, f: &mut dyn FnMut(&Vec<Node>)) {
+        match self {
+            Node::Heading { children, .. }
+            | Node::Paragraph { children, .. }
+            | Node::BlockQuote { children, .. }
+            | Node::FootnoteDefinition { children, .. }
+            | Node::Bold { children }
+            | Node::Italic { children }
+            | Node::Strikethrough { children }
+            | Node::Link { children, .. } => f(children),
+            Node::Figure {
+                children, caption, ..
+            } => {
+                f(children);
+                if let Some(c) = caption {
+                    f(c);
+                }
+            }
+            Node::List { items, .. } => {
+                for item in items {
+                    f(&item.children);
+                }
+            }
+            Node::Table { headers, rows, .. } => {
+                for cell in headers.iter().chain(rows.iter().flatten()) {
+                    f(&cell.children);
+                }
+            }
+            Node::DefinitionList { items, .. } => {
+                for item in items {
+                    f(&item.term);
+                    for d in &item.definitions {
+                        f(d);
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
@@ -194,7 +314,8 @@ impl Node {
             | Node::Table { source, .. }
             | Node::DefinitionList { source, .. }
             | Node::Figure { source, .. }
-            | Node::FootnoteDefinition { source, .. } => source.as_deref(),
+            | Node::FootnoteDefinition { source, .. }
+            | Node::MathBlock { source, .. } => source.as_deref(),
             _ => None,
         }
     }
@@ -236,6 +357,7 @@ impl Node {
 /// Only the fields meaningful for the input format are set. Recorded when
 /// [`crate::MarkkitBuilder::track_sources`] is enabled.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub struct Source {
     /// HTML: absolute XPath of the element, e.g. `/html/body/article[1]/p[3]`
@@ -291,6 +413,7 @@ impl Source {
 
 /// A single item in a list.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub struct ListItem {
     pub children: Vec<Node>,
@@ -318,6 +441,7 @@ impl ListItem {
 
 /// Horizontal alignment of a table column.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum Alignment {
     #[default]
@@ -329,6 +453,7 @@ pub enum Alignment {
 
 /// A table cell: inline content plus its span (both ≥ 1).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub struct TableCell {
     pub children: Vec<Node>,
@@ -371,6 +496,7 @@ impl From<Vec<Node>> for TableCell {
 
 /// One term of a [`Node::DefinitionList`] with its definitions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub struct DefinitionItem {
     /// Inline content of the term.
@@ -383,6 +509,27 @@ impl DefinitionItem {
     pub fn new(term: Vec<Node>, definitions: Vec<Vec<Node>>) -> Self {
         Self { term, definitions }
     }
+}
+
+/// JSON Schema (draft 2020-12) of the serialized IR ([`Document`]).
+///
+/// The same schema is committed as `schema/ir.schema.json`; a test keeps
+/// them in sync (regenerate with `just schema`).
+#[cfg(feature = "json-schema")]
+pub fn json_schema() -> serde_json::Value {
+    let mut schema =
+        serde_json::to_value(schemars::schema_for!(Document)).expect("schema serializes");
+    if let Some(obj) = schema.as_object_mut() {
+        obj.insert(
+            "$id".into(),
+            "https://github.com/everruns/markkit/schema/ir.schema.json".into(),
+        );
+        obj.insert(
+            "description".into(),
+            format!("markkit IR document, ir_version {IR_VERSION}").into(),
+        );
+    }
+    schema
 }
 
 #[cfg(test)]
@@ -444,6 +591,14 @@ mod tests {
                 caption: Some(vec![Node::Text("cap".into())]),
                 source: None,
             },
+            Node::MathBlock {
+                tex: "e^{i\\pi}+1=0".into(),
+                source: None,
+            },
+            Node::Paragraph {
+                children: vec![Node::Math { tex: "x^2".into() }],
+                source: None,
+            },
             Node::FootnoteDefinition {
                 label: "1".into(),
                 children: vec![Node::paragraph(vec![Node::Text("note".into())])],
@@ -486,6 +641,21 @@ mod tests {
         assert!(!json.contains("source"), "{json}");
         let json = serde_json::to_string(&p).unwrap();
         assert!(json.contains(r#""source":{"index":3}"#), "{json}");
+    }
+
+    #[cfg(feature = "json-schema")]
+    #[test]
+    fn committed_schema_is_current() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../schema/ir.schema.json");
+        let generated = serde_json::to_string_pretty(&json_schema()).unwrap() + "\n";
+        if std::env::var_os("MARKKIT_UPDATE_SCHEMA").is_some() {
+            std::fs::write(path, &generated).unwrap();
+        }
+        let committed = std::fs::read_to_string(path).unwrap_or_default();
+        assert!(
+            committed == generated,
+            "schema/ir.schema.json is stale; run `just schema`"
+        );
     }
 
     #[test]

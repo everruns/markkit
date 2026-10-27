@@ -12,7 +12,7 @@
 //!   layers 1-2 still apply, layer 3 cannot. Documented in the threat model.
 //! - Body bounded by `max_input_size` while streaming (declared
 //!   `Content-Length` rejected up front); whole fetch bounded by
-//!   `max_processing_secs`.
+//!   `limits.timeout`.
 //! - Policy and resolver run inside reqwest and can only return opaque
 //!   errors, so they record the block reason in a per-call slot that is
 //!   turned into [`Error::UrlBlocked`] afterwards.
@@ -31,6 +31,8 @@ use crate::error::Error;
 pub(crate) struct Fetched {
     pub bytes: Vec<u8>,
     pub content_type: Option<String>,
+    /// Final URL after redirects.
+    pub url: String,
 }
 
 /// Per-call slot for the first block reason seen inside reqwest.
@@ -47,7 +49,7 @@ pub(crate) async fn fetch(url: &str, cfg: &MarkkitBuilder) -> crate::Result<Fetc
 
     let blocked: Blocked = Arc::default();
     let client = client(cfg, &blocked)?;
-    let limit = cfg.max_input_size;
+    let limit = cfg.limits.max_input_size;
 
     let run = async {
         let mut response = client.get(parsed).send().await?;
@@ -63,6 +65,7 @@ pub(crate) async fn fetch(url: &str, cfg: &MarkkitBuilder) -> crate::Result<Fetc
             .get(reqwest::header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
             .map(str::to_string);
+        let final_url = response.url().to_string();
         let mut bytes = Vec::new();
         while let Some(chunk) = response.chunk().await? {
             if bytes.len() + chunk.len() > limit {
@@ -75,6 +78,7 @@ pub(crate) async fn fetch(url: &str, cfg: &MarkkitBuilder) -> crate::Result<Fetc
         Ok(Ok(Fetched {
             bytes,
             content_type,
+            url: final_url,
         }))
     };
 
@@ -87,8 +91,8 @@ pub(crate) async fn fetch(url: &str, cfg: &MarkkitBuilder) -> crate::Result<Fetc
             }
             if e.is_timeout() {
                 return Err(Error::ResourceLimit(format!(
-                    "fetch exceeded max_processing_secs {}",
-                    cfg.max_processing_secs
+                    "fetch exceeded timeout of {:?}",
+                    cfg.limits.timeout
                 )));
             }
             Err(Error::Http(e.to_string()))
@@ -97,7 +101,7 @@ pub(crate) async fn fetch(url: &str, cfg: &MarkkitBuilder) -> crate::Result<Fetc
 }
 
 fn client(cfg: &MarkkitBuilder, blocked: &Blocked) -> crate::Result<reqwest::Client> {
-    let max_redirects = cfg.max_redirects;
+    let max_redirects = cfg.limits.max_redirects;
     let policy_cfg = cfg.clone();
     let policy_slot = blocked.clone();
     let policy = reqwest::redirect::Policy::custom(move |attempt| {
@@ -114,11 +118,11 @@ fn client(cfg: &MarkkitBuilder, blocked: &Blocked) -> crate::Result<reqwest::Cli
         }
     });
 
-    let secs = cfg.max_processing_secs.max(1);
+    let timeout = cfg.limits.timeout;
     let mut builder = reqwest::Client::builder()
         .redirect(policy)
-        .timeout(Duration::from_secs(secs))
-        .connect_timeout(Duration::from_secs(secs.min(10)));
+        .timeout(timeout)
+        .connect_timeout(timeout.min(Duration::from_secs(10)));
     if !cfg.allow_private_networks {
         builder = builder.dns_resolver(Arc::new(PublicOnlyResolver {
             blocked: blocked.clone(),

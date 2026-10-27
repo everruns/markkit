@@ -41,8 +41,10 @@ clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
 
 # HTML parsing
+url = "2"
 scraper = "0.29"
 ego-tree = "0.11"
+schemars = "1"
 html5ever = "0.40"
 
 # Document formats
@@ -76,7 +78,10 @@ proptest = "1"
 [profile.release]
 lto = "thin"
 codegen-units = 1
-panic = "abort"
+# Unwind (not abort): `extract_document` wraps third-party parsers in
+# `catch_unwind`, and PyO3/NAPI turn panics into exceptions. Abort would let one
+# malformed document kill the CLI or the host Python/Node process.
+panic = "unwind"
 strip = true
 
 # Browser bundle (crates/markkit-wasm/scripts/build.sh): size over speed.

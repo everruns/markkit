@@ -30,9 +30,22 @@ Input (bytes/URL/file)
   → Format Detection (MIME, magic bytes, extension)
   → Parser (HTML, PDF, DOCX, etc.)
   → Normalized AST (intermediate representation)
+  → Transforms (embedder IR passes, in registration order)
   → Markdown Converter (AST → markdown string)
   → Output (String / streaming)
 ```
+
+### Transforms
+
+`MarkkitBuilder::transform(t)` appends a `transform::Transform`
+(`name()`, `apply(&mut Document) -> Result<()>`) to `config.transforms`, a
+`TransformChain` of `Arc`s so the builder stays `Clone`. Every parse path runs
+the chain: `parse_html`, `parse_document`, and so every `extract_*`. Passes
+are trusted embedder code; the first error aborts and is returned as is
+(`Error::Transform` exists for passes to use). Built-ins:
+`NormalizeHeadings` (shallowest heading becomes `#`), `DropImages`;
+`transform::from_fn(name, closure)` wraps a closure. `Document::visit` /
+`visit_mut` and `Node::for_each_child_list[_ref]` walk the tree.
 
 ## Crate Structure
 
@@ -40,7 +53,7 @@ Input (bytes/URL/file)
 |-------|---------|
 | `markkit` | Core library – parsing, conversion, API |
 | `markkit-cli` | Command-line tool |
-| `markkit-bench` | Performance benchmarks |
+| `markkit-bench` | Benchmark harness, results committed in `results/` |
 | `markkit-eval` | LLM-based quality evaluation |
 | `markkit-python` | Python bindings (PyO3) |
 | `markkit-js` | Node.js bindings (NAPI-RS) |
@@ -48,13 +61,17 @@ Input (bytes/URL/file)
 ## Configuration
 
 Via `MarkkitBuilder`:
-- Input size limits
-- Processing time limits
+- Resource limits: one `Limits` struct (`limits.rs`, set whole via `.limits(..)` or per
+  field via builder setters): input/output size, timeout, nesting depth (hard max 512),
+  node count, archive, spreadsheet and redirect caps. Violations are
+  `Error::ResourceLimit`; see [Threat Model](../security/threat-model.md) Resource Limits
 - CSS selectors for include/exclude
 - Link and image preservation
 - Office-document limits (archive entries/sizes, sheet rows/cols, grid cells, hidden sheets)
 - URL fetch policy (`allow_private_networks`, `allow_host`, `max_redirects`)
+- Base URL for relative links, images and metadata URLs (`base_url`)
 - Provenance (`track_sources`): per-block `Source` in the IR (off by default)
+- Main-content detection for HTML (`main_content`)
 
 ## Public entry points
 

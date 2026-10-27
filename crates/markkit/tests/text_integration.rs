@@ -226,3 +226,36 @@ fn security_markdown_deep_nesting_no_stack_overflow() {
         assert!(e.markdown.contains('x'));
     }
 }
+
+#[test]
+fn security_text_and_markdown_share_limits() {
+    use std::time::Duration;
+    let m = Markkit::builder().timeout(Duration::ZERO).build();
+    for name in ["a.txt", "a.md"] {
+        let r = m.extract_document_sync(b"x", DocumentHint::file_name(name));
+        if cfg!(not(feature = "markdown")) && name == "a.md" {
+            continue;
+        }
+        assert!(
+            matches!(&r, Err(Error::ResourceLimit(msg)) if msg.contains("timeout")),
+            "{name}: {r:?}"
+        );
+    }
+    let m = Markkit::builder().max_nodes(100).build();
+    let big = "line\n".repeat(1000);
+    for name in ["a.txt", "a.md"] {
+        if cfg!(not(feature = "markdown")) && name == "a.md" {
+            continue;
+        }
+        let r = m.extract_document_sync(big.as_bytes(), DocumentHint::file_name(name));
+        let r2 = m.extract_document_sync(
+            "p\n\n".repeat(1000).as_bytes(),
+            DocumentHint::file_name(name),
+        );
+        assert!(
+            matches!(&r, Err(Error::ResourceLimit(_)))
+                || matches!(&r2, Err(Error::ResourceLimit(_))),
+            "{name}: {r:?}"
+        );
+    }
+}

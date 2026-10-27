@@ -50,9 +50,10 @@ fn xlsx_multiple_sheets_and_empty_sheet_skipped() {
     let e = extract(&bytes);
     assert_eq!(
         e.markdown,
-        "## A\n\n| h |\n| --- |\n| 1 |\n\n## B\n\n| x | y |\n| --- | --- |\n"
+        "## A\n\n| h |\n| --- |\n| 1 |\n\n## B\n\n| A | B |\n| --- | --- |\n| x | y |\n"
     );
     assert_eq!(e.stats.sheets, Some(2));
+    assert_eq!(e.stats.rows, Some(2));
 }
 
 #[test]
@@ -274,6 +275,121 @@ fn xls_by_content_type() {
         )
         .unwrap();
     assert!(e.markdown.contains("| x |"), "{}", e.markdown);
+}
+
+// ─── Single-row sheets, titles, package quirks ──────────────────────
+
+#[test]
+fn single_row_sheet_renders_as_data_under_column_letters() {
+    // One row starting at column C: header is the real column letters.
+    let data = r#"<row r="2"><c r="C2" t="inlineStr"><is><t>only</t></is></c><c r="D2"><v>7</v></c></row>"#;
+    let bytes = xlsx_with(
+        &[Sheet::new("One", vec![])],
+        &[Some(worksheet_xml(data))],
+        &[],
+    );
+    let e = extract(&bytes);
+    assert_eq!(
+        e.markdown,
+        "## One\n\n| C | D |\n| --- | --- |\n| only | 7 |\n"
+    );
+    assert_eq!(e.stats.rows, Some(1));
+
+    // Two rows: the first is still the header.
+    let bytes = xlsx(&[Sheet::new("Two", vec![vec![S("h")], vec![S("v")]])]);
+    assert_eq!(
+        extract(&bytes).markdown,
+        "## Two\n\n| h |\n| --- |\n| v |\n"
+    );
+}
+
+#[test]
+fn xlsx_title_from_core_properties() {
+    let core = br#"<?xml version="1.0" encoding="UTF-8"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Quarterly &amp; Annual</dc:title></cp:coreProperties>"#;
+    let bytes = xlsx_with(
+        &[Sheet::new("S", vec![vec![S("h")], vec![S("v")]])],
+        &[],
+        &[("docProps/core.xml", core)],
+    );
+    assert_eq!(extract(&bytes).title.as_deref(), Some("Quarterly & Annual"));
+    // No core properties: no title.
+    let bytes = xlsx(&[Sheet::new("S", vec![vec![S("v")]])]);
+    assert_eq!(extract(&bytes).title, None);
+}
+
+#[test]
+fn xlsx_malformed_core_properties_do_not_fail_extraction() {
+    let bytes = xlsx_with(
+        &[Sheet::new("S", vec![vec![S("h")], vec![S("v")]])],
+        &[],
+        &[(
+            "docProps/core.xml",
+            b"<cp:coreProperties><dc:title>x</dc:titl",
+        )],
+    );
+    let e = extract(&bytes);
+    assert!(e.markdown.contains("| v |"));
+    let deep = format!("{}{}", "<a>".repeat(10_000), "<title>t</title>");
+    let bytes = xlsx_with(
+        &[Sheet::new("S", vec![vec![S("v")]])],
+        &[],
+        &[("docProps/core.xml", deep.as_bytes())],
+    );
+    assert_eq!(extract(&bytes).title, None);
+}
+
+#[test]
+fn ods_title_from_meta() {
+    let content = format!(
+        r#"<table:table table:name="T"><table:table-row>{}</table:table-row></table:table>"#,
+        ods_string_cell("v")
+    );
+    let meta = br#"<?xml version="1.0" encoding="UTF-8"?><office:document-meta xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:dc="http://purl.org/dc/elements/1.1/"><office:meta><dc:title>ODS Report</dc:title></office:meta></office:document-meta>"#;
+    let bytes = rezip(&ods(&content), &[], &[("meta.xml", meta)]);
+    let e = extract(&bytes);
+    assert_eq!(e.format, Format::Ods);
+    assert_eq!(e.title.as_deref(), Some("ODS Report"));
+}
+
+#[test]
+fn xls_title_from_summary_information() {
+    let stream = biff8_workbook(&[XlsSheet {
+        name: "S",
+        dims: None,
+        cells: vec![XlsCell::Label(0, 0, "h"), XlsCell::Label(1, 0, "v")],
+    }]);
+    let summary = summary_information(1252, b"Legacy Budget");
+    let bytes = ole2(&[
+        ("/Workbook", &stream),
+        ("/\u{5}SummaryInformation", &summary),
+    ]);
+    let e = extract(&bytes);
+    assert_eq!(e.format, Format::Xls);
+    assert_eq!(e.title.as_deref(), Some("Legacy Budget"));
+
+    // Garbage property set: no title, extraction still succeeds.
+    let bytes = ole2(&[
+        ("/Workbook", &stream),
+        ("/\u{5}SummaryInformation", b"\xFE\xFFjunk"),
+    ]);
+    let e = extract(&bytes);
+    assert_eq!(e.title, None);
+    assert!(e.markdown.contains("| v |"));
+}
+
+#[test]
+fn xlsx_without_package_relationships_still_parses() {
+    let bytes = xlsx(&[Sheet::new("S", vec![vec![S("h")], vec![S("v")]])]);
+    let bytes = rezip(&bytes, &["_rels/.rels"], &[]);
+    let e = extract(&bytes);
+    assert_eq!(e.markdown, "## S\n\n| h |\n| --- |\n| v |\n");
+}
+
+#[test]
+fn xlsb_content_type_is_not_xlsx() {
+    let ct = "application/vnd.ms-excel.sheet.binary.macroEnabled.12";
+    assert_eq!(Format::from_content_type(ct), Format::Xlsb);
+    assert_eq!(Format::from_file_name("book.xlsb"), Format::Xlsb);
 }
 
 // ─── Provenance ──────────────────────────────────────────────────────

@@ -80,8 +80,14 @@ markkit extract --file document.html
 # With CSS selector filtering
 markkit extract https://example.com --include "article" --exclude "nav,footer"
 
-# JSON output; files and stdin also carry format, title and page metadata
-markkit extract --file page.html --json
+# JSON output with format, title and page metadata
+markkit extract https://example.com --json
+
+# Keep only the article body (drops sidebars, comments, share bars)
+markkit extract https://example.com/post --main-content
+
+# Resolve relative links in a saved page
+markkit extract --file page.html --base-url https://example.com/blog/
 
 # From stdin
 cat page.html | markkit extract -
@@ -174,7 +180,7 @@ let markkit = Markkit::builder()
 | Feature | Default | Description |
 |---------|---------|-------------|
 | `html` | Yes | HTML parsing and conversion |
-| `http_client` | Yes | URL fetching via reqwest (`extract_url`) |
+| `http_client` | No | URL fetching via reqwest (`extract_url`) |
 | `docx` | No | DOCX conversion (zip + quick-xml) |
 | `spreadsheet` | No | XLSX/XLSM, XLS, ODS conversion (calamine) |
 | `pdf` | No | Placeholder; PDF currently returns `UnsupportedFormat` |
@@ -183,19 +189,81 @@ let markkit = Markkit::builder()
 | `tool` | No | `markkit::tool::MarkkitTool` LLM agent tool (Everruns toolkit contract) |
 | `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
 
-`http_client` is optional. Embedders that fetch content themselves can build without
-reqwest (no HTTP/TLS stack in the dependency tree):
+`http_client` is opt-in: the default build has no HTTP/TLS stack in the dependency tree.
+Enable it to get `extract_url` (the CLI and the Python/Node bindings ship with it on):
 
 ```toml
 [dependencies]
-markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }
-# add "html" if you also convert HTML
+markkit = { version = "0.1", features = ["http_client"] }
+# office formats only, no HTML, no network:
+# markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }
 ```
 
-Office-document limits are configurable on the builder: `max_archive_entries`,
-`max_archive_entry_size`, `max_archive_total_size`, `max_spreadsheet_cells`,
-`max_sheet_rows`, `max_sheet_cols`, `include_hidden_sheets`. URL fetching:
-`allow_private_networks`, `allow_host`, `max_redirects`.
+### Resource limits
+
+Every resource an input can drive is bounded by `markkit::Limits`. Defaults are
+generous; violations return `Error::ResourceLimit` naming the limit.
+
+| Limit | Default | Bounds |
+|-------|---------|--------|
+| `max_input_size` | 50 MiB | Input bytes, fetched URL body |
+| `max_output_size` | 128 MiB | Markdown output |
+| `timeout` | 60 s | Fetch + parse + render, per call |
+| `max_nesting_depth` | 256 (hard max 512) | HTML flattens deeper content; deeper DOCX XML is rejected |
+| `max_nodes` | 5 000 000 | HTML DOM nodes, DOCX XML nodes |
+| `max_archive_entries` | 10 000 | ZIP entries (DOCX/XLSX/ODS) |
+| `max_archive_entry_size` | 64 MiB | Decompressed bytes per ZIP entry |
+| `max_archive_total_size` | 256 MiB | Decompressed bytes per ZIP |
+| `max_spreadsheet_cells` | 4 000 000 | XLS/ODS grid before parsing |
+| `max_sheet_rows` / `max_sheet_cols` | 10 000 / 256 | Rendered per sheet (truncated with a warning) |
+| `max_redirects` | 5 | `extract_url` redirects |
+
+```rust
+use markkit::{Limits, Markkit};
+use std::time::Duration;
+
+let markkit = Markkit::builder()
+    .limits(Limits::default().timeout(Duration::from_secs(10)).max_output_size(8 << 20))
+    .build();
+```
+
+Each limit also has a builder setter (`.max_nodes(..)`, `.timeout(..)`, ...).
+Other options: `include_hidden_sheets`, `allow_private_networks`, `allow_host`.
+
+## Performance
+
+Measured with `just bench` (in-process, release build, 20 iterations after 3 warmup) on a
+4-CPU Linux x86_64 VM, markkit 0.1.1. Allocations and peak heap are per single extraction.
+Full report: [`bench-vm-linux-x86_64-1793058767.md`](https://github.com/everruns/markkit/blob/main/crates/markkit-bench/results/bench-vm-linux-x86_64-1793058767.md); history in
+[`crates/markkit-bench/results/`](https://github.com/everruns/markkit/blob/main/crates/markkit-bench/results/).
+
+| Case | Input | Mean | Ops/s | Throughput | Allocs/op | Peak heap |
+|------|------:|-----:|------:|-----------:|----------:|----------:|
+| HTML article (fixture) | 881 B | 49 µs | 20,365 | 17 MiB/s | 213 | 28 KiB |
+| HTML blog post with nav/scripts | 15 KiB | 641 µs | 1,561 | 23 MiB/s | 2,427 | 304 KiB |
+| HTML long docs page | 300 KiB | 13.0 ms | 77 | 22 MiB/s | 47,578 | 7.5 MiB |
+| HTML 50 tables | 257 KiB | 15.0 ms | 67 | 17 MiB/s | 50,349 | 8.6 MiB |
+| HTML mostly boilerplate | 45 KiB | 706 µs | 1,417 | 63 MiB/s | 81 | 305 KiB |
+| HTML 1000 nested divs | 11 KiB | 3.6 ms | 282 | 3 MiB/s | 442 | 147 KiB |
+| DOCX memo | 1.4 KiB | 87 µs | 11,508 | 16 MiB/s | 733 | 93 KiB |
+| DOCX 400-section report | 9 KiB (262 KiB out) | 35.7 ms | 28 | 0.2 MiB/s | 265,791 | 18.5 MiB |
+| XLSX 50×5 | 2.8 KiB | 291 µs | 3,435 | 9 MiB/s | 1,668 | 129 KiB |
+| XLSX 3 sheets, 150k cells | 766 KiB | 172 ms | 6 | 4 MiB/s | 782,800 | 24.9 MiB |
+| ODS 2000×8 | 70 KiB | 23.2 ms | 43 | 3 MiB/s | 92,515 | 3.0 MiB |
+| Format sniffing (DOCX) | 9 KiB | 0.9 µs | 1,141,227 | n/a | 0 | 0 B |
+
+Takeaways:
+
+- **HTML** extracts at 17–25 MiB/s; peak heap is ~25x the input size.
+- **Boilerplate-heavy pages are cheap**: scripts, styles and nav are dropped at ~60 MiB/s.
+- **Deep nesting is the slow outlier**: 1000 nested `<div>`s run at 3 MiB/s with few
+  allocations, so the cost is CPU in tree building, not memory.
+- **Office formats allocate most**: a 150k-cell XLSX takes 172 ms and ~5 allocations per cell;
+  a 9 KiB compressed DOCX peaks at 18.5 MiB of heap (~2000x its compressed size).
+- **Format detection** is effectively free (under 1 µs, no allocations).
+
+Timings on a shared VM are noisy (stddev up to ~70% on the smallest cases); allocation counts
+are deterministic and the better regression signal. Compare runs from the same machine only.
 
 ## Security
 
@@ -206,7 +274,7 @@ XML entities are never expanded; macros and formulas are never executed; hidden
 sheets are skipped by default. `extract_url` accepts only http/https, refuses
 loopback, private, link-local and cloud-metadata addresses (also after DNS
 resolution and on every redirect), caps redirects, and bounds the body by
-`max_input_size` and the fetch by `max_processing_secs`. Opt in to internal
+`max_input_size` and the fetch by `timeout`. Opt in to internal
 hosts with `allow_private_networks(true)`; restrict hosts with `allow_host(..)`.
 
 See the [threat model](knowledge/security/threat-model.md) and the
@@ -227,7 +295,7 @@ just test       # Run all tests
 just lint       # Run clippy
 just check      # fmt, clippy, tests, knowledge, examples
 just pre-pr     # Full pre-PR validation
-just bench      # Criterion benchmarks
+just bench      # Benchmarks, results saved to crates/markkit-bench/results
 ```
 
 Coding agents: start with [AGENTS.md](AGENTS.md).

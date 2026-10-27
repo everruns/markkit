@@ -22,6 +22,8 @@ pub enum Format {
     Doc,
     /// Office Open XML spreadsheet (`.xlsx`, `.xlsm`, `.xltx`).
     Xlsx,
+    /// Excel binary workbook (`.xlsb`).
+    Xlsb,
     /// Legacy Excel 97-2003 binary (`.xls`).
     Xls,
     /// OpenDocument spreadsheet (`.ods`).
@@ -80,6 +82,7 @@ impl Format {
             Format::Docx => "docx",
             Format::Doc => "doc",
             Format::Xlsx => "xlsx",
+            Format::Xlsb => "xlsb",
             Format::Xls => "xls",
             Format::Ods => "ods",
             Format::Pptx => "pptx",
@@ -102,6 +105,8 @@ impl Format {
             Format::Docx
         } else if ct.contains("msword") {
             Format::Doc
+        } else if ct.contains("ms-excel.sheet.binary") {
+            Format::Xlsb
         } else if ct.contains("spreadsheetml") || ct.contains("ms-excel.sheet") {
             Format::Xlsx
         } else if ct.contains("ms-excel") {
@@ -129,6 +134,7 @@ impl Format {
             "docx" | "docm" | "dotx" | "dotm" => Format::Docx,
             "doc" | "dot" => Format::Doc,
             "xlsx" | "xlsm" | "xltx" | "xltm" => Format::Xlsx,
+            "xlsb" => Format::Xlsb,
             "xls" | "xlt" => Format::Xls,
             "ods" => Format::Ods,
             "pptx" | "pptm" | "ppt" => Format::Pptx,
@@ -202,6 +208,8 @@ fn sniff_zip(bytes: &[u8]) -> Format {
         Format::Ods
     } else if contains(bytes, b"word/document") {
         Format::Docx
+    } else if contains(bytes, b"xl/workbook.bin") {
+        Format::Xlsb
     } else if contains(bytes, b"xl/workbook.") {
         Format::Xlsx
     } else if contains(bytes, b"ppt/presentation.") {
@@ -271,6 +279,18 @@ mod tests {
         );
         assert_eq!(Format::from_content_type("application/pdf"), Format::Pdf);
         assert_eq!(Format::from_content_type("text/plain"), Format::PlainText);
+        assert_eq!(
+            Format::from_content_type("application/vnd.ms-excel.sheet.binary.macroEnabled.12"),
+            Format::Xlsb
+        );
+        assert_eq!(
+            Format::from_content_type("application/vnd.ms-excel.sheet.macroEnabled.12"),
+            Format::Xlsx
+        );
+        assert_eq!(
+            Format::from_content_type("application/vnd.ms-excel"),
+            Format::Xls
+        );
     }
 
     #[test]
@@ -278,6 +298,7 @@ mod tests {
         assert_eq!(Format::from_extension("html"), Format::Html);
         assert_eq!(Format::from_extension("PDF"), Format::Pdf);
         assert_eq!(Format::from_extension("docx"), Format::Docx);
+        assert_eq!(Format::from_extension("XLSB"), Format::Xlsb);
     }
 
     #[test]

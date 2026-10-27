@@ -44,6 +44,10 @@ Unknown keys and wrong types throw `invalid options`: values go through
 `serde_json::Value` because serde-wasm-bindgen only reads named fields, so
 `deny_unknown_fields` alone would never see a typo.
 
+wasm32-unknown-unknown has no clock (`Instant::now` panics), so the core
+`timeout` limit is not enforced here (`Budget` runs without a deadline); every
+other limit applies. Hosts bound time themselves, e.g. by terminating a Worker.
+
 Errors throw `Error` with the Rust `Display` text. `MarkkitTool.execute` rejects
 with an `Error` carrying `userFacing` (see [Tool Contract](../integrations/tool-contract.md)).
 
