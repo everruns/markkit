@@ -252,3 +252,18 @@ fn element_rules_respect_depth_limit() {
         .build();
     assert!(m.extract_html_sync(&html).unwrap().contains("deep"));
 }
+
+#[test]
+fn element_rules_cannot_resurrect_stripped_elements() {
+    // Stripping runs before rules: a rule matching <script>/<style> sees nothing.
+    let html = "<p>ok</p><script>alert(1)</script><style>p{}</style>";
+    let m = Markkit::builder()
+        .html_rule("script", markkit::rules::ElementAction::Paragraph)
+        .html_rule(
+            "style",
+            markkit::rules::ElementAction::CodeBlock { language: None },
+        )
+        .build();
+    let md = m.extract_html_sync(html).unwrap();
+    assert_eq!(md, "ok\n");
+}
