@@ -94,6 +94,14 @@ test("extractDocument reads CSV and TSV", () => {
   assert.equal(tsv.format, "tsv");
 });
 
+test("extractDocument reads Jupyter notebooks", () => {
+  const nb = { nbformat: 4, metadata: {}, cells: [{ cell_type: "markdown", source: "# NB" }, { cell_type: "code", source: "1+1", outputs: [] }] };
+  const out = new Markkit().extractDocument(new TextEncoder().encode(JSON.stringify(nb)), { fileName: "a.ipynb" });
+  assert.equal(out.format, "ipynb");
+  assert.equal(out.title, "NB");
+  assert.ok(out.markdown.includes("1+1"));
+});
+
 test("extractBytes and unsupported formats", () => {
   const mk = new Markkit();
   assert.equal(mk.extractBytes(new TextEncoder().encode("<p>x</p>"), "text/html"), "x\n");
