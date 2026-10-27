@@ -54,7 +54,7 @@ are trusted embedder code; the first error aborts and is returned as is
 | `markkit` | Core library – parsing, conversion, API |
 | `markkit-cli` | Command-line tool |
 | `markkit-bench` | Benchmark harness, results committed in `results/` |
-| `markkit-eval` | LLM-based quality evaluation |
+| `markkit-eval` | Extraction-quality eval study (mira) |
 | `markkit-python` | Python bindings (PyO3) |
 | `markkit-js` | Node.js bindings (NAPI-RS) |
 

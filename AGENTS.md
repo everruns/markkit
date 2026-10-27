@@ -40,7 +40,7 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 | operations/maintenance | Maintenance invocation contract + checklist + workflow credential audit |
 | operations/release-process | Agent-driven release, crates.io + PyPI + npm |
 | operations/performance-results | Benchmark harness, metrics, committed results |
-| operations/eval | LLM-as-judge eval design (harness is a stub) |
+| operations/eval | mira eval study: dataset, checks, metrics, baseline |
 
 ### Documentation
 
@@ -86,7 +86,7 @@ just pre-pr        # Pre-PR checks
 | `markkit` | Core extraction library (HTML, DOCX, spreadsheets) |
 | `markkit-cli` | `markkit` CLI |
 | `markkit-bench` | Benchmark harness: ops/s, throughput, allocations; results committed |
-| `markkit-eval` | LLM evaluation harness (stub) |
+| `markkit-eval` | Extraction-quality eval, mira study (`just eval`) |
 | `markkit-python` | Python bindings (PyO3), module `markkit` |
 | `markkit-js` | Node.js bindings (NAPI-RS), package `@everruns/markkit` |
 | `markkit-wasm` | Browser/edge WebAssembly (wasm-bindgen), package `@everruns/markkit-wasm` |

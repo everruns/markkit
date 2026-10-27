@@ -31,6 +31,7 @@ tags:
 | `crates/markkit-cli/tests/mcp_integration.rs` | `markkit mcp` stdio session end to end |
 | `crates/markkit/benches/extraction.rs` | Criterion micro-benchmarks |
 | `crates/markkit-bench/` | Benchmark harness; `cargo test` runs every case once |
+| `crates/markkit-eval/src/**` `#[cfg(test)]` | Eval dataset validity, check semantics, scorers, subject |
 
 Office fixtures are generated in code (`tests/common`), not committed binaries, so
 each security test states exactly which bytes it feeds the parser.
@@ -47,6 +48,8 @@ each security test states exactly which bytes it feeds the parser.
 - **Benchmarks**: `just bench` runs `markkit-bench` (ops/s, throughput, allocations)
   and saves results; `just bench-criterion` for micro-benchmarks. See
   [Performance Results](performance-results.md)
+- **Eval**: `just eval` scores extraction quality (mira study, not a gate); its
+  unit tests run in `cargo test`. See [Evaluation Harness](eval.md)
 
 ## Rules
 

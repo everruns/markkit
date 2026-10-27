@@ -1,5 +1,10 @@
-# LLM evaluation harness for markkit extraction quality
-# See knowledge/operations/eval.md for design
+# markkit-eval: mira eval study for markkit extraction quality.
+# Reimplemented on the mira eval framework (github.com/everruns/mira):
+# markkit extraction runs as a mira `Subject`; dataset pages are mira
+# `Sample`s; deterministic expectation checks run as mira `Scorer`s, one per
+# quality metric. The `mira` CLI hosts this binary over stdio and owns
+# selection, scheduling, saved runs, and reporting.
+# See knowledge/operations/eval.md for design decisions.
 
 [package]
 name = "markkit-eval"
@@ -7,13 +12,21 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "LLM evaluation harness for markkit extraction quality"
+description = "Mira eval study for markkit extraction quality"
+publish = false
 
 [[bin]]
 name = "markkit-eval"
 path = "src/main.rs"
 
 [dependencies]
+# Mira eval framework (crates.io), imported as `mira`. `macros` provides the
+# #[eval] discovery attribute. In-process subject only: no mira-everruns.
+mira-eval = { version = "0.5", features = ["macros"] }
+# HTML only, no HTTP client: the eval never fetches (pages are embedded).
+markkit = { path = "../markkit", default-features = false, features = ["html"] }
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-clap.workspace = true
-anyhow.workspace = true

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head><title>Configuration - Tideline Docs</title></head>
+<body>
+<header><a href="/">Tideline</a> <input type="search" placeholder="Search docs"></header>
+<div class="layout">
+  <nav class="sidebar">
+    <h4>Getting started</h4>
+    <ul>
+      <li><a href="/docs/install">Installation</a></li>
+      <li><a href="/docs/quickstart">Quickstart</a></li>
+      <li class="active"><a href="/docs/config">Configuration</a></li>
+    </ul>
+  </nav>
+  <main class="content">
+    <h1>Configuration</h1>
+    <p>Tideline reads its settings from <code>tideline.toml</code> in the project root. Every key is optional.</p>
+    <h2>Options</h2>
+    <table>
+      <thead>
+        <tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>workers</code></td><td>integer</td><td>4</td><td>Number of worker threads</td></tr>
+        <tr><td><code>timeout</code></td><td>string</td><td>30s</td><td>Request timeout</td></tr>
+        <tr><td><code>retry</code></td><td>boolean</td><td>true</td><td>Retry failed requests once</td></tr>
+      </tbody>
+    </table>
+    <h2>Example</h2>
+    <pre><code class="language-toml">[server]
+workers = 8
+timeout = "45s"
+
+[cache]
+enabled = true
+</code></pre>
+    <h2>Loading from code</h2>
+    <p>Use <code>Config::load</code> to read the file manually:</p>
+    <pre><code class="language-rust">use tideline::Config;
+
+fn main() -&gt; anyhow::Result&lt;()&gt; {
+    let cfg = Config::load("tideline.toml")?;
+    println!("{} workers", cfg.workers);
+    Ok(())
+}
+</code></pre>
+    <div class="admonition warning">
+      <p><strong>Warning:</strong> unknown keys are rejected at startup.</p>
+    </div>
+    <p>See <a href="/docs/env">environment variables</a> to override settings per deployment.</p>
+    <div class="page-meta">
+      <a href="https://github.test/tideline/docs/edit/main/config.md">Edit this page on GitHub</a>
+      <span>Last updated on Feb 2, 2026</span>
+    </div>
+    <div class="pager"><a href="/docs/quickstart">&larr; Previous: Quickstart</a> <a href="/docs/env">Next: Environment &rarr;</a></div>
+  </main>
+</div>
+<footer>Built with Tideline Docs. &copy; 2026 Tideline Labs</footer>
+</body>
+</html>

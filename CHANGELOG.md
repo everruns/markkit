@@ -126,6 +126,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `TableCell` (`children`, `colspan`, `rowspan`) with an `alignments` field. Block variants gain a
   `source` field (use `..` in patterns, `Node::paragraph`/`Node::heading` to construct). DOCX `gridSpan` is
   carried as `colspan`.
+- `markkit-eval` is now a [mira](https://github.com/everruns/mira) eval study. `just eval` runs
+  `markkit_extract`, an offline extraction-quality eval over ten realistic HTML pages scored for
+  completeness, accuracy, formatting and noise (needs `cargo install mira-cli`). A `mode` axis
+  compares default extraction with `main_content`; dated results are committed in
+  `crates/markkit-eval/results/`.
 - Design docs moved from `specs/` to an OKF v0.2 knowledge bundle in `knowledge/`, validated in CI.
 - CI workflows declare read-only default permissions and do not persist checkout credentials.
 - CI runs every example; criterion benchmarks run with `just bench-criterion`.
