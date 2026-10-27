@@ -47,6 +47,10 @@ pub struct MarkkitBuilder {
     /// Maximum total decoded size of all PDF streams, and of content
     /// interpreted (form XObjects count once per use), in bytes. Default: 256 MiB.
     pub max_pdf_decoded_size: usize,
+    /// Record per-block provenance ([`crate::ir::Source`]) in the IR:
+    /// HTML element XPath, DOCX block index, spreadsheet sheet and range.
+    /// Default: false (no cost, no `source` in IR JSON).
+    pub track_sources: bool,
 }
 
 impl Default for MarkkitBuilder {
@@ -79,6 +83,7 @@ impl Default for MarkkitBuilder {
             max_pdf_pages: 10_000,
             max_pdf_stream_size: 64 * 1024 * 1024,
             max_pdf_decoded_size: 256 * 1024 * 1024,
+            track_sources: false,
         }
     }
 }
@@ -101,6 +106,12 @@ impl MarkkitBuilder {
 
     pub fn preserve_images(mut self, yes: bool) -> Self {
         self.preserve_images = yes;
+        self
+    }
+
+    /// Record per-block provenance in the IR (see [`MarkkitBuilder::track_sources`] field).
+    pub fn track_sources(mut self, yes: bool) -> Self {
+        self.track_sources = yes;
         self
     }
 

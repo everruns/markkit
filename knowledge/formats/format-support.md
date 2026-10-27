@@ -123,6 +123,7 @@ Text layer only (`crates/markkit/src/pdf/`). Layout is reconstructed from glyph 
 | Form XObjects (`Do`) | Followed with their matrix and resources; depth 8, cycles skipped |
 | Pages | Paragraphs never cross pages; no page separators |
 | `/Info /Title` | `Extraction::title` (UTF-16BE / PDFDocEncoding decoded) |
+| `track_sources(true)` | `Source::page` (1-based) on each top-level block |
 | Images, annotations, outlines, form fields | Skipped |
 
 Unicode per font, in order: `ToUnicode` CMap (`bfchar`, `bfrange` incl. arrays, code

@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `pdf_unmapped_font`, `pdf_no_text`. Encrypted PDFs return `UnsupportedFormat`.
 - Builder limits `max_pdf_pages` (10 000), `max_pdf_stream_size` (64 MiB) and
   `max_pdf_decoded_size` (256 MiB).
+- Per-block provenance: `MarkkitBuilder::track_sources(true)` records a `Source` on each IR block
+  (HTML element XPath, DOCX body block index, spreadsheet sheet and A1 range) for citations.
+- `Markkit::parse_document` / `parse_document_sync` return the IR plus metadata (`ParsedDocument`)
+  for any supported format; `ParsedDocument::render()` produces the `Extraction`.
 - `tool` feature: `markkit::tool::MarkkitTool`, an LLM agent tool following the Everruns
   toolkit-library contract (builder, OpenAI tool definition, input/output schemas, `tower::Service`,
   single-use `ToolExecution`, `en-US`/`uk-UA` text). One call converts a `url`, `html` or base64
@@ -49,7 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **Breaking (IR API):** `Node`, `Document`, `ListItem` and the new IR structs are `#[non_exhaustive]`;
   matches need a `_` arm and structs are built with constructors. `Node::Table` cells are now
-  `TableCell` (`children`, `colspan`, `rowspan`) with an `alignments` field. DOCX `gridSpan` is
+  `TableCell` (`children`, `colspan`, `rowspan`) with an `alignments` field. Block variants gain a
+  `source` field (use `..` in patterns, `Node::paragraph`/`Node::heading` to construct). DOCX `gridSpan` is
   carried as `colspan`.
 - Design docs moved from `specs/` to an OKF v0.2 knowledge bundle in `knowledge/`, validated in CI.
 - CI workflows declare read-only default permissions and do not persist checkout credentials.

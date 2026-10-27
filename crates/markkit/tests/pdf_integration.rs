@@ -258,3 +258,30 @@ fn missing_font_resource_falls_back_to_win_ansi() {
     let pdf = pdf_pages(&["BT /Nope 12 Tf 72 700 Td (Still here) Tj ET"]);
     assert_eq!(extract(&pdf).markdown.trim(), "Still here");
 }
+
+#[test]
+fn track_sources_records_page_numbers() {
+    use markkit::ir::Node;
+    let pdf = pdf_pages(&[
+        "BT /F1 12 Tf 72 700 Td (One) Tj ET",
+        "BT /F1 12 Tf 72 700 Td (Two) Tj ET",
+    ]);
+    let parsed = Markkit::builder()
+        .track_sources(true)
+        .build()
+        .parse_document_sync(&pdf, DocumentHint::default())
+        .unwrap();
+    let pages: Vec<Option<u32>> = parsed
+        .document
+        .nodes
+        .iter()
+        .map(|n: &Node| n.source().and_then(|s| s.page))
+        .collect();
+    assert_eq!(pages, vec![Some(1), Some(2)]);
+
+    let parsed = Markkit::builder()
+        .build()
+        .parse_document_sync(&pdf, DocumentHint::default())
+        .unwrap();
+    assert!(parsed.document.nodes.iter().all(|n| n.source().is_none()));
+}

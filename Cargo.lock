@@ -1227,6 +1227,7 @@ dependencies = [
  "calamine",
  "cfb",
  "criterion",
+ "ego-tree",
  "futures-core",
  "hayro-syntax",
  "html5ever",

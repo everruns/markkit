@@ -38,7 +38,7 @@ use hayro_syntax::page::Resources;
 
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
-use crate::ir::{Document, ListItem, Node};
+use crate::ir::{Document, ListItem, Node, Source};
 
 use font::{Font, Glyph};
 use guard::PrescanError;
@@ -119,7 +119,7 @@ pub(crate) fn parse(bytes: &[u8], cfg: &MarkkitBuilder) -> Result<PdfOutput, Err
         ));
     }
 
-    let nodes = build_nodes(page_lines);
+    let nodes = build_nodes(page_lines, cfg.track_sources);
     if nodes.is_empty() && !pages.is_empty() {
         warnings
             .push("pdf_no_text: no text layer found (scanned PDF? OCR is not supported)".into());
@@ -596,6 +596,8 @@ fn build_lines(spans: Vec<Span>) -> Vec<Line> {
 }
 
 struct Para {
+    /// 1-based page number.
+    page: u32,
     size: f32,
     lines: usize,
     text: String,
@@ -616,9 +618,11 @@ fn round_size(s: f32) -> i32 {
     (s * 2.0).round() as i32
 }
 
-fn build_nodes(pages: Vec<Vec<Line>>) -> Vec<Node> {
+/// Lines per page → blocks; `track` records `Source::page` on each block.
+fn build_nodes(pages: Vec<Vec<Line>>, track: bool) -> Vec<Node> {
     let mut paras: Vec<Para> = Vec::new();
-    for lines in pages {
+    for (page_idx, lines) in pages.into_iter().enumerate() {
+        let page = u32::try_from(page_idx + 1).unwrap_or(u32::MAX);
         // Typical line pitch: most common downward step between lines (ties →
         // smaller), so paragraph gaps stand out even when frequent.
         let mut steps: HashMap<i32, usize> = HashMap::new();
@@ -647,6 +651,7 @@ fn build_nodes(pages: Vec<Vec<Line>>) -> Vec<Node> {
             let bullet = strip_bullet(&line.text);
             if new_para || bullet.is_some() {
                 paras.push(Para {
+                    page,
                     size: line.size,
                     lines: 1,
                     text: bullet.unwrap_or(&line.text).to_string(),
@@ -688,8 +693,12 @@ fn build_nodes(pages: Vec<Vec<Line>>) -> Vec<Node> {
     let mut nodes = Vec::new();
     for p in &paras {
         let children = vec![Node::Text(p.text.clone())];
+        let source = track.then(|| Box::new(Source::default().with_page(p.page)));
         if p.bullet {
-            let item = ListItem::new(vec![Node::Paragraph { children }]);
+            let item = ListItem::new(vec![Node::Paragraph {
+                children,
+                source: None,
+            }]);
             if let Some(Node::List { items, .. }) = nodes.last_mut() {
                 items.push(item);
             } else {
@@ -697,6 +706,7 @@ fn build_nodes(pages: Vec<Vec<Line>>) -> Vec<Node> {
                     ordered: false,
                     start: None,
                     items: vec![item],
+                    source,
                 });
             }
         } else if is_heading(p) {
@@ -707,9 +717,10 @@ fn build_nodes(pages: Vec<Vec<Line>>) -> Vec<Node> {
             nodes.push(Node::Heading {
                 level: (rank + 1).min(6) as u8,
                 children,
+                source,
             });
         } else {
-            nodes.push(Node::Paragraph { children });
+            nodes.push(Node::Paragraph { children, source });
         }
     }
     nodes
@@ -788,13 +799,14 @@ mod tests {
             line(636.0, 10.0, "Still first."),
             line(610.0, 10.0, "Second paragraph."),
         ];
-        let nodes = build_nodes(vec![page]);
+        let nodes = build_nodes(vec![page], false);
         assert_eq!(nodes.len(), 3);
         assert!(matches!(&nodes[0], Node::Heading { level: 1, .. }));
         assert_eq!(
             nodes[1],
             Node::Paragraph {
-                children: vec![Node::Text("First paragraph goes on. Still first.".into())]
+                children: vec![Node::Text("First paragraph goes on. Still first.".into())],
+                source: None,
             }
         );
     }
