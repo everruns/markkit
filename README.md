@@ -71,7 +71,8 @@ println!("{:?} {:?} {:?}", doc.format, doc.title, doc.warnings);
 println!("{}", doc.markdown);
 ```
 
-`Extraction` carries `markdown`, `title`, `format`, `warnings` (e.g. `truncated_sheet: …`),
+`Extraction` carries `markdown`, `title`, `format`, `warnings` (structured: `code` such as
+`WarningCode::TruncatedSheet` plus a human-readable `detail`),
 `stats` (sheets/rows/paragraphs/tables) and, for HTML, `metadata` (description, author,
 published date, language, canonical URL, site name, lead image from `<meta>`, Open Graph
 and JSON-LD). `extract_bytes` remains as a Markdown-only shortcut.
@@ -221,7 +222,8 @@ markkit = { version = "0.1", features = ["http_client"] }
 ### Resource limits
 
 Every resource an input can drive is bounded by `markkit::Limits`. Defaults are
-generous; violations return `Error::ResourceLimit` naming the limit.
+generous; violations return `Error::ResourceLimit`, whose `LimitKind` (`err.limit_kind()`)
+names the field that was exceeded.
 
 | Limit | Default | Bounds |
 |-------|---------|--------|

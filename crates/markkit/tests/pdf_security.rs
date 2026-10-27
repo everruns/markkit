@@ -34,7 +34,10 @@ fn flate_bomb_content_stream_rejected() {
     let mut objs = catalog_page("5 0 R");
     objs.push(pdf_stream("/Filter /FlateDecode", &bomb));
     let err = run(&Markkit::builder().build(), &pdf_bytes(&objs)).unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert!(
+        err.limit_kind() == Some(markkit::LimitKind::MaxPdfStreamSize),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -50,7 +53,10 @@ fn bomb_in_unreferenced_object_stream_rejected_before_parsing() {
     ));
     let m = Markkit::builder().max_pdf_stream_size(1024 * 1024).build();
     let err = run(&m, &pdf_bytes(&objs)).unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert!(
+        err.limit_kind() == Some(markkit::LimitKind::MaxPdfStreamSize),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -65,7 +71,10 @@ fn chained_filters_are_measured_after_every_stage() {
     ));
     let m = Markkit::builder().max_pdf_stream_size(1024 * 1024).build();
     let err = run(&m, &pdf_bytes(&objs)).unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert!(
+        err.limit_kind() == Some(markkit::LimitKind::MaxPdfStreamSize),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -75,7 +84,10 @@ fn escaped_filter_name_cannot_evade_scan() {
     objs.push(pdf_stream("/Filter /Fl#61teDecode", &bomb));
     let m = Markkit::builder().max_pdf_stream_size(1024 * 1024).build();
     let err = run(&m, &pdf_bytes(&objs)).unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert!(
+        err.limit_kind() == Some(markkit::LimitKind::MaxPdfStreamSize),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -89,7 +101,10 @@ fn total_decoded_size_capped_across_streams() {
         .max_pdf_decoded_size(1024 * 1024)
         .build();
     let err = run(&m, &pdf_bytes(&objs)).unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert!(
+        err.limit_kind() == Some(markkit::LimitKind::MaxPdfDecodedSize),
+        "{err:?}"
+    );
     // Each stream alone is fine.
     assert!(run(&Markkit::builder().build(), &pdf_bytes(&objs)).is_ok());
 }
@@ -124,7 +139,10 @@ fn form_xobject_reuse_hits_interpretation_budget() {
         .max_pdf_decoded_size(4 * 1024 * 1024)
         .build();
     let err = run(&m, &pdf_bytes(&objs)).unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert!(
+        err.limit_kind() == Some(markkit::LimitKind::MaxPdfDecodedSize),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -149,7 +167,10 @@ fn repeated_contents_reference_is_charged_each_time() {
         .max_pdf_decoded_size(8 * 1024 * 1024)
         .build();
     let err = run(&m, &pdf_bytes(&objs)).unwrap_err();
-    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+    assert!(
+        err.limit_kind() == Some(markkit::LimitKind::MaxPdfDecodedSize),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -314,7 +335,7 @@ fn zero_timeout_rejects() {
         .timeout(std::time::Duration::ZERO)
         .build();
     match run(&m, &bytes) {
-        Err(Error::ResourceLimit(msg)) => assert!(msg.contains("timeout"), "{msg}"),
+        Err(e) => assert_eq!(e.limit_kind(), Some(markkit::LimitKind::Timeout), "{e}"),
         other => panic!("expected timeout, got {other:?}"),
     }
 }
@@ -345,7 +366,11 @@ fn output_cap_rejects() {
     let bytes = pdf_pages(&[content.as_str()]);
     let m = Markkit::builder().max_output_size(500).build();
     match run(&m, &bytes) {
-        Err(Error::ResourceLimit(msg)) => assert!(msg.contains("max_output_size"), "{msg}"),
+        Err(e) => assert_eq!(
+            e.limit_kind(),
+            Some(markkit::LimitKind::MaxOutputSize),
+            "{e}"
+        ),
         other => panic!("expected output cap, got {other:?}"),
     }
 }

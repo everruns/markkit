@@ -6,7 +6,7 @@ mod common;
 
 use common::Cell::*;
 use common::*;
-use markkit::{DocumentHint, Markkit, format::Format};
+use markkit::{DocumentHint, Markkit, WarningCode, format::Format};
 
 const XLSX_CT: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -101,11 +101,11 @@ fn xlsx_row_cap_truncates_with_warning() {
     );
     assert_eq!(e.warnings.len(), 1, "{:?}", e.warnings);
     assert!(
-        e.warnings[0].starts_with("truncated_sheet:"),
+        e.warnings[0].code == WarningCode::TruncatedSheet,
         "{:?}",
         e.warnings
     );
-    assert!(e.warnings[0].contains("Big"));
+    assert!(e.warnings[0].detail.contains("Big"));
 }
 
 #[test]
@@ -123,7 +123,11 @@ fn xlsx_col_cap_truncates_with_warning() {
         e.markdown,
         "## Wide\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n"
     );
-    assert!(e.warnings.iter().any(|w| w.starts_with("truncated_sheet:")));
+    assert!(
+        e.warnings
+            .iter()
+            .any(|w| w.code == WarningCode::TruncatedSheet)
+    );
 }
 
 #[test]
@@ -137,7 +141,7 @@ fn xlsx_hidden_sheet_skipped_by_default() {
     assert!(
         e.warnings
             .iter()
-            .any(|w| w.starts_with("hidden_sheet_skipped:")),
+            .any(|w| w.code == WarningCode::HiddenSheetSkipped),
         "{:?}",
         e.warnings
     );
@@ -173,7 +177,11 @@ fn xlsx_sparse_far_cell_does_not_allocate_grid() {
     let e = extract(&bytes);
     assert!(e.markdown.contains("top"), "{}", e.markdown);
     assert!(e.markdown.len() < 64 * 1024);
-    assert!(e.warnings.iter().any(|w| w.starts_with("truncated_sheet:")));
+    assert!(
+        e.warnings
+            .iter()
+            .any(|w| w.code == WarningCode::TruncatedSheet)
+    );
 }
 
 #[test]
@@ -474,7 +482,7 @@ fn xlsb_hidden_sheet_skipped_by_default() {
     assert!(
         e.warnings
             .iter()
-            .any(|w| w.starts_with("hidden_sheet_skipped:"))
+            .any(|w| w.code == WarningCode::HiddenSheetSkipped)
     );
     let m = Markkit::builder().include_hidden_sheets(true).build();
     assert!(extract_with(&m, &bytes).markdown.contains("## Secret"));
@@ -495,7 +503,7 @@ fn xlsb_caps_and_title() {
     assert_eq!(
         e.warnings
             .iter()
-            .filter(|w| w.starts_with("truncated_sheet:"))
+            .filter(|w| w.code == WarningCode::TruncatedSheet)
             .count(),
         2,
         "{:?}",
@@ -510,7 +518,7 @@ fn xlsb_missing_and_truncated_sheet_parts_warn() {
     let gone = rezip(&bytes, &["xl/worksheets/sheet1.bin"], &[]);
     let e = extract(&gone);
     assert!(
-        e.warnings.iter().any(|w| w.starts_with("sheet_error:")),
+        e.warnings.iter().any(|w| w.code == WarningCode::SheetError),
         "{:?}",
         e.warnings
     );
@@ -523,7 +531,7 @@ fn xlsb_missing_and_truncated_sheet_parts_warn() {
     );
     let e = extract(&cut);
     assert!(
-        e.warnings.iter().any(|w| w.starts_with("sheet_error:")),
+        e.warnings.iter().any(|w| w.code == WarningCode::SheetError),
         "{:?}",
         e.warnings
     );

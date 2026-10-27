@@ -21,6 +21,7 @@ use mail_parser::{Address, MessageParser, MimeHeaders, PartType};
 
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
+use crate::extract::{Warning, WarningCode};
 use crate::ir::{Document, ListItem, Node};
 use crate::limits::Budget;
 
@@ -28,7 +29,7 @@ use crate::limits::Budget;
 pub(crate) struct EmailOutput {
     pub doc: Document,
     pub title: Option<String>,
-    pub warnings: Vec<String>,
+    pub warnings: Vec<Warning>,
     pub attachments: usize,
 }
 
@@ -77,7 +78,10 @@ pub(crate) fn parse(
     for (i, &id) in msg.text_body.iter().enumerate() {
         let Some(part) = msg.part(id) else { continue };
         if part.is_encoding_problem {
-            warnings.push("encoding_problem: a body part could not be fully decoded".into());
+            warnings.push(Warning::new(
+                WarningCode::EncodingProblem,
+                "a body part could not be fully decoded",
+            ));
         }
         match &part.body {
             PartType::Text(text) => {

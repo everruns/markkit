@@ -22,7 +22,7 @@ use crate::limits::Budget;
 /// Parsed CSV/TSV document.
 pub(crate) struct CsvOutput {
     pub doc: Document,
-    pub warnings: Vec<String>,
+    pub warnings: Vec<crate::extract::Warning>,
     /// Data rows (header excluded).
     pub rows: usize,
     /// 1 when a table was produced, else 0.
@@ -59,16 +59,21 @@ pub(crate) fn parse(
         records.push(rec);
     }
     if reader.unterminated {
-        warnings.push("malformed_csv: unterminated quoted field".into());
+        warnings.push(crate::extract::Warning::new(
+            crate::extract::WarningCode::MalformedCsv,
+            "unterminated quoted field",
+        ));
     }
     if truncated_rows {
-        warnings.push(format!(
-            "truncated_table: table truncated to {max_rows} rows"
+        warnings.push(crate::extract::Warning::new(
+            crate::extract::WarningCode::TruncatedTable,
+            format!("table truncated to {max_rows} rows"),
         ));
     }
     if reader.truncated_cols {
-        warnings.push(format!(
-            "truncated_table: table truncated to {max_cols} columns"
+        warnings.push(crate::extract::Warning::new(
+            crate::extract::WarningCode::TruncatedTable,
+            format!("table truncated to {max_cols} columns"),
         ));
     }
 

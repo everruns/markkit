@@ -23,11 +23,11 @@ use quick_xml::events::{BytesStart, Event};
 use quick_xml::{Reader, XmlVersion};
 
 use crate::error::Error;
-use crate::limits::Budget;
+use crate::limits::{Budget, LimitExceeded, LimitKind};
 
 #[derive(Debug)]
 pub(crate) enum XmlError {
-    Limit(String),
+    Limit(LimitExceeded),
     Invalid(String),
 }
 
@@ -310,8 +310,9 @@ fn build(
         match event {
             Event::Start(s) => {
                 if b.open.len() >= max_depth {
-                    return Err(XmlError::Limit(format!(
-                        "XML nesting deeper than max_nesting_depth {max_depth}"
+                    return Err(XmlError::Limit(LimitExceeded::new(
+                        LimitKind::MaxNestingDepth,
+                        format!("XML nesting deeper than max_nesting_depth {max_depth}"),
                     )));
                 }
                 let (name, attrs) = b.start(&s);
@@ -442,7 +443,7 @@ mod tests {
         let budget = Budget::new(&Limits::default().max_nodes(50));
         assert!(matches!(
             super::parse(many.as_bytes(), 256, &budget),
-            Err(XmlError::Limit(m)) if m.contains("max_nodes")
+            Err(XmlError::Limit(m)) if m.kind == LimitKind::MaxNodes
         ));
     }
 
@@ -452,7 +453,7 @@ mod tests {
         let budget = Budget::new(&Limits::default().timeout(std::time::Duration::ZERO));
         assert!(matches!(
             super::parse(many.as_bytes(), 256, &budget),
-            Err(XmlError::Limit(m)) if m.contains("timeout")
+            Err(XmlError::Limit(m)) if m.kind == LimitKind::Timeout
         ));
     }
 

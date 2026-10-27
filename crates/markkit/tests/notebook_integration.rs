@@ -196,7 +196,7 @@ fn security_limits_apply() {
         .build();
     let r = m.extract_document_sync(nb.as_bytes(), DocumentHint::file_name("nb.ipynb"));
     assert!(
-        matches!(&r, Err(Error::ResourceLimit(msg)) if msg.contains("timeout")),
+        matches!(&r, Err(e) if e.limit_kind() == Some(markkit::LimitKind::Timeout)),
         "{r:?}"
     );
     let cells: Vec<_> = (0..50)

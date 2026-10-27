@@ -37,9 +37,10 @@ use quick_xml::events::{BytesStart, Event};
 use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
+use crate::extract::{Warning, WarningCode};
 use crate::format::Format;
 use crate::ir::{Document, Node, Source, TableCell};
-use crate::limits::Budget;
+use crate::limits::{Budget, LimitExceeded, LimitKind};
 
 mod xlsb;
 
@@ -47,7 +48,7 @@ pub(crate) struct SheetOutput {
     pub doc: Document,
     pub format: Format,
     pub title: Option<String>,
-    pub warnings: Vec<String>,
+    pub warnings: Vec<Warning>,
     pub sheets: usize,
     pub rows: usize,
 }
@@ -148,7 +149,7 @@ pub(crate) fn parse(
                 budget.check_time()?;
                 match res {
                     Ok(()) => out.push_sheet(&name, grid),
-                    Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
+                    Err(e) => out.warn(WarningCode::SheetError, format!("sheet '{name}': {e}")),
                 }
             }
             out.finish(Format::Xlsx, title)
@@ -202,7 +203,10 @@ fn parse_xlsb(
             continue;
         };
         let Some(data) = zip.read(part).map_err(archive_err)? else {
-            out.warn(format!("sheet_error: sheet '{name}': missing part {part}"));
+            out.warn(
+                WarningCode::SheetError,
+                format!("sheet '{name}': missing part {part}"),
+            );
             continue;
         };
         let mut grid = Grid::new(config);
@@ -219,7 +223,7 @@ fn parse_xlsb(
         budget.check_time()?;
         match res {
             Ok(()) => out.push_sheet(&name, grid),
-            Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
+            Err(e) => out.warn(WarningCode::SheetError, format!("sheet '{name}': {e}")),
         }
     }
     out.finish(Format::Xlsb, title)
@@ -256,7 +260,7 @@ where
                 budget.check_time()?;
                 out.push_sheet(&name, grid);
             }
-            Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
+            Err(e) => out.warn(WarningCode::SheetError, format!("sheet '{name}': {e}")),
         }
     }
     Ok(())
@@ -485,7 +489,7 @@ impl Grid {
 struct Collector<'c> {
     config: &'c MarkkitBuilder,
     nodes: Vec<Node>,
-    warnings: Vec<String>,
+    warnings: Vec<Warning>,
     sheets: usize,
     rows: usize,
 }
@@ -501,8 +505,8 @@ impl<'c> Collector<'c> {
         }
     }
 
-    fn warn(&mut self, w: String) {
-        self.warnings.push(w);
+    fn warn(&mut self, code: WarningCode, detail: String) {
+        self.warnings.push(Warning::new(code, detail));
     }
 
     /// Sheet names in workbook order, flagged with whether to render them.
@@ -514,10 +518,10 @@ impl<'c> Collector<'c> {
             }
             let hidden = s.visible != SheetVisible::Visible;
             if hidden && !self.config.include_hidden_sheets {
-                self.warn(format!(
-                    "hidden_sheet_skipped: sheet '{}' is hidden",
-                    s.name
-                ));
+                self.warn(
+                    WarningCode::HiddenSheetSkipped,
+                    format!("sheet '{}' is hidden", s.name),
+                );
                 out.push((s.name.clone(), false));
             } else {
                 out.push((s.name.clone(), true));
@@ -539,14 +543,16 @@ impl<'c> Collector<'c> {
             return;
         };
         if trunc_rows {
-            self.warn(format!(
-                "truncated_sheet: sheet '{name}' truncated to {max_rows} rows"
-            ));
+            self.warn(
+                WarningCode::TruncatedSheet,
+                format!("sheet '{name}' truncated to {max_rows} rows"),
+            );
         }
         if trunc_cols {
-            self.warn(format!(
-                "truncated_sheet: sheet '{name}' truncated to {max_cols} columns"
-            ));
+            self.warn(
+                WarningCode::TruncatedSheet,
+                format!("sheet '{name}' truncated to {max_cols} columns"),
+            );
         }
         self.sheets += 1;
         self.rows += rows.len();
@@ -870,6 +876,10 @@ fn bof_is_biff8(data: &[u8]) -> bool {
 
 /// Scan the workbook stream and return a fresh OLE2 container holding only the
 /// scanned (and formula-neutralised) stream, which is what calamine reads.
+fn cells_error(detail: String) -> Error {
+    LimitExceeded::new(LimitKind::MaxSpreadsheetCells, detail).into()
+}
+
 fn prescan_xls<F: Read + Seek>(
     comp: &mut cfb::CompoundFile<F>,
     config: &MarkkitBuilder,
@@ -886,9 +896,11 @@ fn prescan_xls<F: Read + Seek>(
         .read_to_end(&mut stream)
         .map_err(|e| err(format!("cannot read Workbook stream: {e}")))?;
     if stream.len() as u64 > cap {
-        return Err(Error::ResourceLimit(format!(
-            "XLS Workbook stream exceeds {cap} bytes"
-        )));
+        return Err(LimitExceeded::new(
+            LimitKind::MaxArchiveEntrySize,
+            format!("XLS Workbook stream exceeds {cap} bytes"),
+        )
+        .into());
     }
     // Neutralising rewrites bytes, which can reframe records of an overlapping
     // sheet; rescan until stable. Honest files settle on the second pass.
@@ -932,8 +944,7 @@ fn scan_biff(stream: &[u8], max_cells: u64) -> Result<Vec<usize>, Error> {
             _ => {}
         }
     }
-    let limit =
-        |n: u64| Error::ResourceLimit(format!("XLS grid of {n} cells exceeds limit {max_cells}"));
+    let limit = |n: u64| cells_error(format!("XLS grid of {n} cells exceeds limit {max_cells}"));
     let mut total: u64 = 0;
     let mut edits = Vec::new();
     for pos in offsets {
@@ -1127,7 +1138,7 @@ fn prescan_ods(content: &[u8], max_cells: u64) -> Result<(), Error> {
     let mut total: u64 = 0;
     let check = |total: u64| {
         if total > max_cells {
-            Err(Error::ResourceLimit(format!(
+            Err(cells_error(format!(
                 "ODS grid of at least {total} cells exceeds limit {max_cells}"
             )))
         } else {

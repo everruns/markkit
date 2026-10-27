@@ -198,7 +198,7 @@ fn security_limits_apply() {
         .build()
         .extract_document_sync(MULTIPART.as_bytes(), DocumentHint::file_name("a.eml"));
     assert!(
-        matches!(&r, Err(Error::ResourceLimit(m)) if m.contains("timeout")),
+        matches!(&r, Err(e) if e.limit_kind() == Some(markkit::LimitKind::Timeout)),
         "{r:?}"
     );
     let body = "<p>a</p>".repeat(500);
@@ -208,7 +208,7 @@ fn security_limits_apply() {
         .build()
         .extract_document_sync(raw.as_bytes(), DocumentHint::file_name("a.eml"));
     assert!(
-        matches!(&r, Err(Error::ResourceLimit(m)) if m.contains("max_nodes")),
+        matches!(&r, Err(e) if e.limit_kind() == Some(markkit::LimitKind::MaxNodes)),
         "{r:?}"
     );
     let raw = format!("Subject: x\r\n\r\n{}", "line\n\n".repeat(5000));
@@ -216,5 +216,8 @@ fn security_limits_apply() {
         .max_output_size(1000)
         .build()
         .extract_document_sync(raw.as_bytes(), DocumentHint::file_name("a.eml"));
-    assert!(matches!(&r, Err(Error::ResourceLimit(_))), "{r:?}");
+    assert!(
+        matches!(&r, Err(e) if e.limit_kind() == Some(markkit::LimitKind::MaxOutputSize)),
+        "{r:?}"
+    );
 }

@@ -80,11 +80,13 @@ Exactly one source per call.
 `ToolOutput::result`:
 
 ```json
-{ "markdown": "string", "title": "string|null", "format": "html|docx|xlsx|xls|ods",
+{ "markdown": "string", "title": "string|null", "format": "html|docx|pptx|xlsx|xlsb|xls|ods",
   "warnings": ["string"], "truncated": false }
 ```
 
-Truncation cuts on a character boundary and adds a `truncated:` warning.
+Truncation cuts on a character boundary and adds a `WarningCode::Truncated` warning. Tool
+warnings stay `"<code>: <detail>"` strings (the `Warning` `Display` form), so the tool schema
+is unchanged by the library's structured warnings.
 `metadata.extra` is `{ "stats": ExtractionStats, "chars": <returned length> }`.
 `metadata.duration` is zero on `wasm32-unknown-unknown` (no `Instant` there).
 
