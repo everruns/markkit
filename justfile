@@ -65,6 +65,12 @@ examples:
     echo "── example: agent_tool"
     cargo run -q -p markkit --features tool --example agent_tool
 
+# Build the WASM package and run its Node tests (needs wasm32 target + wasm-bindgen-cli)
+wasm:
+    bash scripts/install-wasm-bindgen.sh
+    bash crates/markkit-wasm/scripts/build.sh release
+    node --test crates/markkit-wasm/__test__/*.test.mjs
+
 # ─── Run ─────────────────────────────────────────────────────
 
 # Run the CLI with arguments

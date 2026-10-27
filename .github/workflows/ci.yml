@@ -90,9 +90,40 @@ jobs:
           done
           cargo run -q -p markkit --features tool --example agent_tool
 
+  wasm:
+    # Browser package @everruns/markkit-wasm: build the wasm32-unknown-unknown
+    # bundle and run its headless Node tests. See knowledge/runtimes/wasm-package.md.
+    name: WASM web package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+      - name: Check core for wasm32 (no warnings)
+        run: cargo check -p markkit --no-default-features --features html,docx,spreadsheet,tool --target wasm32-unknown-unknown
+      - name: Install wasm-bindgen-cli (matches Cargo.lock)
+        run: bash scripts/install-wasm-bindgen.sh
+      - name: Build package
+        run: bash crates/markkit-wasm/scripts/build.sh release
+      - name: Integration tests (headless Node)
+        run: node --test crates/markkit-wasm/__test__/*.test.mjs
+      - name: Verify npm archive contents
+        run: |
+          cd crates/markkit-wasm/pkg
+          npm pack --dry-run --json --ignore-scripts > "$RUNNER_TEMP/wasm-pack.json"
+          node -e 'const files=new Set(require(process.argv[1])[0].files.map(f=>f.path)); for (const f of ["index.js","index.d.ts","markkit_wasm.js","markkit_wasm_bg.wasm","README.md"]) if(!files.has(f)) throw Error("archive lacks "+f)' "$RUNNER_TEMP/wasm-pack.json"
+
   check:
     name: Check
-    needs: [lint, audit, test]
+    needs: [lint, audit, test, wasm]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -100,7 +131,8 @@ jobs:
         run: |
           if [[ "${{ needs.lint.result }}" != "success" ]] || \
              [[ "${{ needs.audit.result }}" != "success" ]] || \
-             [[ "${{ needs.test.result }}" != "success" ]]; then
+             [[ "${{ needs.test.result }}" != "success" ]] || \
+             [[ "${{ needs.wasm.result }}" != "success" ]]; then
             echo "One or more jobs failed"
             exit 1
           fi

@@ -206,10 +206,27 @@ pub(crate) struct Budget {
 impl Budget {
     /// Budget starting now.
     pub fn new(limits: &Limits) -> Self {
-        Self::starting_at(limits, Instant::now())
+        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+        {
+            Self::starting_at(limits, Instant::now())
+        }
+        // wasm32-unknown-unknown has no clock (`Instant::now` panics): no
+        // deadline there; hosts bound time themselves (e.g. a Worker timeout).
+        #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+        {
+            Self {
+                deadline: None,
+                timeout: limits.timeout,
+                ticks: Cell::new(0),
+                expired: Cell::new(false),
+                nodes: Cell::new(0),
+                max_nodes: limits.max_nodes,
+            }
+        }
     }
 
     /// Budget whose clock started at `start` (e.g. before a URL fetch).
+    #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(dead_code))]
     pub fn starting_at(limits: &Limits, start: Instant) -> Self {
         Self {
             // Overflow (e.g. Duration::MAX) means "no deadline".

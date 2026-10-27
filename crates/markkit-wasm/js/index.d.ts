@@ -40,12 +40,24 @@ export interface ExtractionStats {
   tables: number | null;
 }
 
+/** Document metadata (HTML meta, Open Graph, JSON-LD); fields are null when absent. */
+export interface Metadata {
+  description: string | null;
+  author: string | null;
+  published: string | null;
+  language: string | null;
+  canonicalUrl: string | null;
+  siteName: string | null;
+  image: string | null;
+}
+
 export interface Extraction {
   markdown: string;
   title: string | null;
   format: string;
   warnings: string[];
   stats: ExtractionStats;
+  metadata: Metadata;
 }
 
 export class Markkit {

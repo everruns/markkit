@@ -86,6 +86,8 @@ All limits live in one `Limits` struct (`crates/markkit/src/limits.rs`,
   sheet decoding are not interruptible; they are linear in the (capped) input and the
   deadline is checked right after them
 - `max_nodes` (default 5 000 000) caps HTML DOM nodes and DOCX XML nodes (summed over parts)
+- wasm32-unknown-unknown has no clock, so `timeout` is not enforced in `@everruns/markkit-wasm`;
+  hosts bound time themselves (e.g. terminate the Worker). All other limits apply
 
 #### T2e: Table Span Amplification
 - `colspan`/`rowspan` clamped by the HTML parser (1000 / 65534) and again at layout

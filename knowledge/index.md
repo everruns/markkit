@@ -13,5 +13,5 @@ okf_version: "0.2"
 * [formats/](formats/) - Per-format parsing: HTML extraction, format detection, DOCX and spreadsheet mapping.
 * [integrations/](integrations/) - Agent-facing integrations: the LLM tool contract.
 * [security/](security/) - Security model and detailed threat model for untrusted input.
-* [runtimes/](runtimes/) - Published language bindings for Python and Node.js.
+* [runtimes/](runtimes/) - Published language bindings for Python, Node.js, and WebAssembly.
 * [operations/](operations/) - Testing, documentation, examples, maintenance, release, and eval.
