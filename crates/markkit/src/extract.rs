@@ -22,7 +22,8 @@ pub struct Extraction {
     pub format: Format,
     /// Non-fatal issues, each prefixed with a stable code
     /// (`truncated_sheet:`, `hidden_sheet_skipped:`, `sheet_error:`,
-    /// `truncated_pdf:`, `pdf_unmapped_font:`, `pdf_no_text:`, `invalid_utf8:`).
+    /// `truncated_pdf:`, `pdf_unmapped_font:`, `pdf_no_text:`, `invalid_utf8:`,
+    /// `malformed_csv:`, `truncated_table:`).
     pub warnings: Vec<String>,
     /// Format-specific counters.
     pub stats: ExtractionStats,
@@ -65,11 +66,11 @@ pub struct ExtractionStats {
     pub pages: Option<usize>,
     /// Sheets rendered (spreadsheets; empty and skipped sheets excluded).
     pub sheets: Option<usize>,
-    /// Data rows rendered across all sheets (header rows excluded).
+    /// Data rows rendered across all sheets / the CSV table (header rows excluded).
     pub rows: Option<usize>,
     /// Non-empty paragraphs, headings and list items (DOCX, plain text, Markdown).
     pub paragraphs: Option<usize>,
-    /// Tables (DOCX, Markdown).
+    /// Tables (DOCX, Markdown, CSV/TSV).
     pub tables: Option<usize>,
 }
 
@@ -93,7 +94,9 @@ pub struct ParsedDocument {
 }
 
 impl ParsedDocument {
-    fn new(document: Document, format: Format) -> Self {
+    /// IR plus format with empty metadata (for custom
+    /// [`crate::registry::FormatParser`]s).
+    pub fn new(document: Document, format: Format) -> Self {
         Self {
             document,
             title: None,
@@ -114,6 +117,7 @@ impl ParsedDocument {
     #[cfg(any(
         feature = "html",
         feature = "docx",
+        feature = "pptx",
         feature = "spreadsheet",
         feature = "pdf",
         feature = "markdown"
@@ -142,7 +146,6 @@ impl ParsedDocument {
 /// Run a parser, converting a panic into an error (defence in depth for
 /// third-party parsers; only effective when built with `panic = "unwind"`, which
 /// markkit's own release profile uses).
-#[cfg(any(feature = "docx", feature = "spreadsheet", feature = "pdf"))]
 fn guarded<T>(
     what: &str,
     make_err: fn(String) -> Error,
@@ -230,7 +233,8 @@ impl Markkit {
         .map(|e| e.markdown)
     }
 
-    /// Convert a document (HTML, PDF, DOCX, XLSX/XLSB/XLS/ODS, plain text, Markdown) to Markdown with metadata.
+    /// Convert a document (HTML, PDF, DOCX, PPTX, XLSX/XLSB/XLS/ODS, plain text, Markdown, CSV/TSV)
+    /// to Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
     /// `hint.file_name`, then magic bytes. Parsing is CPU-bound and runs inline;
@@ -266,6 +270,7 @@ impl Markkit {
         #[cfg(any(
             feature = "html",
             feature = "docx",
+            feature = "pptx",
             feature = "spreadsheet",
             feature = "pdf",
             feature = "markdown"
@@ -276,6 +281,7 @@ impl Markkit {
         #[cfg(not(any(
             feature = "html",
             feature = "docx",
+            feature = "pptx",
             feature = "spreadsheet",
             feature = "pdf",
             feature = "markdown"
@@ -283,7 +289,7 @@ impl Markkit {
         Ok(parsed.render())
     }
 
-    /// Parse a document (HTML, DOCX, XLSX/XLS/ODS, plain text, Markdown) into the IR without
+    /// Parse a document (HTML, PDF, DOCX, PPTX, XLSX/XLSB/XLS/ODS, plain text, Markdown) into the IR without
     /// rendering. Same detection and errors as [`Markkit::extract_document`].
     pub async fn parse_document(
         &self,
@@ -310,7 +316,12 @@ impl Markkit {
     ) -> crate::Result<ParsedDocument> {
         self.config.limits.check_input(bytes.len())?;
 
-        match Format::detect(bytes, hint) {
+        let format = Format::detect(bytes, hint);
+        if let Some(p) = self.config.parsers.select(bytes, hint, format) {
+            return self.parse_custom(p, bytes, budget);
+        }
+
+        match format {
             Format::Html => self.parse_html_doc(bytes, budget),
             Format::Pdf => self.parse_pdf(bytes, budget),
             Format::Docx => self.parse_docx(bytes, budget),
@@ -319,17 +330,32 @@ impl Markkit {
             }
             Format::PlainText => self.parse_plain_text(bytes, budget),
             Format::Markdown => self.parse_markdown(bytes, budget),
+            Format::Csv | Format::Tsv => self.parse_csv(bytes, format, budget),
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
-            Format::Pptx => Err(Error::UnsupportedFormat(
-                "presentations (.pptx) are not supported".into(),
+            Format::Pptx => self.parse_pptx(bytes, budget),
+            Format::Ppt => Err(Error::UnsupportedFormat(
+                "legacy PowerPoint 97-2003 (.ppt) presentations are not supported".into(),
             )),
             other => Err(Error::UnsupportedFormat(match hint.content_type {
                 Some(ct) => format!("{ct} ({other})"),
                 None => other.to_string(),
             })),
         }
+    }
+
+    fn parse_custom(
+        &self,
+        p: &dyn crate::registry::FormatParser,
+        bytes: &[u8],
+        budget: &Budget,
+    ) -> crate::Result<ParsedDocument> {
+        let mut parsed = guarded(p.name(), Error::Parser, || p.parse(bytes, &self.config))?;
+        // Custom parsers are not interruptible: check the deadline afterwards.
+        budget.check_time()?;
+        self.config.transforms.apply(&mut parsed.document)?;
+        Ok(parsed)
     }
 
     #[cfg(feature = "html")]
@@ -358,6 +384,24 @@ impl Markkit {
         let mut p = ParsedDocument::new(doc, Format::PlainText);
         p.warnings = decoded.warnings;
         p.stats.paragraphs = Some(paragraphs);
+        Ok(p)
+    }
+
+    fn parse_csv(
+        &self,
+        bytes: &[u8],
+        format: Format,
+        budget: &Budget,
+    ) -> crate::Result<ParsedDocument> {
+        let decoded = crate::text::decode(bytes);
+        let out = crate::csv::parse(&decoded.text, format == Format::Tsv, &self.config, budget)?;
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, format);
+        p.warnings = decoded.warnings;
+        p.warnings.extend(out.warnings);
+        p.stats.rows = Some(out.rows);
+        p.stats.tables = Some(out.tables);
         Ok(p)
     }
 
@@ -401,6 +445,28 @@ impl Markkit {
     fn parse_docx(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
         Err(Error::UnsupportedFormat(
             "DOCX support requires the 'docx' feature".to_string(),
+        ))
+    }
+
+    #[cfg(feature = "pptx")]
+    fn parse_pptx(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
+        let out = guarded("PPTX", Error::PptxExtract, || {
+            crate::pptx::parse(bytes, &self.config, budget)
+        })?;
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, Format::Pptx);
+        p.title = out.title;
+        p.warnings = out.warnings;
+        p.stats.pages = Some(out.slides);
+        p.stats.tables = Some(out.tables);
+        Ok(p)
+    }
+
+    #[cfg(not(feature = "pptx"))]
+    fn parse_pptx(&self, _bytes: &[u8], _budget: &Budget) -> crate::Result<ParsedDocument> {
+        Err(Error::UnsupportedFormat(
+            "PPTX support requires the 'pptx' feature".to_string(),
         ))
     }
 

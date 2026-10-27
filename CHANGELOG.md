@@ -15,12 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `markkit mcp`: Model Context Protocol server over stdio exposing the `markkit` tool
   (`tools/list`, `tools/call`). URL fetching keeps the SSRF guard; `--no-url` keeps it offline,
   the `extract` limit flags and `--max-output-chars` bound each call.
+- CSV and TSV input (`text/csv`, `text/tab-separated-values`, `.csv`, `.tsv`), always on: one GFM
+  table, RFC 4180 quoting, `;`/`|`/tab delimiter detection, bounded by `max_sheet_rows` /
+  `max_sheet_cols` (`truncated_table` warning). New `Format::Tsv`.
 - Plain text input (`text/plain`, `.txt`), always on: paragraphs and hard breaks through the IR,
   UTF-8/UTF-16 BOM decoding, control characters dropped, `invalid_utf8` warning on lossy decode.
 - Markdown input (`markdown` feature, in `all_formats`; `text/markdown`, `.md`): re-parsed with
   pulldown-cmark and rendered back, so raw HTML never passes through. Front matter `title:` or the
   first `# ` heading becomes `Extraction::title`. Available in the CLI, Python, Node and WASM packages; `format` serializes as
   `"text"` and `"markdown"`.
+- PPTX support behind the new `pptx` feature (included in `all_formats`, so in the CLI and the
+  Python/Node bindings): one `## Slide N: <title>` section per slide with bullets, text boxes,
+  tables, hyperlinks and speaker notes. Hidden slides are skipped with a `hidden_slide_skipped`
+  warning unless `include_hidden_content(true)`. Legacy `.ppt` is detected as the new `Format::Ppt`
+  and rejected explicitly. `Error::PptxExtract` reports malformed presentations.
+- Nightly cargo-fuzz targets for every parser and the renderer (`crates/markkit/fuzz`, `just fuzz`,
+  `.github/workflows/fuzz.yml`), each checking the output-safety oracle.
 - HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
   `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
   canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and
@@ -50,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Declarative HTML element rules: `MarkkitBuilder::html_rule(".note", ElementAction::BlockQuote { .. })`
   maps elements by CSS selector to skip / unwrap / heading / paragraph / block quote (with title) /
   code / emphasis / text, before the built-in mapping. CLI: `markkit extract --rules rules.json`.
+- Pluggable parsers: `MarkkitBuilder::parser(..)` registers a `registry::FormatParser` that handles
+  detected formats (e.g. PDF or CSV) or claims inputs by content, before the built-ins. Its IR goes
+  through transforms and the shared renderer; panics become the new `Error::Parser`.
 - JSON Schema for the IR at `schema/ir.schema.json`; `json-schema` feature adds `markkit::ir::json_schema()`.
 - Per-block provenance: `MarkkitBuilder::track_sources(true)` records a `Source` on each IR block
   (HTML element XPath, DOCX body block index, spreadsheet sheet and A1 range) for citations.
@@ -109,6 +122,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The JSON IR of DOCX and spreadsheet tables now holds raw text (pipes were pre-escaped before).
 - Math TeX (taken from page markup) renders as code, GitHub's `` $`tex`$ `` and ` ```math `
   forms, instead of `$tex$` / `$$`, so it can no longer emit raw HTML or links in plain GFM.
+- XLS files with truncated or inconsistent BIFF records (found by fuzzing) are rejected with an
+  error instead of aborting the process inside calamine. Formula token streams are ignored
+  (cached values were already the only thing rendered).
 - Hidden content is skipped by default as a prompt-injection defence: HTML elements with `hidden`,
   `aria-hidden="true"` or inline `display:none` / `visibility:hidden` / `opacity:0` / `font-size:0`,
   `<template>`, and DOCX hidden (`w:vanish`) runs (warning `hidden_content_skipped`). Opt back in

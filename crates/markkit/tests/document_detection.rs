@@ -42,6 +42,11 @@ fn content_type_detection() {
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
             Format::Pptx,
         ),
+        (
+            "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+            Format::Pptx,
+        ),
+        ("application/vnd.ms-powerpoint", Format::Ppt),
         ("APPLICATION/PDF", Format::Pdf),
         ("application/octet-stream", Format::Unknown),
     ];
@@ -61,6 +66,8 @@ fn extension_detection() {
         ("xls", Format::Xls),
         ("ods", Format::Ods),
         ("pptx", Format::Pptx),
+        ("PPSX", Format::Pptx),
+        ("ppt", Format::Ppt),
         ("pdf", Format::Pdf),
     ];
     for (ext, f) in cases {
@@ -116,6 +123,10 @@ fn ole2_sniffing_distinguishes_doc_and_xls() {
     let mut doc = cfb.clone();
     doc.extend(utf16("WordDocument"));
     assert_eq!(Format::sniff(&doc), Format::Doc);
+
+    let mut ppt = cfb.clone();
+    ppt.extend(utf16("PowerPoint Document"));
+    assert_eq!(Format::sniff(&ppt), Format::Ppt);
 
     assert_eq!(Format::sniff(&cfb), Format::Unknown);
 }
@@ -187,12 +198,9 @@ fn extract_document_unknown_is_unsupported() {
 }
 
 #[test]
-fn extract_document_legacy_doc_and_pptx_unsupported() {
+fn extract_document_legacy_doc_and_ppt_unsupported() {
     let m = Markkit::builder().build();
-    for ct in [
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    ] {
+    for ct in ["application/msword", "application/vnd.ms-powerpoint"] {
         let err = m
             .extract_document_sync(b"whatever", DocumentHint::content_type(ct))
             .unwrap_err();

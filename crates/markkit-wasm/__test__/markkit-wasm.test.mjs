@@ -85,6 +85,15 @@ test("extractDocument reads plain text and Markdown", () => {
   assert.ok(!md.markdown.includes("script"));
 });
 
+test("extractDocument reads CSV and TSV", () => {
+  const mk = new Markkit();
+  const csv = mk.extractDocument(new TextEncoder().encode("a;b\n1;2\n"), { fileName: "t.csv" });
+  assert.equal(csv.format, "csv");
+  assert.equal(csv.markdown, "| a | b |\n| --- | --- |\n| 1 | 2 |\n");
+  const tsv = mk.extractDocument(new TextEncoder().encode("x\ty\n"), { fileName: "t.tsv" });
+  assert.equal(tsv.format, "tsv");
+});
+
 test("extractBytes and unsupported formats", () => {
   const mk = new Markkit();
   assert.equal(mk.extractBytes(new TextEncoder().encode("<p>x</p>"), "text/html"), "x\n");

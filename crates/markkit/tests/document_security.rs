@@ -1,7 +1,7 @@
 //! Security tests for office-document parsing: zip bombs, resource caps,
 //! malformed input, XML entity tricks, oversized spreadsheet grids.
 
-#![cfg(any(feature = "docx", feature = "spreadsheet"))]
+#![cfg(any(feature = "docx", feature = "pptx", feature = "spreadsheet"))]
 
 mod common;
 
@@ -25,6 +25,7 @@ fn hints() -> Vec<DocumentHint<'static>> {
         DocumentHint::content_type("application/vnd.ms-excel"),
         DocumentHint::content_type("application/vnd.oasis.opendocument.spreadsheet"),
         DocumentHint::content_type("application/vnd.ms-excel.sheet.binary.macroEnabled.12"),
+        DocumentHint::content_type(PPTX_CT),
     ]
 }
 
@@ -249,6 +250,193 @@ fn xls_bad_sheet_offset_rejected() {
 }
 
 #[cfg(feature = "spreadsheet")]
+type Records = Vec<(u16, Vec<u8>)>;
+
+/// One-sheet BIFF8 workbook with raw records spliced in right after the globals
+/// BOF and the sheet BOF (BOUNDSHEET offset patched).
+#[cfg(feature = "spreadsheet")]
+fn xls_with_records(globals: &[(u16, Vec<u8>)], sheet: &[(u16, Vec<u8>)]) -> Vec<u8> {
+    let enc = |recs: &[(u16, Vec<u8>)]| {
+        let mut out = Vec::new();
+        for (typ, data) in recs {
+            out.extend_from_slice(&typ.to_le_bytes());
+            out.extend_from_slice(&(data.len() as u16).to_le_bytes());
+            out.extend_from_slice(data);
+        }
+        out
+    };
+    let mut stream = biff8_workbook(&[XlsSheet {
+        name: "S",
+        dims: None,
+        cells: vec![XlsCell::Num(0, 0, 1.0)],
+    }]);
+    // BOF record = 4-byte header + 16 bytes.
+    let g = enc(globals);
+    stream.splice(20..20, g.iter().copied());
+    let bs = stream.windows(2).position(|w| w == [0x85, 0x00]).unwrap() + 4;
+    let pos = u32::from_le_bytes(stream[bs..bs + 4].try_into().unwrap()) + g.len() as u32;
+    stream[bs..bs + 4].copy_from_slice(&pos.to_le_bytes());
+    let at = pos as usize + 20;
+    stream.splice(at..at, enc(sheet));
+    xls_from_stream(&stream)
+}
+
+/// Malformed BIFF records calamine reads without bounds checks (found by the
+/// `xls_biff` fuzz target). The pre-scan must reject them before calamine
+/// panics: a caught panic is not enough under `panic = "abort"`.
+#[cfg(feature = "spreadsheet")]
+#[test]
+fn xls_truncated_records_rejected_before_calamine() {
+    let mut sst_flags = vec![0u8; 8];
+    sst_flags.extend_from_slice(&[1, 0, 0x08]); // fRichSt, but no cRun bytes
+    let mut sst_cont = vec![0u8; 8];
+    sst_cont.extend_from_slice(&[5, 0, 0, b'a', b'b']); // 5 chars, 2 present
+    let mut lbl = vec![0u8; 14];
+    lbl[4] = 100; // cce > record length
+    let cases: Vec<(&str, Records, Records)> = vec![
+        ("FILEPASS empty", vec![(0x002F, vec![])], vec![]),
+        ("CODEPAGE empty", vec![(0x0042, vec![])], vec![]),
+        ("DATEMODE 1 byte", vec![(0x0022, vec![1])], vec![]),
+        ("BOF 1 byte", vec![(0x0809, vec![6])], vec![]),
+        ("BOUNDSHEET 5 bytes", vec![(0x0085, vec![0; 5])], vec![]),
+        ("LBL short", vec![(0x0018, vec![0; 5])], vec![]),
+        ("LBL cce overrun", vec![(0x0018, lbl)], vec![]),
+        ("EXTERNSHEET empty", vec![(0x0017, vec![])], vec![]),
+        ("EXTERNSHEET 1 byte", vec![(0x0017, vec![1])], vec![]),
+        ("SST missing cRun", vec![(0x00FC, sst_flags)], vec![]),
+        (
+            "SST empty CONTINUE",
+            vec![(0x00FC, sst_cont), (0x003C, vec![])],
+            vec![],
+        ),
+        ("MERGECELLS overrun", vec![], vec![(0x00E5, vec![5, 0])]),
+        (
+            "MULRK full column range",
+            vec![],
+            vec![(0x00BD, vec![0, 0, 0, 0, 0xFF, 0xFF])],
+        ),
+        (
+            "DIMENSIONS zero columns",
+            vec![],
+            vec![(
+                0x0200,
+                [0u32.to_le_bytes(), 1u32.to_le_bytes()]
+                    .concat()
+                    .into_iter()
+                    .chain([3, 0, 3, 0, 0, 0])
+                    .collect(),
+            )],
+        ),
+    ];
+    let m = Markkit::builder().build();
+    for (what, g, s) in cases {
+        let res = m.extract_document_sync(&xls_with_records(&g, &s), DocumentHint::default());
+        let err = res.expect_err(what);
+        assert!(!err.to_string().contains("panicked"), "{what}: {err}");
+    }
+}
+
+/// calamine skips embedded substreams (charts) and keeps reading after their
+/// EOF, so the pre-scan must too, or records after a chart bypass it.
+#[cfg(feature = "spreadsheet")]
+#[test]
+fn xls_records_after_embedded_substream_scanned() {
+    let mut bof = vec![0x00, 0x06, 0x20, 0x00];
+    bof.resize(16, 0);
+    let sheet = vec![(0x0809, bof), (0x000A, vec![]), (0x00E5, vec![5, 0])];
+    let err = Markkit::builder()
+        .build()
+        .extract_document_sync(&xls_with_records(&[], &sheet), DocumentHint::default())
+        .unwrap_err();
+    assert!(!err.to_string().contains("panicked"), "{err}");
+}
+
+/// FORMULA record at (1, 0) with cached number 2.0 and the given `rgce`
+/// (CellParsedFormula: cce + tokens).
+#[cfg(feature = "spreadsheet")]
+fn formula(rgce: &[u8]) -> (u16, Vec<u8>) {
+    let mut d = Vec::new();
+    d.extend_from_slice(&[1, 0, 0, 0, 0, 0]);
+    d.extend_from_slice(&2.0f64.to_le_bytes());
+    d.extend_from_slice(&[0; 6]);
+    d.extend_from_slice(rgce);
+    (0x0006, d)
+}
+
+/// calamine's formula decompiler indexes tokens without bounds checks. markkit
+/// renders cached values only, so token streams are neutralised and the
+/// cached value still renders.
+#[cfg(feature = "spreadsheet")]
+#[test]
+fn xls_malformed_formula_tokens_neutralised() {
+    let cases: Vec<(&str, Vec<u8>)> = vec![
+        ("cce overrun", vec![0xFF, 0x00]),
+        ("PtgName index 0", vec![5, 0, 0x23, 0, 0, 0, 0]),
+        ("PtgRef truncated", vec![1, 0, 0x24]),
+        ("PtgArea3d truncated", vec![3, 0, 0x3B, 0, 0]),
+        ("PtgStr overrun", vec![3, 0, 0x17, 200, 0]),
+    ];
+    let m = Markkit::builder().build();
+    for (what, rgce) in cases {
+        let bytes = xls_with_records(&[], &[formula(&rgce)]);
+        let out = m
+            .extract_document_sync(&bytes, DocumentHint::default())
+            .unwrap_or_else(|e| panic!("{what}: {e}"));
+        assert!(out.markdown.contains('2'), "{what}: {}", out.markdown);
+    }
+}
+
+#[cfg(feature = "spreadsheet")]
+#[test]
+fn xls_truncated_formula_record_rejected() {
+    // 20-byte header present, cce missing.
+    let (typ, mut d) = formula(&[]);
+    d.push(0);
+    let err = Markkit::builder()
+        .build()
+        .extract_document_sync(&xls_with_records(&[], &[(typ, d)]), DocumentHint::default())
+        .unwrap_err();
+    assert!(!err.to_string().contains("panicked"), "{err}");
+}
+
+/// Defined names (LBL) whose single token is cut short.
+#[cfg(feature = "spreadsheet")]
+#[test]
+fn xls_truncated_defined_name_token_rejected() {
+    for ptg in [0x3A, 0x3B, 0x3C, 0x3D] {
+        let mut lbl = vec![0u8; 14];
+        lbl[3] = 1; // cch
+        lbl[4] = 1; // cce
+        lbl.extend_from_slice(&[0, b'N', ptg]);
+        let err = Markkit::builder()
+            .build()
+            .extract_document_sync(
+                &xls_with_records(&[(0x0018, lbl)], &[]),
+                DocumentHint::default(),
+            )
+            .unwrap_err();
+        assert!(!err.to_string().contains("panicked"), "ptg {ptg:#x}: {err}");
+    }
+}
+
+#[cfg(feature = "spreadsheet")]
+#[test]
+fn xls_valid_records_still_accepted() {
+    // 16-byte DIMENSIONS (some writers pad), EXTERNSHEET with zero XTIs.
+    let mut dims = Vec::new();
+    for v in [0u32, 1] {
+        dims.extend_from_slice(&v.to_le_bytes());
+    }
+    dims.extend_from_slice(&[0, 0, 1, 0, 0, 0, 0, 0]);
+    let bytes = xls_with_records(&[(0x0017, vec![0, 0])], &[(0x0200, dims)]);
+    let out = Markkit::builder()
+        .build()
+        .extract_document_sync(&bytes, DocumentHint::default())
+        .unwrap();
+    assert!(out.markdown.contains('1'), "{}", out.markdown);
+}
+
+#[cfg(feature = "spreadsheet")]
 #[test]
 fn ods_repeated_rows_and_columns_rejected() {
     // One non-empty cell repeated 16384 columns × 1M rows.
@@ -281,6 +469,75 @@ fn docx_billion_laughs_not_expanded() {
     if let Ok(e) = res {
         assert!(!e.markdown.contains("lollol"), "{}", e.markdown);
     }
+}
+
+#[cfg(feature = "pptx")]
+#[test]
+fn pptx_zip_bomb_slide_rejected() {
+    let mut text = String::from("x");
+    text.push_str(&" ".repeat(8 * 1024 * 1024));
+    let bytes = pptx(&[PSlide::new(p_shape(None, &a_para(&text)))]);
+    assert!(bytes.len() < 256 * 1024);
+    let m = Markkit::builder()
+        .max_archive_entry_size(1024 * 1024)
+        .build();
+    let err = run(&m, &bytes, PPTX_CT).unwrap_err();
+    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+}
+
+#[cfg(feature = "pptx")]
+#[test]
+fn pptx_repeated_slide_references_bounded_by_total_size() {
+    // 2000 slide ids all point at one 64 KiB slide: re-reading it must count
+    // against the total decompressed budget.
+    let big = p_shape(None, &a_para(&"y".repeat(64 * 1024)));
+    let base = pptx(&[PSlide::new(big)]);
+    let ids: String = (0..2000)
+        .map(|i| format!(r#"<p:sldId id="{}" r:id="rId1"/>"#, 256 + i))
+        .collect();
+    let pres = format!(
+        r#"<p:presentation xmlns:p="p" xmlns:r="r"><p:sldIdLst>{ids}</p:sldIdLst></p:presentation>"#
+    );
+    let bytes = rezip(
+        &base,
+        &["ppt/presentation.xml"],
+        &[("ppt/presentation.xml", pres.as_bytes())],
+    );
+    let m = Markkit::builder()
+        .max_archive_total_size(16 * 1024 * 1024)
+        .build();
+    let err = run(&m, &bytes, PPTX_CT).unwrap_err();
+    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+}
+
+#[cfg(feature = "pptx")]
+#[test]
+fn pptx_billion_laughs_and_deep_groups() {
+    let laughs = r#"<?xml version="1.0"?><!DOCTYPE l [<!ENTITY a "aaaaaaaaaa"><!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;"><!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;&b;&b;">]><p:sld xmlns:p="p" xmlns:a="a"><p:cSld><p:spTree><p:sp><p:txBody><a:p><a:r><a:t>&c;safe</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>"#;
+    let base = pptx(&[PSlide::new(String::new())]);
+    let bytes = rezip(
+        &base,
+        &["ppt/slides/slide1.xml"],
+        &[("ppt/slides/slide1.xml", laughs.as_bytes())],
+    );
+    let e = run(&Markkit::builder().build(), &bytes, PPTX_CT).unwrap();
+    assert!(e.markdown.contains("safe"));
+    assert!(
+        !e.markdown.contains("aaaaaaaaaaaaaaaaaaaa"),
+        "{}",
+        e.markdown
+    );
+
+    // Group shapes nested past the XML depth cap fail cleanly, no stack overflow.
+    let deep = format!(
+        "{}{}{}",
+        "<p:grpSp>".repeat(10_000),
+        p_shape(None, &a_para("deep")),
+        "</p:grpSp>".repeat(10_000)
+    );
+    let bytes = pptx(&[PSlide::new(deep)]);
+    let err = run(&Markkit::builder().build(), &bytes, PPTX_CT).unwrap_err();
+    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
 }
 
 #[cfg(feature = "docx")]
@@ -385,6 +642,21 @@ fn valid_fixtures() -> Vec<Vec<u8>> {
         title: Some("t"),
         ..Default::default()
     }));
+    #[cfg(feature = "pptx")]
+    {
+        let mut slide = PSlide::new(
+            p_shape(Some("title"), &a_para("T")) + &p_shape(Some(""), &a_para("bullet")),
+        );
+        slide.notes = Some("note");
+        v.push(pptx(&[slide]));
+        v.push(
+            std::fs::read(format!(
+                "{}/tests/fixtures/pptx/deck.pptx",
+                env!("CARGO_MANIFEST_DIR")
+            ))
+            .unwrap(),
+        );
+    }
     #[cfg(feature = "spreadsheet")]
     {
         v.push(xlsx(&[Sheet::new(
@@ -491,7 +763,7 @@ proptest! {
     /// Byte flips in valid documents never panic.
     #[test]
     fn mutated_fixtures_never_panic(
-        idx in 0usize..9,
+        idx in 0usize..11,
         flips in proptest::collection::vec((any::<prop::sample::Index>(), any::<u8>()), 1..16),
     ) {
         let fixtures = valid_fixtures();

@@ -28,7 +28,7 @@ It follows a pipeline architecture: **detect → parse → normalize → convert
 ```
 Input (bytes/URL/file)
   → Format Detection (MIME, magic bytes, extension)
-  → Parser (HTML, PDF, DOCX, etc.)
+  → Parser (custom registry first, then HTML, DOCX, spreadsheets)
   → Normalized AST (intermediate representation)
   → Transforms (embedder IR passes, in registration order)
   → Markdown Converter (AST → markdown string)

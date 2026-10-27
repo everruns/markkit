@@ -11,6 +11,9 @@ pub enum Error {
     #[error("DOCX extraction error: {0}")]
     DocxExtract(String),
 
+    #[error("PPTX extraction error: {0}")]
+    PptxExtract(String),
+
     #[error("Spreadsheet extraction error: {0}")]
     SpreadsheetExtract(String),
 
@@ -30,6 +33,10 @@ pub enum Error {
 
     #[error("Resource limit exceeded: {0}")]
     ResourceLimit(String),
+
+    /// A custom [`crate::registry::FormatParser`] failed or panicked.
+    #[error("Parser error: {0}")]
+    Parser(String),
 
     /// A [`crate::transform::Transform`] failed.
     #[error("Transform error: {0}")]

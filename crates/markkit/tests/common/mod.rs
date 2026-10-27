@@ -671,3 +671,115 @@ pub fn pdf_pages_with(contents: &[&str], fonts: &str, extra: &[Vec<u8>]) -> Vec<
     objs.extend(extra.iter().cloned());
     pdf_bytes(&objs)
 }
+
+// ─── PPTX ───────────────────────────────────────────────────────────
+
+pub const PPTX_CT: &str =
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
+const P_NS: &str = r#"xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main""#;
+const REL_NS: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+
+/// A generated slide: `spTree` inner XML, optional notes text, hidden flag,
+/// extra slide relationships (`Id`, `Target`) as external hyperlinks.
+#[derive(Default)]
+pub struct PSlide<'a> {
+    pub shapes: String,
+    pub notes: Option<&'a str>,
+    pub hidden: bool,
+    pub links: Vec<(&'a str, &'a str)>,
+}
+
+impl PSlide<'_> {
+    pub fn new(shapes: String) -> Self {
+        Self {
+            shapes,
+            ..Default::default()
+        }
+    }
+}
+
+/// `<p:sp>` with an optional placeholder type (`Some("")` = untyped content placeholder).
+pub fn p_shape(ph: Option<&str>, paragraphs: &str) -> String {
+    let ph = match ph {
+        None => String::new(),
+        Some("") => r#"<p:ph idx="1"/>"#.to_string(),
+        Some(t) => format!(r#"<p:ph type="{t}"/>"#),
+    };
+    format!(
+        r#"<p:sp><p:nvSpPr><p:cNvPr id="2" name="s"/><p:cNvSpPr/><p:nvPr>{ph}</p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/>{paragraphs}</p:txBody></p:sp>"#
+    )
+}
+
+/// `<a:p>` with one plain run.
+pub fn a_para(text: &str) -> String {
+    format!("<a:p><a:r><a:t>{}</a:t></a:r></a:p>", xml_escape(text))
+}
+
+pub fn pptx_with(slides: &[PSlide<'_>], extra: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut ids = String::new();
+    let mut rels = String::new();
+    let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
+    for (i, s) in slides.iter().enumerate() {
+        let n = i + 1;
+        ids.push_str(&format!(r#"<p:sldId id="{}" r:id="rId{n}"/>"#, 255 + n));
+        rels.push_str(&format!(
+            r#"<Relationship Id="rId{n}" Type="{REL_NS}/slide" Target="slides/slide{n}.xml"/>"#
+        ));
+        let show = if s.hidden { r#" show="0""# } else { "" };
+        entries.push((
+            format!("ppt/slides/slide{n}.xml"),
+            format!(r#"<?xml version="1.0" encoding="UTF-8"?><p:sld {P_NS}{show}><p:cSld><p:spTree>{}</p:spTree></p:cSld></p:sld>"#, s.shapes).into_bytes(),
+        ));
+        let mut srels = String::new();
+        for (id, target) in &s.links {
+            srels.push_str(&format!(r#"<Relationship Id="{id}" Type="{REL_NS}/hyperlink" Target="{}" TargetMode="External"/>"#, xml_escape(target)));
+        }
+        if let Some(notes) = s.notes {
+            srels.push_str(&format!(r#"<Relationship Id="rIdN" Type="{REL_NS}/notesSlide" Target="../notesSlides/notesSlide{n}.xml"/>"#));
+            entries.push((
+                format!("ppt/notesSlides/notesSlide{n}.xml"),
+                format!(
+                    r#"<p:notes {P_NS}><p:cSld><p:spTree>{}{}</p:spTree></p:cSld></p:notes>"#,
+                    p_shape(Some("sldImg"), ""),
+                    p_shape(Some("body"), &a_para(notes))
+                )
+                .into_bytes(),
+            ));
+        }
+        entries.push((
+            format!("ppt/slides/_rels/slide{n}.xml.rels"),
+            format!(r#"<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">{srels}</Relationships>"#).into_bytes(),
+        ));
+    }
+    let pres = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?><p:presentation {P_NS}><p:sldIdLst>{ids}</p:sldIdLst></p:presentation>"#
+    );
+    let pres_rels = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">{rels}</Relationships>"#
+    );
+    let root_rels = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="{REL_NS}/officeDocument" Target="ppt/presentation.xml"/></Relationships>"#
+    );
+    let mut all: Vec<(String, Vec<u8>)> = vec![
+        ("_rels/.rels".into(), root_rels.into_bytes()),
+        ("ppt/presentation.xml".into(), pres.into_bytes()),
+        (
+            "ppt/_rels/presentation.xml.rels".into(),
+            pres_rels.into_bytes(),
+        ),
+    ];
+    all.extend(entries);
+    for (n, d) in extra {
+        all.push((n.to_string(), d.to_vec()));
+    }
+    let refs: Vec<(&str, &[u8])> = all
+        .iter()
+        .map(|(n, d)| (n.as_str(), d.as_slice()))
+        .collect();
+    zip_bytes(&refs)
+}
+
+pub fn pptx(slides: &[PSlide<'_>]) -> Vec<u8> {
+    pptx_with(slides, &[])
+}

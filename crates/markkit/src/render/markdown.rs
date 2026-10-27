@@ -80,6 +80,7 @@ impl MarkdownRenderer {
     #[cfg(any(
         feature = "html",
         feature = "docx",
+        feature = "pptx",
         feature = "spreadsheet",
         feature = "pdf",
         feature = "markdown"
@@ -728,6 +729,7 @@ impl Default for MarkdownRenderer {
 #[cfg(any(
     feature = "html",
     feature = "docx",
+    feature = "pptx",
     feature = "spreadsheet",
     feature = "pdf",
     feature = "markdown"

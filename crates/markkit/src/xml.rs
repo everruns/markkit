@@ -67,6 +67,7 @@ impl PartialEq<&str> for Name {
 #[derive(Debug, Default)]
 pub(crate) struct Element {
     pub name: Name,
+    /// `(qualified name, value)`; looked up by local name.
     pub attrs: Attrs,
     pub children: Box<[XNode]>,
 }
@@ -81,11 +82,20 @@ pub(crate) enum XNode {
 }
 
 impl Element {
-    /// Attribute value by local name.
-    pub fn attr(&self, local: &str) -> Option<&str> {
+    /// Attribute value by local name (any or no prefix).
+    pub fn attr(&self, local_name: &str) -> Option<&str> {
         self.attrs
             .iter()
-            .find(|(k, _)| k == local)
+            .find(|(k, _)| local_of(k) == local_name)
+            .map(|(_, v)| &**v)
+    }
+
+    /// Attribute value by local name, prefixed attributes only. Tells
+    /// `r:id` (relationship) from a plain `id` on the same element.
+    pub fn attr_prefixed(&self, local_name: &str) -> Option<&str> {
+        self.attrs
+            .iter()
+            .find(|(k, _)| k.contains(':') && local_of(k) == local_name)
             .map(|(_, v)| &**v)
     }
 
@@ -145,8 +155,8 @@ impl Element {
     }
 }
 
-fn local(name: &str) -> &str {
-    name.rsplit_once(':').map_or(name, |(_, local)| local)
+fn local_of(name: &str) -> &str {
+    name.rsplit_once(':').map_or(name, |(_, l)| l)
 }
 
 /// Builder state: interned names plus scratch stacks for attributes and
@@ -171,7 +181,7 @@ impl Builder<'_> {
         if let Some(n) = self.names.get(qname) {
             return n.clone();
         }
-        let n = Name(Rc::from(local(qname)));
+        let n = Name(Rc::from(local_of(qname)));
         self.names.insert(qname.into(), n.clone());
         n
     }
@@ -187,7 +197,8 @@ impl Builder<'_> {
 
     fn start(&mut self, start: &BytesStart<'_>) -> (Name, Attrs) {
         for attr in start.attributes().with_checks(false).flatten() {
-            let key = self.name(attr.key.as_ref());
+            // Attributes keep their qualified name (`r:id` vs `id`).
+            let key = self.value(attr.key.as_ref());
             let value = match attr.normalized_value(XmlVersion::Implicit1_0) {
                 Ok(v) => self.value(&v),
                 Err(_) => self.value(&attr.value),
@@ -401,6 +412,15 @@ mod tests {
         assert_eq!(xs[2].attr("v"), Some("2"));
         assert!(matches!(xs[0].text(), Cow::Borrowed("")));
         assert!(matches!(xs[2].text(), Cow::Owned(t) if t == "tu"));
+    }
+
+    #[test]
+    fn prefixed_attribute_lookup() {
+        let root = parse(br#"<sldId id="256" r:id="rId2"/>"#).unwrap();
+        let e = root.child("sldId").unwrap();
+        assert_eq!(e.attr("id"), Some("256"));
+        assert_eq!(e.attr_prefixed("id"), Some("rId2"));
+        assert_eq!(e.attr_prefixed("missing"), None);
     }
 
     #[test]

@@ -234,7 +234,7 @@ the proxy, or use `allow_host`.
 - `html_security::very_long_text_node` (100KB text node)
 - `html_proptest::no_panic_on_arbitrary_input`
 
-### T6: Malicious Office Documents (DOCX / XLSX / XLSB / XLS / ODS)
+### T6: Malicious Office Documents (DOCX / PPTX / XLSX / XLSB / XLS / ODS)
 
 **Description**: Crafted containers aimed at exhausting memory/CPU, crashing the
 process, or smuggling content past a human reviewer.
@@ -267,8 +267,14 @@ process, or smuggling content past a human reviewer.
   `truncated_sheet` warnings.
 
 #### T6c: Parser crashes on malformed input
-- XLS pre-scan rejects records that trip calamine's unchecked arithmetic (inverted
-  DIMENSIONS, inverted MULRK column ranges, out-of-range sheet offsets).
+- XLS pre-scan rejects records that trip calamine's unchecked reads and arithmetic
+  (inverted or empty DIMENSIONS, inverted or full-range MULRK, out-of-range sheet
+  offsets, truncated globals records, SST strings cut mid-header or followed by an
+  empty CONTINUE, MERGECELLS overruns, short defined-name tokens), following calamine
+  past embedded chart substreams. Formula token streams are neutralised (`cce = 0`;
+  only cached values render). calamine reads a container rebuilt from the exact
+  stream scanned, so its own CFB reader cannot see different bytes.
+- Found and kept fixed by nightly fuzzing ([Fuzzing](fuzzing.md), `xls_biff` target).
 - XML: depth capped at 256, tree built iteratively, unclosed elements tolerated.
 - Parsers run under `catch_unwind` (defence in depth; only effective with
   `panic = "unwind"`, which the workspace release profile uses so the CLI and the
@@ -280,6 +286,10 @@ process, or smuggling content past a human reviewer.
   and XF indexes by lookup. Malformed cell records are skipped; a truncated part fails that
   sheet with `sheet_error`. Cells stream into the capped grid, so `BrtWsDim` claims never
   allocate. Proptests drive the reader directly, outside `catch_unwind`.
+- PPTX reuses the DOCX stack: every part through `ZipGuard`, depth-capped XML tree, entities
+  never expanded. Each slide reference re-reads its part through the same guard, so a
+  presentation listing one slide thousands of times is bounded by `max_archive_total_size`.
+  Group shapes recurse only as deep as the XML tree (256).
 - XLS `SummaryInformation` title parsing is bounds-checked (1 MiB stream cap, checked
   offsets, 1024-property cap); failures yield no title, never an error.
 
@@ -293,6 +303,7 @@ process, or smuggling content past a human reviewer.
 #### T6e: Macros and hidden content
 - No code execution: VBA projects and XLM macro sheets are never read or rendered;
   formulas are not evaluated (cached values only).
+- Hidden PPTX slides skipped by default (`hidden_slide_skipped`), same rationale as sheets.
 - Hidden / very hidden sheets skipped by default (`hidden_sheet_skipped` warning) since
   invisible content is a prompt-injection vector. DOCX deleted revisions and field
   instructions are dropped.
@@ -303,6 +314,9 @@ process, or smuggling content past a human reviewer.
   `xlsx_bomb_in_unreferenced_entry_rejected`, `max_input_size_honoured_for_office_documents`
 - `xls_huge_dimensions_rejected`, `xls_far_apart_cells_rejected`,
   `xls_inverted_dimensions_rejected_not_panicking`, `xls_bad_sheet_offset_rejected`,
+  `xls_truncated_records_rejected_before_calamine`, `xls_records_after_embedded_substream_scanned`,
+  `xls_malformed_formula_tokens_neutralised`, `xls_truncated_formula_record_rejected`,
+  `xls_truncated_defined_name_token_rejected`, `xls_valid_records_still_accepted`,
   `ods_repeated_rows_and_columns_rejected`,
   `spreadsheet_integration::xlsx_sparse_far_cell_does_not_allocate_grid`
 - `docx_billion_laughs_not_expanded`, `docx_external_entity_not_resolved`,
@@ -315,18 +329,22 @@ process, or smuggling content past a human reviewer.
   `spreadsheet_integration::xlsx_malformed_core_properties_do_not_fail_extraction`
 - `truncated_fixtures_never_panic`, `random_bytes_never_panic`,
   `random_container_bytes_never_panic`, `mutated_fixtures_never_panic`
+- `pptx_zip_bomb_slide_rejected`, `pptx_repeated_slide_references_bounded_by_total_size`,
+  `pptx_billion_laughs_and_deep_groups`, `pptx_integration::hidden_slides_skipped_by_default`
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
   `spreadsheet_integration::xlsm_with_vba_project_extracts_values_only`
 
-### T7: Text and Markdown Input
+### T7: Text, Markdown and CSV Input
 
-**Description**: Plain text or Markdown carrying terminal escapes, NULs, invalid encodings,
+**Description**: Plain text, Markdown or CSV/TSV carrying terminal escapes, NULs, invalid encodings,
 raw HTML (`<script>`, event handlers) or pathological nesting.
 
 **Impact**: Medium -- raw HTML passed through re-introduces T1; deep nesting can crash.
 
 **Mitigations**:
-- Text and Markdown are never sniffed; a content type or extension must select them
+- CSV/TSV reading stops at `max_sheet_rows`; fields past `max_sheet_cols` are never stored
+  (a 5 MB row of commas allocates two cells)
+- Text, Markdown and CSV are never sniffed; a content type or extension must select them
 - Decoding is total: invalid UTF-8/UTF-16 is replaced (U+FFFD) with an `invalid_utf8` warning
 - C0 controls (except tab/newline) and DEL are dropped before parsing
 - Markdown is re-parsed (pulldown-cmark) into the IR; raw HTML is never copied. HTML blocks
@@ -345,6 +363,8 @@ in a `.txt`) is emitted as `Node::Text` and escaped by the renderer (S17), like 
 - `security_input_size_limit`, `security_output_bounded_by_input`
 - `security_text_and_markdown_share_limits` (timeout, `max_nodes`)
 - `security_plain_text_markup_is_escaped`
+- `csv_integration::security_*`: row/column caps, unterminated quotes, control characters,
+  random bytes always yield well-formed table rows
 
 ### T8: Malicious PDFs
 
@@ -446,6 +466,16 @@ style, is not detected.
 `html_security::hidden_content_does_not_leak_past_max_depth`,
 `html_integration::exclude_selector_applies_to_list_items_and_table_parts`
 
+### Extension points (embedder code)
+
+Transforms, element rules and custom `FormatParser`s are embedder code or
+configuration, trusted like the host program; untrusted documents cannot
+register them. Untrusted bytes still reach a custom parser, so it owns its own
+limits. markkit keeps its guarantees around it: `max_input_size` is checked
+first, a panic becomes `Error::Parser` (with `panic = "unwind"`), the deadline
+(`limits.timeout`) is checked when it returns, and output goes through the
+shared renderer under `max_output_size` (`tests/registry.rs`).
+
 ## Resource Limits
 
 | Resource | Default | Configurable | Enforcement Point |
@@ -466,7 +496,7 @@ style, is not detected.
 | PDF decoded total / interpreted content | 256 MiB | `max_pdf_decoded_size(usize)` | Pre-scan; interpretation budget |
 | PDF pages | 10 000 | `max_pdf_pages(usize)` | Page loop (truncate + warn) |
 | PDF form XObject depth | 8 | Hardcoded `MAX_FORM_DEPTH` | `Do` operator |
-| Rows / columns per sheet | 10 000 / 256 | `max_sheet_rows`, `max_sheet_cols` | While collecting cells (truncate + warn) |
+| Rows / columns per sheet or CSV table | 10 000 / 256 | `max_sheet_rows`, `max_sheet_cols` | While collecting cells (truncate + warn) |
 
 ## Malicious Input Categories
 
@@ -513,7 +543,7 @@ style, is not detected.
 | S15 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
 | S16 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
 | S17 | Rendered markdown has no raw HTML, no non-allowlisted link/image scheme, and document text cannot create Markdown structure | `output_safety::*` (pulldown-cmark oracle + proptests) |
-| S18 | Text and Markdown output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*` |
+| S18 | Text, Markdown and CSV/TSV output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*`, `csv_integration::security_*` |
 | S19 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
 | S20 | Hidden content is not rendered by default | `hidden_content::*` |
 | S21 | HTML parse time is linear in input whatever the nesting; flattened deep subtrees never emit non-content (script/style/template) text | `html_security::deep_*_is_linear`, `script_and_style_bodies_do_not_leak_past_max_depth` |

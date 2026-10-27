@@ -33,8 +33,10 @@
 //!
 //! - **HTML** (`html`, default): Convert HTML to markdown with configurable rules
 //! - **DOCX** (`docx`): Convert Word documents
+//! - **PPTX** (`pptx`): Convert PowerPoint presentations, one section per slide
 //! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLSB, XLS and ODS workbooks to tables
 //! - **Plain text** (always on): `text/plain`, `.txt`
+//! - **CSV / TSV** (always on): `text/csv`, `text/tab-separated-values`, `.csv`, `.tsv`, one table
 //! - **Markdown** (`markdown`): `text/markdown`, `.md`, normalized through the IR
 //! - **PDF** (`pdf`): Text layer of PDF documents (no OCR); encrypted PDFs are
 //!   rejected with [`Error::UnsupportedFormat`]
@@ -47,9 +49,10 @@
 //! `Markkit::extract_url`. Office formats only, no HTML:
 //! `markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }`.
 
-#[cfg(any(feature = "docx", feature = "spreadsheet"))]
+#[cfg(any(feature = "docx", feature = "pptx", feature = "spreadsheet"))]
 mod archive;
 pub mod config;
+mod csv;
 #[cfg(feature = "docx")]
 mod docx;
 pub mod error;
@@ -63,8 +66,13 @@ pub mod ir;
 pub mod limits;
 #[cfg(feature = "markdown")]
 mod markdown;
+#[cfg(any(feature = "docx", feature = "pptx"))]
+mod ooxml;
 #[cfg(feature = "pdf")]
 mod pdf;
+#[cfg(feature = "pptx")]
+mod pptx;
+pub mod registry;
 pub mod render;
 pub mod rules;
 #[cfg(feature = "spreadsheet")]
@@ -73,8 +81,8 @@ mod text;
 #[cfg(feature = "tool")]
 pub mod tool;
 pub mod transform;
-#[cfg(any(feature = "docx", feature = "spreadsheet"))]
-#[cfg_attr(not(feature = "docx"), allow(dead_code))] // spreadsheet uses only `find`/`text`
+#[cfg(any(feature = "docx", feature = "pptx", feature = "spreadsheet"))]
+#[cfg_attr(not(feature = "docx"), allow(dead_code))] // DOCX uses every helper
 mod xml;
 
 pub use config::MarkkitBuilder;

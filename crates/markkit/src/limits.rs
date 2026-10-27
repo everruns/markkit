@@ -204,6 +204,7 @@ impl Limits {
     not(any(
         feature = "html",
         feature = "docx",
+        feature = "pptx",
         feature = "spreadsheet",
         feature = "pdf"
     )),
@@ -218,6 +219,7 @@ const CLOCK_EVERY: u32 = 256;
     not(any(
         feature = "html",
         feature = "docx",
+        feature = "pptx",
         feature = "spreadsheet",
         feature = "pdf"
     )),
@@ -238,6 +240,7 @@ pub(crate) struct Budget {
     not(any(
         feature = "html",
         feature = "docx",
+        feature = "pptx",
         feature = "spreadsheet",
         feature = "pdf"
     )),
