@@ -1,13 +1,13 @@
 # markkit_extract results, 2026-10-27
 
-Run: `just eval` (mira 0.5, `markkit_extract`, both `mode` values) on main after #31 (relative URLs), IR v2, limits (#27) and main-content detection. Raw mira report: [`markkit_extract-2026-10-27.json`](markkit_extract-2026-10-27.json). Design: [knowledge/operations/eval.md](../../../knowledge/operations/eval.md).
+Run: `just eval` (mira 0.5, `markkit_extract`, both `mode` values) on main at 5a7434c (IR v2, limits, main-content detection, markdown escaping #23, text input). Raw mira report: [`markkit_extract-2026-10-27.json`](markkit_extract-2026-10-27.json). Design: [knowledge/operations/eval.md](../../../knowledge/operations/eval.md).
 
 ## Summary
 
 | mode | pages passing | overall | completeness | accuracy | formatting | noise |
 |---|---|---|---|---|---|---|
-| `default` | 0/10 | 74% | 94% | 100% | 96% | 34% |
-| `main_content` | 3/10 | 87% | 90% | 90% | 88% | 82% |
+| `default` | 0/10 | 73% | 92% | 100% | 96% | 34% |
+| `main_content` | 2/10 | 87% | 88% | 90% | 88% | 82% |
 
 Overall = mean weighted check pass rate; a page passes only when every check passes.
 
@@ -18,7 +18,7 @@ Overall = mean weighted check pass rate; a page passes only when every check pas
 | news_article | 73% | 100% |
 | docs_page | 81% | 90% |
 | blog_post | 59% | 100% |
-| product_page | 84% | 100% |
+| product_page | 79% | 95% |
 | recipe | 75% | 94% |
 | wiki_article | 50% | 67% |
 | forum_thread | 81% | 62% |
@@ -32,7 +32,8 @@ Overall = mean weighted check pass rate; a page passes only when every check pas
 - **docs_page** `default`: not_contains "Quickstart"; not_contains "Edit this page"; not_contains "Last updated"; not_contains "Previous:"
 - **docs_page** `main_content`: not_contains "Edit this page"; not_contains "Last updated"
 - **blog_post** `default`: not_contains "We're hiring"; not_contains "Share on X"; not_contains "Share on LinkedIn"; not_contains "14 Comments"; not_contains "Did you consider Buck2"; not_contains "Log in to comment"; not_contains "Subscribe to our newsletter"
-- **product_page** `default`: not_contains "You may also like"; not_contains "Ridgeline 30L"; not_contains "TRAIL10"
+- **product_page** `default`: contains "4.6 out of 5 stars"; not_contains "You may also like"; not_contains "Ridgeline 30L"; not_contains "TRAIL10"
+- **product_page** `main_content`: contains "4.6 out of 5 stars"
 - **recipe** `default`: not_contains "Sponsored"; not_contains "MealBox"; not_contains "Chef's knife"; not_contains "Rate this recipe"
 - **recipe** `main_content`: not_contains "Rate this recipe"
 - **wiki_article** `default`: heading "## Construction"; heading "## Destruction"; not_contains "Log in"; not_contains "Random article"; not_contains "[edit]"; not_contains "From OpenWiki, the free encyclopedia"; not_contains "Contents"; not_contains "Categories:"; not_contains "last edited on"

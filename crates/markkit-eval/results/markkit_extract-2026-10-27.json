@@ -46,13 +46,13 @@
       "skipped": false,
       "target": "markkit",
       "transcript": {
-        "final_response": "We use cookies to improve your experience. [Privacy policy](/privacy)\n\n# City Council Approves Riverside Park Expansion\n\nBy [Maria Chen](/authors/maria-chen) · March 14, 2026\n\n![Aerial view of Riverside Park](https://cdn.harborgazette.test/img/riverside-park.jpg)\n\n*The current park covers 42 acres along the east bank.*\n\nThe city council voted 7–2 on Tuesday to expand Riverside Park by **18 acres**, converting a former rail yard into wetlands and walking trails.\n\nAdvertisement[Refinance today at 2.9% APR](https://ads.example.test/click?id=991)\n\nThe project is expected to cost $14.2 million, with most of the funding coming from a state conservation grant approved last year.\n\n> This is the largest addition to our public green space in fifty years.\n\nConstruction will begin in the fall and is scheduled to finish by *spring 2028*. Residents can review the plans at the [city parks website](https://harbor.test/parks/riverside).\n\n## What happens to the rail yard\n\nContaminated soil will be removed in the first phase. The two historic signal towers will be preserved as observation decks.\n\n### Get the morning briefing\n\n## Related stories\n - [New bike lanes open downtown](/local/bike-lanes)\n- [Council debates 2027 budget](/local/budget)\n",
+        "final_response": "We use cookies to improve your experience. [Privacy policy](/privacy)\n\n# City Council Approves Riverside Park Expansion\n\nBy [Maria Chen](/authors/maria-chen) · March 14, 2026\n\n![Aerial view of Riverside Park](https://cdn.harborgazette.test/img/riverside-park.jpg)\n\n*The current park covers 42 acres along the east bank.*\n\nThe city council voted 7–2 on Tuesday to expand Riverside Park by **18 acres**, converting a former rail yard into wetlands and walking trails.\n\nAdvertisement[Refinance today at 2.9% APR](https://ads.example.test/click?id=991)\n\nThe project is expected to cost $14.2 million, with most of the funding coming from a state conservation grant approved last year.\n\n> This is the largest addition to our public green space in fifty years.\n\nConstruction will begin in the fall and is scheduled to finish by *spring 2028*. Residents can review the plans at the [city parks website](https://harbor.test/parks/riverside).\n\n## What happens to the rail yard\n\nContaminated soil will be removed in the first phase. The two historic signal towers will be preserved as observation decks.\n\n### Get the morning briefing\n\nRelated stories [New bike lanes open downtown](/local/bike-lanes) [Council debates 2027 budget](/local/budget)\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 2118.0,
+          "extract_us": 2017.0,
           "input_bytes": 2918.0,
-          "output_bytes": 1247.0,
-          "size_ratio": 0.4273474982864976
+          "output_bytes": 1239.0,
+          "size_ratio": 0.42460589444825225
         },
         "timing": {
           "duration_ms": 2
@@ -114,7 +114,7 @@
         "final_response": "# City Council Approves Riverside Park Expansion\n\nBy [Maria Chen](/authors/maria-chen) · March 14, 2026\n\n![Aerial view of Riverside Park](https://cdn.harborgazette.test/img/riverside-park.jpg)\n\n*The current park covers 42 acres along the east bank.*\n\nThe city council voted 7–2 on Tuesday to expand Riverside Park by **18 acres**, converting a former rail yard into wetlands and walking trails.\n\nThe project is expected to cost $14.2 million, with most of the funding coming from a state conservation grant approved last year.\n\n> This is the largest addition to our public green space in fifty years.\n\nConstruction will begin in the fall and is scheduled to finish by *spring 2028*. Residents can review the plans at the [city parks website](https://harbor.test/parks/riverside).\n\n## What happens to the rail yard\n\nContaminated soil will be removed in the first phase. The two historic signal towers will be preserved as observation decks.\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 2300.0,
+          "extract_us": 2355.0,
           "input_bytes": 2918.0,
           "output_bytes": 943.0,
           "size_ratio": 0.3231665524331734
@@ -179,13 +179,13 @@
         "final_response": "# Configuration\n\nTideline reads its settings from `tideline.toml` in the project root. Every key is optional.\n\n## Options\n\n| Key | Type | Default | Description |\n| --- | --- | --- | --- |\n| `workers` | integer | 4 | Number of worker threads |\n| `timeout` | string | 30s | Request timeout |\n| `retry` | boolean | true | Retry failed requests once |\n\n## Example\n\n```toml\n[server]\nworkers = 8\ntimeout = \"45s\"\n\n[cache]\nenabled = true\n```\n\n## Loading from code\n\nUse `Config::load` to read the file manually:\n\n```rust\nuse tideline::Config;\n\nfn main() -> anyhow::Result<()> {\n    let cfg = Config::load(\"tideline.toml\")?;\n    println!(\"{} workers\", cfg.workers);\n    Ok(())\n}\n```\n\n**Warning:** unknown keys are rejected at startup.\n\nSee [environment variables](/docs/env) to override settings per deployment.\n\n[Edit this page on GitHub](https://github.test/tideline/docs/edit/main/config.md) Last updated on Feb 2, 2026  [← Previous: Quickstart](/docs/quickstart) [Next: Environment →](/docs/env)\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1972.0,
+          "extract_us": 2829.0,
           "input_bytes": 2223.0,
           "output_bytes": 994.0,
           "size_ratio": 0.4471434997750787
         },
         "timing": {
-          "duration_ms": 1
+          "duration_ms": 2
         },
         "tool_calls_count": 0,
         "usage": {
@@ -244,13 +244,13 @@
         "final_response": "# Configuration\n\nTideline reads its settings from `tideline.toml` in the project root. Every key is optional.\n\n## Options\n\n| Key | Type | Default | Description |\n| --- | --- | --- | --- |\n| `workers` | integer | 4 | Number of worker threads |\n| `timeout` | string | 30s | Request timeout |\n| `retry` | boolean | true | Retry failed requests once |\n\n## Example\n\n```toml\n[server]\nworkers = 8\ntimeout = \"45s\"\n\n[cache]\nenabled = true\n```\n\n## Loading from code\n\nUse `Config::load` to read the file manually:\n\n```rust\nuse tideline::Config;\n\nfn main() -> anyhow::Result<()> {\n    let cfg = Config::load(\"tideline.toml\")?;\n    println!(\"{} workers\", cfg.workers);\n    Ok(())\n}\n```\n\n**Warning:** unknown keys are rejected at startup.\n\nSee [environment variables](/docs/env) to override settings per deployment.\n\n[Edit this page on GitHub](https://github.test/tideline/docs/edit/main/config.md) Last updated on Feb 2, 2026\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 3351.0,
+          "extract_us": 5009.0,
           "input_bytes": 2223.0,
           "output_bytes": 913.0,
           "size_ratio": 0.410706252811516
         },
         "timing": {
-          "duration_ms": 3
+          "duration_ms": 5
         },
         "tool_calls_count": 0,
         "usage": {
@@ -306,13 +306,13 @@
       "skipped": false,
       "target": "markkit",
       "transcript": {
-        "final_response": "[Lattice Engineering Blog](/) | [We're hiring!](/careers)\n\n# Why we moved our build to Bazel\n\nPosted by Jordan Alvarez on 9 January 2026 · 6 min read  [Share on X](https://twitter.test/share?u=bazel) [Share on LinkedIn](https://linkedin.test/share?u=bazel)\n\nOur monorepo had grown to 1.4 million lines of code, and a clean CI build took **47 minutes**. Incremental builds were unreliable, so engineers ran clean builds out of habit.\n\n## What we tried first\n\n1. Caching `node_modules` between CI runs\n2. Splitting the test suite across 12 shards\n3. Upgrading CI runners to 32 cores\n\nEach change helped a little, but none fixed the root problem: the build had no accurate dependency graph.\n\n## Results\n\nAfter the migration, the median CI build takes 6 minutes, and 92% of builds hit the remote cache.\n\nThanks to the developer productivity team for leading the migration.\n\n![Jordan Alvarez](/avatars/jordan.png)\n\nJordan Alvarez is a staff engineer on the platform team.\n\n### 14 Comments\n\n**devops_dan** said: Great write-up! Did you consider Buck2? **sarahk** said: How long did the migration take? [Log in to comment](/login)\n\nSubscribe to our newsletter for weekly posts!\n",
+        "final_response": "[Lattice Engineering Blog](/) \\| [We're hiring\\!](/careers)\n\n# Why we moved our build to Bazel\n\nPosted by Jordan Alvarez on 9 January 2026 · 6 min read  [Share on X](https://twitter.test/share?u=bazel) [Share on LinkedIn](https://linkedin.test/share?u=bazel)\n\nOur monorepo had grown to 1.4 million lines of code, and a clean CI build took **47 minutes**. Incremental builds were unreliable, so engineers ran clean builds out of habit.\n\n## What we tried first\n\n1. Caching `node_modules` between CI runs\n2. Splitting the test suite across 12 shards\n3. Upgrading CI runners to 32 cores\n\nEach change helped a little, but none fixed the root problem: the build had no accurate dependency graph.\n\n## Results\n\nAfter the migration, the median CI build takes 6 minutes, and 92% of builds hit the remote cache.\n\nThanks to the developer productivity team for leading the migration.\n\n![Jordan Alvarez](/avatars/jordan.png)\n\nJordan Alvarez is a staff engineer on the platform team.\n\n### 14 Comments\n\n**devops_dan** said: Great write-up! Did you consider Buck2? **sarahk** said: How long did the migration take? [Log in to comment](/login)\n\nSubscribe to our newsletter for weekly posts\\!\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1243.0,
+          "extract_us": 1477.0,
           "input_bytes": 1878.0,
-          "output_bytes": 1172.0,
-          "size_ratio": 0.6240681576144835
+          "output_bytes": 1175.0,
+          "size_ratio": 0.6256656017039404
         },
         "timing": {
           "duration_ms": 1
@@ -374,13 +374,13 @@
         "final_response": "# Why we moved our build to Bazel\n\nPosted by Jordan Alvarez on 9 January 2026 · 6 min read\n\nOur monorepo had grown to 1.4 million lines of code, and a clean CI build took **47 minutes**. Incremental builds were unreliable, so engineers ran clean builds out of habit.\n\n## What we tried first\n\n1. Caching `node_modules` between CI runs\n2. Splitting the test suite across 12 shards\n3. Upgrading CI runners to 32 cores\n\nEach change helped a little, but none fixed the root problem: the build had no accurate dependency graph.\n\n## Results\n\nAfter the migration, the median CI build takes 6 minutes, and 92% of builds hit the remote cache.\n\nThanks to the developer productivity team for leading the migration.\n\n![Jordan Alvarez](/avatars/jordan.png)\n\nJordan Alvarez is a staff engineer on the platform team.\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 5009.0,
+          "extract_us": 1772.0,
           "input_bytes": 1878.0,
           "output_bytes": 802.0,
           "size_ratio": 0.42705005324813633
         },
         "timing": {
-          "duration_ms": 5
+          "duration_ms": 1
         },
         "tool_calls_count": 0,
         "usage": {
@@ -391,7 +391,7 @@
       }
     },
     {
-      "aggregate": 0.8827067669172932,
+      "aggregate": 0.8388471177944862,
       "eval": "markkit_extract",
       "input": [
         "Product page with nav, breadcrumbs, buy box form, spec table, reviews, recommendations and promo banner"
@@ -404,15 +404,15 @@
       "scores": [
         {
           "pass": false,
-          "reason": "15/18 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 57%); failed: not_contains \"You may also like\"; not_contains \"Ridgeline 30L\"; not_contains \"TRAIL10\"",
+          "reason": "14/18 checks passed (completeness 83%, accuracy 100%, formatting 100%, noise 57%); failed: contains \"4.6 out of 5 stars\"; not_contains \"You may also like\"; not_contains \"Ridgeline 30L\"; not_contains \"TRAIL10\"",
           "scorer": "markkit_expectations",
-          "value": 0.8421052631578947
+          "value": 0.7894736842105263
         },
         {
-          "pass": true,
-          "reason": "6/6 checks passed",
+          "pass": false,
+          "reason": "5/6 checks passed; failed: contains \"4.6 out of 5 stars\"",
           "scorer": "completeness",
-          "value": 1.0
+          "value": 0.8333333333333334
         },
         {
           "pass": true,
@@ -436,16 +436,16 @@
       "skipped": false,
       "target": "markkit",
       "transcript": {
-        "final_response": "[Home](/) / [Packs](/packs) / Northwind Trail 40L\n\n# Northwind Trail 40L Backpack\n\n$189.00\n\nA lightweight pack for multi-day hikes, with a ventilated back panel and a removable rain cover.\n\n## Features\n\n- Recycled 210D ripstop nylon\n- Adjustable torso length (15–21 in)\n- Hydration sleeve fits a 3 L reservoir\n\n## Specifications\n\n|  |  |\n| --- | --- |\n| Weight | 1.2 kg |\n| Capacity | 40 L |\n| Dimensions | 64 × 32 × 24 cm |\n\n## Customer reviews\n\n4.6 out of 5 stars (212 reviews)\n\n**Comfortable on a 4-day trip.** The hip belt pockets are big enough for a phone.\n\n## You may also like\n - [Ridgeline 30L Daypack](/p/ridgeline-30)\n- [Carbon Trek Poles](/p/trek-poles)\n\nFree shipping on orders over $75! Use code TRAIL10 for 10% off.\n",
+        "final_response": "[Home](/) / [Packs](/packs) / Northwind Trail 40L\n\n# Northwind Trail 40L Backpack\n\n$189.00\n\nA lightweight pack for multi-day hikes, with a ventilated back panel and a removable rain cover.\n\n## Features\n\n- Recycled 210D ripstop nylon\n- Adjustable torso length (15–21 in)\n- Hydration sleeve fits a 3 L reservoir\n\n## Specifications\n\n|  |  |\n| --- | --- |\n| Weight | 1.2 kg |\n| Capacity | 40 L |\n| Dimensions | 64 × 32 × 24 cm |\n\n## Customer reviews\n\n4\\.6 out of 5 stars (212 reviews)\n\n**Comfortable on a 4-day trip.** The hip belt pockets are big enough for a phone.\n\nYou may also like [Ridgeline 30L Daypack](/p/ridgeline-30) [Carbon Trek Poles](/p/trek-poles)\n\nFree shipping on orders over $75! Use code TRAIL10 for 10% off.\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1652.0,
+          "extract_us": 2919.0,
           "input_bytes": 1718.0,
-          "output_bytes": 735.0,
-          "size_ratio": 0.4278230500582072
+          "output_bytes": 728.0,
+          "size_ratio": 0.4237485448195577
         },
         "timing": {
-          "duration_ms": 1
+          "duration_ms": 2
         },
         "tool_calls_count": 0,
         "usage": {
@@ -456,7 +456,7 @@
       }
     },
     {
-      "aggregate": 1.0,
+      "aggregate": 0.956140350877193,
       "eval": "markkit_extract",
       "input": [
         "Product page with nav, breadcrumbs, buy box form, spec table, reviews, recommendations and promo banner"
@@ -464,20 +464,20 @@
       "params": {
         "mode": "main_content"
       },
-      "passed": true,
+      "passed": false,
       "sample": "product_page",
       "scores": [
         {
-          "pass": true,
-          "reason": "18/18 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 100%)",
+          "pass": false,
+          "reason": "17/18 checks passed (completeness 83%, accuracy 100%, formatting 100%, noise 100%); failed: contains \"4.6 out of 5 stars\"",
           "scorer": "markkit_expectations",
-          "value": 1.0
+          "value": 0.9473684210526316
         },
         {
-          "pass": true,
-          "reason": "6/6 checks passed",
+          "pass": false,
+          "reason": "5/6 checks passed; failed: contains \"4.6 out of 5 stars\"",
           "scorer": "completeness",
-          "value": 1.0
+          "value": 0.8333333333333334
         },
         {
           "pass": true,
@@ -501,16 +501,16 @@
       "skipped": false,
       "target": "markkit",
       "transcript": {
-        "final_response": "# Northwind Trail 40L Backpack\n\n$189.00\n\nA lightweight pack for multi-day hikes, with a ventilated back panel and a removable rain cover.\n\n## Features\n\n- Recycled 210D ripstop nylon\n- Adjustable torso length (15–21 in)\n- Hydration sleeve fits a 3 L reservoir\n\n## Specifications\n\n|  |  |\n| --- | --- |\n| Weight | 1.2 kg |\n| Capacity | 40 L |\n| Dimensions | 64 × 32 × 24 cm |\n\n## Customer reviews\n\n4.6 out of 5 stars (212 reviews)\n\n**Comfortable on a 4-day trip.** The hip belt pockets are big enough for a phone.\n",
+        "final_response": "# Northwind Trail 40L Backpack\n\n$189.00\n\nA lightweight pack for multi-day hikes, with a ventilated back panel and a removable rain cover.\n\n## Features\n\n- Recycled 210D ripstop nylon\n- Adjustable torso length (15–21 in)\n- Hydration sleeve fits a 3 L reservoir\n\n## Specifications\n\n|  |  |\n| --- | --- |\n| Weight | 1.2 kg |\n| Capacity | 40 L |\n| Dimensions | 64 × 32 × 24 cm |\n\n## Customer reviews\n\n4\\.6 out of 5 stars (212 reviews)\n\n**Comfortable on a 4-day trip.** The hip belt pockets are big enough for a phone.\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1943.0,
+          "extract_us": 2001.0,
           "input_bytes": 1718.0,
-          "output_bytes": 516.0,
-          "size_ratio": 0.30034924330616997
+          "output_bytes": 517.0,
+          "size_ratio": 0.3009313154831199
         },
         "timing": {
-          "duration_ms": 1
+          "duration_ms": 2
         },
         "tool_calls_count": 0,
         "usage": {
@@ -569,13 +569,13 @@
         "final_response": "# Weeknight Lemon Garlic Pasta\n\nReady in 20 minutes with ingredients you probably already have.\n\nSponsored: Try MealBox free for 2 weeks\n\n- Prep: 5 min\n- Cook: 15 min\n- Serves: 4\n\n## Ingredients\n\n- 350 g spaghetti\n- 4 cloves garlic, thinly sliced\n- Zest and juice of 1 lemon\n- 60 ml olive oil\n- 40 g grated parmesan\n\n## Instructions\n\n1. Cook the spaghetti in salted water until al dente. Reserve 1 cup of pasta water.\n2. Warm the olive oil and garlic over low heat until fragrant, about 3 minutes.\n3. Toss the pasta with the garlic oil, lemon zest, lemon juice and parmesan.\n4. Loosen with pasta water as needed and serve immediately.\n\n## Notes\n\nFor a dairy-free version, replace the parmesan with toasted breadcrumbs.\n\nSponsored: Chef's knife sale, 40% off\n\nRate this recipe:\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1534.0,
+          "extract_us": 2336.0,
           "input_bytes": 1608.0,
           "output_bytes": 777.0,
           "size_ratio": 0.4832089552238806
         },
         "timing": {
-          "duration_ms": 1
+          "duration_ms": 2
         },
         "tool_calls_count": 0,
         "usage": {
@@ -634,7 +634,7 @@
         "final_response": "# Weeknight Lemon Garlic Pasta\n\nReady in 20 minutes with ingredients you probably already have.\n\n- Prep: 5 min\n- Cook: 15 min\n- Serves: 4\n\n## Ingredients\n\n- 350 g spaghetti\n- 4 cloves garlic, thinly sliced\n- Zest and juice of 1 lemon\n- 60 ml olive oil\n- 40 g grated parmesan\n\n## Instructions\n\n1. Cook the spaghetti in salted water until al dente. Reserve 1 cup of pasta water.\n2. Warm the olive oil and garlic over low heat until fragrant, about 3 minutes.\n3. Toss the pasta with the garlic oil, lemon zest, lemon juice and parmesan.\n4. Loosen with pasta water as needed and serve immediately.\n\n## Notes\n\nFor a dairy-free version, replace the parmesan with toasted breadcrumbs.\n\nRate this recipe:\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1494.0,
+          "extract_us": 1564.0,
           "input_bytes": 1608.0,
           "output_bytes": 697.0,
           "size_ratio": 0.43345771144278605
@@ -696,13 +696,13 @@
       "skipped": false,
       "target": "markkit",
       "transcript": {
-        "final_response": "[OpenWiki](/wiki/Main_Page) [Log in](/login) [Random article](/random)\n\n# Lighthouse of Alexandria\n\nFrom OpenWiki, the free encyclopedia\n\n| Lighthouse of Alexandria |  |\n| --- | --- |\n| Location | Pharos, Alexandria, Egypt |\n| Built | c. 280 BC |\n| Height | about 100 m |\n\nThe **Lighthouse of Alexandria** was a lighthouse built by the Ptolemaic Kingdom on the island of Pharos.[[1]](#cite_note-1) It was one of the Seven Wonders of the Ancient World.\n\n## Contents\n\n- [1 Construction](#Construction)\n- [2 Destruction](#Destruction)\n\n## Construction[[edit](/edit?section=1)]\n\nConstruction was completed during the reign of Ptolemy II Philadelphus. The architect was Sostratus of Cnidus.\n\n### Design\n\nThe tower had three stages: a square lower section, an octagonal middle section and a circular top.\n\n## Destruction[[edit](/edit?section=2)]\n\nThe lighthouse was badly damaged by earthquakes between 956 and 1323 AD and became an abandoned ruin.\n\n## References\n\n1. Clayton, Peter; Price, Martin (1988). *The Seven Wonders of the Ancient World*. Routledge.\n\nCategories: [Lighthouses](/wiki/Category:Lighthouses) | [Seven Wonders of the Ancient World](/wiki/Category:Seven_Wonders)  This page was last edited on 3 March 2026. Text is available under the Creative Commons Attribution-ShareAlike License.\n",
+        "final_response": "[OpenWiki](/wiki/Main_Page) [Log in](/login) [Random article](/random)\n\n# Lighthouse of Alexandria\n\nFrom OpenWiki, the free encyclopedia\n\n| Lighthouse of Alexandria |  |\n| --- | --- |\n| Location | Pharos, Alexandria, Egypt |\n| Built | c. 280 BC |\n| Height | about 100 m |\n\nThe **Lighthouse of Alexandria** was a lighthouse built by the Ptolemaic Kingdom on the island of Pharos.[\\[1\\]](#cite_note-1) It was one of the Seven Wonders of the Ancient World.\n\n## Contents\n\n- [1 Construction](#Construction)\n- [2 Destruction](#Destruction)\n\n## Construction \\[[edit](/edit?section=1)\\]\n\nConstruction was completed during the reign of Ptolemy II Philadelphus. The architect was Sostratus of Cnidus.\n\n### Design\n\nThe tower had three stages: a square lower section, an octagonal middle section and a circular top.\n\n## Destruction \\[[edit](/edit?section=2)\\]\n\nThe lighthouse was badly damaged by earthquakes between 956 and 1323 AD and became an abandoned ruin.\n\n## References\n\n1. Clayton, Peter; Price, Martin (1988). *The Seven Wonders of the Ancient World*. Routledge.\n\nCategories: [Lighthouses](/wiki/Category:Lighthouses) \\| [Seven Wonders of the Ancient World](/wiki/Category:Seven_Wonders)  This page was last edited on 3 March 2026. Text is available under the Creative Commons Attribution-ShareAlike License.\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1530.0,
+          "extract_us": 1856.0,
           "input_bytes": 2171.0,
-          "output_bytes": 1298.0,
-          "size_ratio": 0.5978811607554122
+          "output_bytes": 1307.0,
+          "size_ratio": 0.6020267157991709
         },
         "timing": {
           "duration_ms": 1
@@ -761,13 +761,13 @@
       "skipped": false,
       "target": "markkit",
       "transcript": {
-        "final_response": "# Lighthouse of Alexandria\n\nFrom OpenWiki, the free encyclopedia\n\n| Lighthouse of Alexandria |  |\n| --- | --- |\n| Location | Pharos, Alexandria, Egypt |\n| Built | c. 280 BC |\n| Height | about 100 m |\n\nThe **Lighthouse of Alexandria** was a lighthouse built by the Ptolemaic Kingdom on the island of Pharos.[[1]](#cite_note-1) It was one of the Seven Wonders of the Ancient World.\n\n## Contents\n\n- [1 Construction](#Construction)\n- [2 Destruction](#Destruction)\n\n## Construction[[edit](/edit?section=1)]\n\nConstruction was completed during the reign of Ptolemy II Philadelphus. The architect was Sostratus of Cnidus.\n\n### Design\n\nThe tower had three stages: a square lower section, an octagonal middle section and a circular top.\n\n## Destruction[[edit](/edit?section=2)]\n\nThe lighthouse was badly damaged by earthquakes between 956 and 1323 AD and became an abandoned ruin.\n\n## References\n\n1. Clayton, Peter; Price, Martin (1988). *The Seven Wonders of the Ancient World*. Routledge.\n\nCategories: [Lighthouses](/wiki/Category:Lighthouses) | [Seven Wonders of the Ancient World](/wiki/Category:Seven_Wonders)\n",
+        "final_response": "# Lighthouse of Alexandria\n\nFrom OpenWiki, the free encyclopedia\n\n| Lighthouse of Alexandria |  |\n| --- | --- |\n| Location | Pharos, Alexandria, Egypt |\n| Built | c. 280 BC |\n| Height | about 100 m |\n\nThe **Lighthouse of Alexandria** was a lighthouse built by the Ptolemaic Kingdom on the island of Pharos.[\\[1\\]](#cite_note-1) It was one of the Seven Wonders of the Ancient World.\n\n## Contents\n\n- [1 Construction](#Construction)\n- [2 Destruction](#Destruction)\n\n## Construction \\[[edit](/edit?section=1)\\]\n\nConstruction was completed during the reign of Ptolemy II Philadelphus. The architect was Sostratus of Cnidus.\n\n### Design\n\nThe tower had three stages: a square lower section, an octagonal middle section and a circular top.\n\n## Destruction \\[[edit](/edit?section=2)\\]\n\nThe lighthouse was badly damaged by earthquakes between 956 and 1323 AD and became an abandoned ruin.\n\n## References\n\n1. Clayton, Peter; Price, Martin (1988). *The Seven Wonders of the Ancient World*. Routledge.\n\nCategories: [Lighthouses](/wiki/Category:Lighthouses) \\| [Seven Wonders of the Ancient World](/wiki/Category:Seven_Wonders)\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 2292.0,
+          "extract_us": 2371.0,
           "input_bytes": 2171.0,
-          "output_bytes": 1105.0,
-          "size_ratio": 0.5089820359281437
+          "output_bytes": 1114.0,
+          "size_ratio": 0.5131275909719023
         },
         "timing": {
           "duration_ms": 2
@@ -829,7 +829,7 @@
         "final_response": "# How do I reverse a linked list in place?\n\nAsked 3 years ago · Viewed 48k times 312\n\nI have a singly linked list and want to reverse it without allocating a new list. My attempt loses the rest of the list after the first node:\n\n```\nwhile node:\n    node.next = prev\n    prev = node\n    node = node.next\n```\n\n[python](/tags/python) [linked-list](/tags/linked-list)\n\n## 2 Answers\n\n518 Accepted\n\nYou overwrite `node.next` before saving it. Keep a reference to the next node first:\n\n```python\ndef reverse(head):\n    prev = None\n    node = head\n    while node:\n        nxt = node.next\n        node.next = prev\n        prev = node\n        node = nxt\n    return prev\n```\n\nThis runs in O(n) time and O(1) extra space.\n\nanswered by [ada](/users/88/ada)   41\n\nA recursive version also works, but it uses O(n) stack space and can hit the recursion limit on long lists.\n\n### Hot Network Questions\n\n- [Why is my CSS grid collapsing?](/q/1)\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1496.0,
+          "extract_us": 1587.0,
           "input_bytes": 2048.0,
           "output_bytes": 928.0,
           "size_ratio": 0.453125
@@ -894,7 +894,7 @@
         "final_response": "You overwrite `node.next` before saving it. Keep a reference to the next node first:\n\n```python\ndef reverse(head):\n    prev = None\n    node = head\n    while node:\n        nxt = node.next\n        node.next = prev\n        prev = node\n        node = nxt\n    return prev\n```\n\nThis runs in O(n) time and O(1) extra space.\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1648.0,
+          "extract_us": 1744.0,
           "input_bytes": 2048.0,
           "output_bytes": 317.0,
           "size_ratio": 0.15478515625
@@ -959,7 +959,7 @@
         "final_response": "# Changelog\n\nAll notable changes to Quillstack are documented here. Subscribe via [RSS](/changelog.rss).\n\n## v2.4.0 — 2026-04-02\n\n### Added\n\n- Offline mode for the desktop editor\n- Export to EPUB\n  - Custom cover images\n  - Table of contents generation\n\n### Fixed\n\n- Crash when pasting images larger than 20 MB ([#1182](https://git.test/quillstack/issues/1182))\n- ~~Spellcheck ignored code blocks~~ Spellcheck now skips code blocks\n\n## v2.3.1 — 2026-03-10\n\n### Security\n\n- Sanitize SVG uploads to prevent stored XSS\n\nReady to write? [Start your free trial](/signup)\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1110.0,
+          "extract_us": 1198.0,
           "input_bytes": 1317.0,
           "output_bytes": 570.0,
           "size_ratio": 0.4328018223234624
@@ -1024,7 +1024,7 @@
         "final_response": "# Changelog\n\nAll notable changes to Quillstack are documented here. Subscribe via [RSS](/changelog.rss).\n\n## v2.4.0 — 2026-04-02\n\n### Added\n\n- Offline mode for the desktop editor\n- Export to EPUB\n  - Custom cover images\n  - Table of contents generation\n\n### Fixed\n\n- Crash when pasting images larger than 20 MB ([#1182](https://git.test/quillstack/issues/1182))\n- ~~Spellcheck ignored code blocks~~ Spellcheck now skips code blocks\n\n## v2.3.1 — 2026-03-10\n\n### Security\n\n- Sanitize SVG uploads to prevent stored XSS\n\nReady to write? [Start your free trial](/signup)\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1388.0,
+          "extract_us": 1425.0,
           "input_bytes": 1317.0,
           "output_bytes": 570.0,
           "size_ratio": 0.4328018223234624
@@ -1089,13 +1089,13 @@
         "final_response": "# Electricity Generation by Source, 2025\n\nFigures are in terawatt-hours (TWh). Source: national grid operator, published February 2026.\n\n| Source | Q1 | Q2 | Q3 | Q4 |\n| --- | --- | --- | --- | --- |\n| Wind | 21.4 | 15.2 | 12.8 | 24.9 |\n| Solar | 4.1 | 11.7 | 13.3 | 3.6 |\n| Natural gas | 30.2 | 22.5 | 26.0 | 31.8 |\n| Nuclear | 12.0 | 11.6 | 11.9 | 12.1 |\n\nWind overtook natural gas in no quarter, but the gap narrowed to **6.9 TWh** in Q4.\n\n[Download the data (CSV)](/reports/2025-energy.csv)\n\nShare: [X](https://twitter.test/s) [Email](https://mail.test/s)\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1429.0,
+          "extract_us": 2314.0,
           "input_bytes": 1397.0,
           "output_bytes": 560.0,
           "size_ratio": 0.4008589835361489
         },
         "timing": {
-          "duration_ms": 1
+          "duration_ms": 2
         },
         "tool_calls_count": 0,
         "usage": {
@@ -1154,7 +1154,7 @@
         "final_response": "# Electricity Generation by Source, 2025\n\nFigures are in terawatt-hours (TWh). Source: national grid operator, published February 2026.\n\n| Source | Q1 | Q2 | Q3 | Q4 |\n| --- | --- | --- | --- | --- |\n| Wind | 21.4 | 15.2 | 12.8 | 24.9 |\n| Solar | 4.1 | 11.7 | 13.3 | 3.6 |\n| Natural gas | 30.2 | 22.5 | 26.0 | 31.8 |\n| Nuclear | 12.0 | 11.6 | 11.9 | 12.1 |\n\nWind overtook natural gas in no quarter, but the gap narrowed to **6.9 TWh** in Q4.\n\n[Download the data (CSV)](/reports/2025-energy.csv)\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1561.0,
+          "extract_us": 1746.0,
           "input_bytes": 1397.0,
           "output_bytes": 495.0,
           "size_ratio": 0.3543307086614173
@@ -1217,13 +1217,13 @@
       "skipped": false,
       "target": "markkit",
       "transcript": {
-        "final_response": "|  |  |\n| --- | --- |\n| **MENU**  \n [Home](index.htm)  \n [Our Layout](layout.htm)  \n [Join](join.htm)  \n [Guestbook](guestbook.htm)  | **Pine Hollow Model Railroad Club** Welcome to the home of the Pine Hollow Model Railroad Club! We meet every **Tuesday at 7 PM** in the basement of the Grange Hall, 18 Mill Road.\n\nOur HO scale layout has over 600 feet of track and models the Boston & Maine railroad in 1952.\n\nNew members are always welcome.  \n Annual dues are $40.  \n Contact our secretary, Walt Brennan, at [walt@pinehollow.test](mailto:walt@pinehollow.test).\n\n---\nYou are visitor number ![004127](counter.gif) since 1998.\n\nBest viewed in Netscape Navigator 4.0 at 800x600.\n\n |\n",
+        "final_response": "|  |  |\n| --- | --- |\n| **MENU**  [Home](index.htm)  [Our Layout](layout.htm)  [Join](join.htm)  [Guestbook](guestbook.htm)  | **Pine Hollow Model Railroad Club** Welcome to the home of the Pine Hollow Model Railroad Club! We meet every **Tuesday at 7 PM** in the basement of the Grange Hall, 18 Mill Road. Our HO scale layout has over 600 feet of track and models the Boston & Maine railroad in 1952. New members are always welcome.  Annual dues are $40.  Contact our secretary, Walt Brennan, at [walt@pinehollow.test](mailto:walt@pinehollow.test). You are visitor number ![004127](counter.gif) since 1998. Best viewed in Netscape Navigator 4.0 at 800x600.  |\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1221.0,
+          "extract_us": 1322.0,
           "input_bytes": 1283.0,
-          "output_bytes": 682.0,
-          "size_ratio": 0.5315666406858924
+          "output_bytes": 661.0,
+          "size_ratio": 0.5151987529228371
         },
         "timing": {
           "duration_ms": 1
@@ -1283,13 +1283,13 @@
       "skipped": false,
       "target": "markkit",
       "transcript": {
-        "final_response": "**Pine Hollow Model Railroad Club**\n\nWelcome to the home of the Pine Hollow Model Railroad Club! We meet every **Tuesday at 7 PM** in the basement of the Grange Hall, 18 Mill Road.\n\nOur HO scale layout has over 600 feet of track and models the Boston & Maine railroad in 1952.\n\nNew members are always welcome.  \n Annual dues are $40.  \n Contact our secretary, Walt Brennan, at [walt@pinehollow.test](mailto:walt@pinehollow.test).\n\n---\n\nYou are visitor number ![004127](counter.gif) since 1998.\n\nBest viewed in Netscape Navigator 4.0 at 800x600.\n",
+        "final_response": "**Pine Hollow Model Railroad Club**\n\nWelcome to the home of the Pine Hollow Model Railroad Club! We meet every **Tuesday at 7 PM** in the basement of the Grange Hall, 18 Mill Road.\n\nOur HO scale layout has over 600 feet of track and models the Boston & Maine railroad in 1952.\n\nNew members are always welcome.  \n Annual dues are $40.  \n Contact our secretary, Walt Brennan, at [walt@pinehollow.test](mailto:walt@pinehollow.test).\n\n---\n\nYou are visitor number ![004127](counter.gif) since 1998. Best viewed in Netscape Navigator 4.0 at 800x600.\n",
         "iterations": 0,
         "metrics": {
-          "extract_us": 1392.0,
+          "extract_us": 1488.0,
           "input_bytes": 1283.0,
-          "output_bytes": 545.0,
-          "size_ratio": 0.4247856586126267
+          "output_bytes": 544.0,
+          "size_ratio": 0.4240062353858145
         },
         "timing": {
           "duration_ms": 1
@@ -1304,13 +1304,13 @@
     }
   ],
   "summary": {
-    "failed": 17,
+    "failed": 18,
     "na": 0,
-    "passed": 3,
+    "passed": 2,
     "scored": 20,
     "skipped": 0,
     "total_cost_usd": 0.0,
-    "total_duration_ms": 29,
+    "total_duration_ms": 32,
     "total_tokens": 0,
     "total_tool_calls": 0
   }

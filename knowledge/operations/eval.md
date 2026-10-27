@@ -138,8 +138,8 @@ dated pair when scores move.
 
 | mode | pages passing | overall | completeness | accuracy | formatting | noise |
 |---|---|---|---|---|---|---|
-| `default` | 0/10 | 73.6% | 94.0% | 100% | 95.6% | 34.3% |
-| `main_content` | 3/10 | 87.4% | 90.0% | 90.0% | 88.1% | 82.1% |
+| `default` | 0/10 | 73.0% | 92.3% | 100% | 95.6% | 34.3% |
+| `main_content` | 2/10 | 86.8% | 88.3% | 90.0% | 88.1% | 82.1% |
 
 First run (before IR v2, default only): 72.5%; row-header tables then
 collapsed to one column and dropped every `<td>`, fixed by IR v2 row-header
@@ -152,6 +152,10 @@ collapsed to one column and dropped every `<td>`, fixed by IR v2 row-header
   question title and body are dropped (forum 81% default vs 62%).
 - **`main_content` on the wiki page** keeps the TOC, `[edit]` links and
   categories.
+- **Over-escaping** (since #23): a paragraph starting `4.6 out of 5` renders
+  `4\.6 ...`; `4.6` is not an ordered-list marker (needs `4.` + space), so the
+  backslash is noise for text consumers (commerce, both modes; before #23
+  main_content passed the page).
 - **`<tfoot>` and `<caption>`** are dropped (data), both modes.
 - **Inline edit links inside headings** leak into the heading text
   (`## Construction[[edit](...)]`).
