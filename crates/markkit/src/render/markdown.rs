@@ -99,6 +99,8 @@ impl MarkdownRenderer {
     /// Nested renderer sharing this renderer's limits.
     fn sub(&self) -> Self {
         Self {
+            // Nested blocks are usually short: no up-front 4 KiB per list item.
+            buf: String::new(),
             max_output: self.max_output,
             deadline: self.deadline,
             ..Self::new()

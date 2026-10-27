@@ -94,6 +94,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   right after, and the XML tree is compact (interned names and values, exact-size lists). A 1.5 MB
   `document.xml` peaks at 3.9 MiB instead of 18.5 MiB, with half the allocations. Markdown
   rendering allocates less for every format.
+- HTML peak memory down about 35% and allocations about halved on large pages (DOM arena
+  pre-sized, inline node lists sized to their content, no copy of text before whitespace
+  collapsing).
 - Spreadsheets make a third fewer allocations per cell (XLSX values are formatted without an
   intermediate copy and trimmed in place).
 - **Breaking**: limit fields moved from `MarkkitBuilder` to `MarkkitBuilder::limits`

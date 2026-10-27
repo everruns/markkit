@@ -155,6 +155,13 @@ tables stay in the nested table.
 Prevents stack overflow and super-linear time on adversarial nesting. Tested with 64 000
 nested `<div>`s, 20 000 unclosed nested tables, and script/style past the limit.
 
+## Memory
+
+The scraper DOM (about 128 bytes per node) dominates peak heap. `parse_html5ever` pre-sizes
+the node arena from a byte scan (start tags plus text runs, clamped to `len / 4` and 2^18
+nodes) instead of letting it double, inline node lists are sized from the child count, and
+whitespace-only text nodes allocate nothing. Bench pages peak at 16-20x input (was 25x).
+
 ## Exclude Selector Defaults
 
 Default `exclude_selectors` in `MarkkitBuilder::default()`:
