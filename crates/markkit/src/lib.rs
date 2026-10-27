@@ -33,6 +33,7 @@
 //!
 //! - **HTML** (`html`, default): Convert HTML to markdown with configurable rules
 //! - **DOCX** (`docx`): Convert Word documents
+//! - **PPTX** (`pptx`): Convert PowerPoint presentations, one section per slide
 //! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLSB, XLS and ODS workbooks to tables
 //! - **Plain text** (always on): `text/plain`, `.txt`
 //! - **Jupyter notebooks** (always on): `.ipynb`, cells and text outputs
@@ -49,7 +50,7 @@
 //! `Markkit::extract_url`. Office formats only, no HTML:
 //! `markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }`.
 
-#[cfg(any(feature = "docx", feature = "spreadsheet"))]
+#[cfg(any(feature = "docx", feature = "pptx", feature = "spreadsheet"))]
 mod archive;
 pub mod config;
 mod csv;
@@ -67,8 +68,12 @@ pub mod limits;
 #[cfg(feature = "markdown")]
 mod markdown;
 mod notebook;
+#[cfg(any(feature = "docx", feature = "pptx"))]
+mod ooxml;
 #[cfg(feature = "pdf")]
 mod pdf;
+#[cfg(feature = "pptx")]
+mod pptx;
 pub mod registry;
 pub mod render;
 pub mod rules;
@@ -78,8 +83,8 @@ mod text;
 #[cfg(feature = "tool")]
 pub mod tool;
 pub mod transform;
-#[cfg(any(feature = "docx", feature = "spreadsheet"))]
-#[cfg_attr(not(feature = "docx"), allow(dead_code))] // spreadsheet uses only `find`/`text`
+#[cfg(any(feature = "docx", feature = "pptx", feature = "spreadsheet"))]
+#[cfg_attr(not(feature = "docx"), allow(dead_code))] // DOCX uses every helper
 mod xml;
 
 pub use config::MarkkitBuilder;

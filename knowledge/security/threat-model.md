@@ -234,7 +234,7 @@ the proxy, or use `allow_host`.
 - `html_security::very_long_text_node` (100KB text node)
 - `html_proptest::no_panic_on_arbitrary_input`
 
-### T6: Malicious Office Documents (DOCX / XLSX / XLSB / XLS / ODS)
+### T6: Malicious Office Documents (DOCX / PPTX / XLSX / XLSB / XLS / ODS)
 
 **Description**: Crafted containers aimed at exhausting memory/CPU, crashing the
 process, or smuggling content past a human reviewer.
@@ -247,7 +247,8 @@ process, or smuggling content past a human reviewer.
 
 #### T6a: Zip bombs
 - Limits apply to bytes actually produced by the decompressor (`Read::take`), never to
-  attacker-controlled header sizes.
+  attacker-controlled header sizes. A declared size is only a buffer capacity hint,
+  clamped to `max_archive_entry_size` and 16 MiB.
 - `max_archive_entries` (10 000), `max_archive_entry_size` (64 MiB),
   `max_archive_total_size` (256 MiB) → `Error::ResourceLimit`.
 - DOCX reads only the parts it needs, each through the bounded reader.
@@ -266,8 +267,14 @@ process, or smuggling content past a human reviewer.
   `truncated_sheet` warnings.
 
 #### T6c: Parser crashes on malformed input
-- XLS pre-scan rejects records that trip calamine's unchecked arithmetic (inverted
-  DIMENSIONS, inverted MULRK column ranges, out-of-range sheet offsets).
+- XLS pre-scan rejects records that trip calamine's unchecked reads and arithmetic
+  (inverted or empty DIMENSIONS, inverted or full-range MULRK, out-of-range sheet
+  offsets, truncated globals records, SST strings cut mid-header or followed by an
+  empty CONTINUE, MERGECELLS overruns, short defined-name tokens), following calamine
+  past embedded chart substreams. Formula token streams are neutralised (`cce = 0`;
+  only cached values render). calamine reads a container rebuilt from the exact
+  stream scanned, so its own CFB reader cannot see different bytes.
+- Found and kept fixed by nightly fuzzing ([Fuzzing](fuzzing.md), `xls_biff` target).
 - XML: depth capped at 256, tree built iteratively, unclosed elements tolerated.
 - Parsers run under `catch_unwind` (defence in depth; only effective with
   `panic = "unwind"`, which the workspace release profile uses so the CLI and the
@@ -279,6 +286,10 @@ process, or smuggling content past a human reviewer.
   and XF indexes by lookup. Malformed cell records are skipped; a truncated part fails that
   sheet with `sheet_error`. Cells stream into the capped grid, so `BrtWsDim` claims never
   allocate. Proptests drive the reader directly, outside `catch_unwind`.
+- PPTX reuses the DOCX stack: every part through `ZipGuard`, depth-capped XML tree, entities
+  never expanded. Each slide reference re-reads its part through the same guard, so a
+  presentation listing one slide thousands of times is bounded by `max_archive_total_size`.
+  Group shapes recurse only as deep as the XML tree (256).
 - XLS `SummaryInformation` title parsing is bounds-checked (1 MiB stream cap, checked
   offsets, 1024-property cap); failures yield no title, never an error.
 
@@ -292,6 +303,7 @@ process, or smuggling content past a human reviewer.
 #### T6e: Macros and hidden content
 - No code execution: VBA projects and XLM macro sheets are never read or rendered;
   formulas are not evaluated (cached values only).
+- Hidden PPTX slides skipped by default (`hidden_slide_skipped`), same rationale as sheets.
 - Hidden / very hidden sheets skipped by default (`hidden_sheet_skipped` warning) since
   invisible content is a prompt-injection vector. DOCX deleted revisions and field
   instructions are dropped.
@@ -302,6 +314,9 @@ process, or smuggling content past a human reviewer.
   `xlsx_bomb_in_unreferenced_entry_rejected`, `max_input_size_honoured_for_office_documents`
 - `xls_huge_dimensions_rejected`, `xls_far_apart_cells_rejected`,
   `xls_inverted_dimensions_rejected_not_panicking`, `xls_bad_sheet_offset_rejected`,
+  `xls_truncated_records_rejected_before_calamine`, `xls_records_after_embedded_substream_scanned`,
+  `xls_malformed_formula_tokens_neutralised`, `xls_truncated_formula_record_rejected`,
+  `xls_truncated_defined_name_token_rejected`, `xls_valid_records_still_accepted`,
   `ods_repeated_rows_and_columns_rejected`,
   `spreadsheet_integration::xlsx_sparse_far_cell_does_not_allocate_grid`
 - `docx_billion_laughs_not_expanded`, `docx_external_entity_not_resolved`,
@@ -314,6 +329,8 @@ process, or smuggling content past a human reviewer.
   `spreadsheet_integration::xlsx_malformed_core_properties_do_not_fail_extraction`
 - `truncated_fixtures_never_panic`, `random_bytes_never_panic`,
   `random_container_bytes_never_panic`, `mutated_fixtures_never_panic`
+- `pptx_zip_bomb_slide_rejected`, `pptx_repeated_slide_references_bounded_by_total_size`,
+  `pptx_billion_laughs_and_deep_groups`, `pptx_integration::hidden_slides_skipped_by_default`
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
   `spreadsheet_integration::xlsm_with_vba_project_extracts_values_only`
 

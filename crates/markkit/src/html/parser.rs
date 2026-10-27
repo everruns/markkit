@@ -92,6 +92,28 @@ enum RuleHit {
 }
 
 /// HTML-spec clamps for table spans.
+/// Most nodes a DOM arena is pre-sized for; larger documents grow it as before.
+const MAX_NODE_ESTIMATE: usize = 1 << 18;
+
+/// Rough DOM node count: start tags (elements) plus text runs (a `>` not
+/// directly followed by `<`). Only a capacity hint, so it is clamped: at most one
+/// node per 4 input bytes (`<b>b</b>` is 4 bytes per node; pages run 15+) and
+/// `MAX_NODE_ESTIMATE` (32 MiB of arena), so hostile `<a<a<a…` cannot reserve
+/// much. Pages past the clamp grow the arena as html5ever always did.
+fn node_estimate(html: &str) -> usize {
+    let (mut tags, mut texts) = (0usize, 0usize);
+    for w in html.as_bytes().windows(2) {
+        match w {
+            [b'<', c] if c.is_ascii_alphabetic() => tags += 1,
+            [b'>', c] if *c != b'<' => texts += 1,
+            _ => {}
+        }
+    }
+    (tags + texts + 8)
+        .min(html.len() / 4)
+        .min(MAX_NODE_ESTIMATE)
+}
+
 const MAX_COLSPAN: u32 = 1000;
 const MAX_ROWSPAN: u32 = 65534;
 
@@ -184,11 +206,19 @@ impl<'a> HtmlParser<'a> {
 
     /// html5ever parse of `html` with nesting capped first (see `nesting`).
     fn parse_html5ever(&self, html: &str) -> Html {
-        Html::parse_document(&nesting::cap_nesting(
+        use html5ever::tendril::TendrilSink;
+        let html = nesting::cap_nesting(
             html,
             self.max_depth + NESTING_SLACK,
             !self.config.include_hidden_content,
-        ))
+        );
+        // Same as `Html::parse_document`, but the node arena starts near its final
+        // size: growing it by doubling briefly holds old and new arrays, which
+        // set the HTML peak heap.
+        let mut doc = Html::new_document();
+        doc.tree = ego_tree::Tree::with_capacity(scraper::Node::Document, node_estimate(&html));
+        html5ever::driver::parse_document(scraper::HtmlTreeSink::new(doc), Default::default())
+            .one(html.as_ref())
     }
 
     /// Parse an HTML string into a [`Document`] plus page title and metadata.
@@ -351,8 +381,8 @@ impl<'a> HtmlParser<'a> {
         for child in parent.children() {
             match child.value() {
                 HtmlNode::Text(text) => {
-                    let t = text.to_string();
-                    let collapsed = collapse_whitespace(&t);
+                    let t: &str = text;
+                    let collapsed = collapse_whitespace(t);
                     if !collapsed.is_empty() {
                         out.push(Node::Text(collapsed));
                     } else if t.contains(char::is_whitespace) && !out.is_empty() {
@@ -959,10 +989,12 @@ impl<'a> HtmlParser<'a> {
         exclude: &[Selector],
         depth: usize,
     ) -> Vec<Node> {
-        let mut nodes = Vec::new();
         if self.budget().expired() {
-            return nodes;
+            return Vec::new();
         }
+        // Each child yields at most one node: size once (most cells and
+        // paragraphs hold one or two) instead of the default growth to four.
+        let mut nodes = Vec::with_capacity(el.children().count().max(1));
         if depth >= self.max_depth {
             let text = flat_text(el, !self.config.include_hidden_content);
             let trimmed = text.trim();
@@ -975,8 +1007,8 @@ impl<'a> HtmlParser<'a> {
         for child in el.children() {
             match child.value() {
                 HtmlNode::Text(text) => {
-                    let t = text.to_string();
-                    let collapsed = collapse_whitespace(&t);
+                    let t: &str = text;
+                    let collapsed = collapse_whitespace(t);
                     if !collapsed.is_empty() {
                         nodes.push(Node::Text(collapsed));
                     } else if t.contains(char::is_whitespace) && !nodes.is_empty() {
@@ -1334,6 +1366,10 @@ fn extract_language_from_class(class: &str) -> Option<String> {
 /// Collapse runs of whitespace into single spaces.
 /// Preserves a leading/trailing space if the original had one (important for inline context).
 fn collapse_whitespace(s: &str) -> String {
+    // Whitespace-only text nodes are common between tags: no allocation.
+    if s.trim().is_empty() {
+        return String::new();
+    }
     let has_leading_space = s.starts_with(char::is_whitespace);
     let has_trailing_space = s.ends_with(char::is_whitespace);
 
@@ -1434,6 +1470,22 @@ fn is_transparent_container(tag: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn node_estimate_tracks_tags_and_text_but_is_clamped() {
+        let page = "<p>a <b>b</b> c</p>".repeat(100);
+        let real = Html::parse_document(&page).tree.nodes().count();
+        let est = node_estimate(&page);
+        assert!(
+            est >= real * 9 / 10 && est <= real * 3 / 2,
+            "{est} vs {real}"
+        );
+        // Hostile: thousands of `<a` make one element; reserve at most len / 4.
+        let hostile = "<a".repeat(50_000);
+        assert!(node_estimate(&hostile) <= hostile.len() / 4);
+        assert_eq!(node_estimate(""), 0);
+        assert!(node_estimate(&"<i>x</i>".repeat(1_000_000)) <= MAX_NODE_ESTIMATE);
+    }
 
     #[test]
     fn test_collapse_whitespace() {

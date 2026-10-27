@@ -23,6 +23,7 @@ default = ["all_formats"]
 all_formats = ["markkit/all_formats"]
 pdf = ["markkit/pdf"]
 docx = ["markkit/docx"]
+pptx = ["markkit/pptx"]
 spreadsheet = ["markkit/spreadsheet"]
 markdown = ["markkit/markdown"]
 

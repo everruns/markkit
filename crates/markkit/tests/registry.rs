@@ -100,10 +100,10 @@ fn custom_parser_for_detected_format() {
 
 #[test]
 fn unregistered_format_still_unsupported() {
-    // CSV parser registered; PPTX has no built-in and no custom parser.
+    // CSV parser registered; legacy PPT has no built-in and no custom parser.
     let m = Markkit::builder().parser(Csv).build();
     let err = m
-        .extract_document_sync(b"PK\x03\x04", DocumentHint::file_name("deck.pptx"))
+        .extract_document_sync(b"PK\x03\x04", DocumentHint::file_name("deck.ppt"))
         .unwrap_err();
     assert!(matches!(err, Error::UnsupportedFormat(_)), "{err}");
 }

@@ -98,6 +98,8 @@ impl MarkdownRenderer {
     /// Nested renderer sharing this renderer's limits.
     fn sub(&self) -> Self {
         Self {
+            // Nested blocks are usually short: no up-front 4 KiB per list item.
+            buf: String::new(),
             max_output: self.max_output,
             deadline: self.deadline,
             ..Self::new()
@@ -633,7 +635,7 @@ fn layout_table<'a>(rows: &[&'a [TableCell]], spans: bool) -> Option<Vec<GridRow
         for p in pending.iter_mut() {
             *p = p.saturating_sub(1);
         }
-        let mut out: GridRow<'a> = Vec::new();
+        let mut out: GridRow<'a> = Vec::with_capacity(row.len());
         let mut col = 0usize;
         for cell in row.iter() {
             while busy.get(col).copied().unwrap_or(false) {
@@ -742,34 +744,30 @@ fn normalize_output(s: &str) -> String {
     for line in s.lines() {
         // Preserve markdown hard break (line ending in two+ spaces with content)
         let core = line.trim_end();
-        let is_hard_break = line.ends_with("  ") && !core.is_empty();
-        let trimmed = if is_hard_break {
-            core.to_string() + "  "
-        } else {
-            core.to_string()
-        };
-
-        if trimmed.is_empty() || trimmed == "  " {
+        if core.is_empty() {
             blank_count += 1;
             if blank_count <= 1 {
                 result.push('\n');
             }
         } else {
             blank_count = 0;
-            result.push_str(&trimmed);
+            result.push_str(core);
+            if line.ends_with("  ") {
+                result.push_str("  ");
+            }
             result.push('\n');
         }
     }
 
     // Trim leading/trailing blank lines
-    let trimmed = result.trim_matches('\n');
-    if trimmed.is_empty() {
-        String::new()
-    } else {
-        let mut out = trimmed.to_string();
-        out.push('\n');
-        out
+    // Trim in place: drop leading newlines, keep exactly one trailing.
+    let lead = result.len() - result.trim_start_matches('\n').len();
+    result.drain(..lead);
+    result.truncate(result.trim_end_matches('\n').len());
+    if !result.is_empty() {
+        result.push('\n');
     }
+    result
 }
 
 #[cfg(test)]

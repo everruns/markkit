@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   pulldown-cmark and rendered back, so raw HTML never passes through. Front matter `title:` or the
   first `# ` heading becomes `Extraction::title`. Available in the CLI, Python, Node and WASM packages; `format` serializes as
   `"text"` and `"markdown"`.
+- PPTX support behind the new `pptx` feature (included in `all_formats`, so in the CLI and the
+  Python/Node bindings): one `## Slide N: <title>` section per slide with bullets, text boxes,
+  tables, hyperlinks and speaker notes. Hidden slides are skipped with a `hidden_slide_skipped`
+  warning unless `include_hidden_content(true)`. Legacy `.ppt` is detected as the new `Format::Ppt`
+  and rejected explicitly. `Error::PptxExtract` reports malformed presentations.
+- Nightly cargo-fuzz targets for every parser and the renderer (`crates/markkit/fuzz`, `just fuzz`,
+  `.github/workflows/fuzz.yml`), each checking the output-safety oracle.
 - HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
   `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
   canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and
@@ -119,6 +126,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The JSON IR of DOCX and spreadsheet tables now holds raw text (pipes were pre-escaped before).
 - Math TeX (taken from page markup) renders as code, GitHub's `` $`tex`$ `` and ` ```math `
   forms, instead of `$tex$` / `$$`, so it can no longer emit raw HTML or links in plain GFM.
+- XLS files with truncated or inconsistent BIFF records (found by fuzzing) are rejected with an
+  error instead of aborting the process inside calamine. Formula token streams are ignored
+  (cached values were already the only thing rendered).
 - Hidden content is skipped by default as a prompt-injection defence: HTML elements with `hidden`,
   `aria-hidden="true"` or inline `display:none` / `visibility:hidden` / `opacity:0` / `font-size:0`,
   `<template>`, and DOCX hidden (`w:vanish`) runs (warning `hidden_content_skipped`). Opt back in
@@ -132,6 +142,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- DOCX uses far less memory: body blocks are converted while `document.xml` is parsed and freed
+  right after, and the XML tree is compact (interned names and values, exact-size lists). A 1.5 MB
+  `document.xml` peaks at 3.9 MiB instead of 18.5 MiB, with half the allocations. Markdown
+  rendering allocates less for every format.
+- HTML peak memory down about 35% and allocations about halved on large pages (DOM arena
+  pre-sized, inline node lists sized to their content, no copy of text before whitespace
+  collapsing).
+- Spreadsheets make a third fewer allocations per cell (XLSX values are formatted without an
+  intermediate copy and trimmed in place).
 - **Breaking**: limit fields moved from `MarkkitBuilder` to `MarkkitBuilder::limits`
   (`config().max_input_size` → `config().limits.max_input_size`); `max_processing_secs` field is
   now `limits.timeout: Duration`. Builder setters are unchanged, plus new `timeout`,

@@ -373,7 +373,7 @@ pub struct Source {
     /// Spreadsheets: A1-style cell range, e.g. `A1:D20`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub range: Option<String>,
-    /// Paged formats: 1-based page number.
+    /// Paged formats: 1-based page number (PPTX: slide number).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub page: Option<u32>,
 }

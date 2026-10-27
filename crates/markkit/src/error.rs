@@ -11,6 +11,9 @@ pub enum Error {
     #[error("DOCX extraction error: {0}")]
     DocxExtract(String),
 
+    #[error("PPTX extraction error: {0}")]
+    PptxExtract(String),
+
     #[error("Spreadsheet extraction error: {0}")]
     SpreadsheetExtract(String),
 
