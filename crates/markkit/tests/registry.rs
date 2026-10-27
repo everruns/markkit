@@ -4,7 +4,7 @@ use markkit::ir::{Document, Node, TableCell};
 use markkit::registry::FormatParser;
 use markkit::{DocumentHint, Error, Format, Markkit, MarkkitBuilder, ParsedDocument};
 
-/// Naive CSV: comma-split lines, first line is the header.
+/// Naive CSV: comma-split lines, first line is the header (replaces the built-in).
 struct Csv;
 
 impl FormatParser for Csv {
@@ -100,9 +100,10 @@ fn custom_parser_for_detected_format() {
 
 #[test]
 fn unregistered_format_still_unsupported() {
-    let m = Markkit::builder().build();
+    // CSV parser registered; PPTX has no built-in and no custom parser.
+    let m = Markkit::builder().parser(Csv).build();
     let err = m
-        .extract_document_sync(b"a,b\n", DocumentHint::file_name("data.csv"))
+        .extract_document_sync(b"PK\x03\x04", DocumentHint::file_name("deck.pptx"))
         .unwrap_err();
     assert!(matches!(err, Error::UnsupportedFormat(_)), "{err}");
 }
