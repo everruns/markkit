@@ -1208,6 +1208,7 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+ "url",
  "zip",
 ]
 
