@@ -24,6 +24,7 @@ all_formats = ["markkit/all_formats"]
 pdf = ["markkit/pdf"]
 docx = ["markkit/docx"]
 spreadsheet = ["markkit/spreadsheet"]
+markdown = ["markkit/markdown"]
 
 [dependencies]
 markkit = { path = "../markkit", version = "0.1.1", features = ["http_client", "tool"] }

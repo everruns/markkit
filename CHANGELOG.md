@@ -11,7 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - `markkit mcp`: Model Context Protocol server over stdio exposing the `markkit` tool
   (`tools/list`, `tools/call`). URL fetching keeps the SSRF guard; `--no-url` keeps it offline,
-  `--max-size` / `--max-output-chars` bound each call.
+  the `extract` limit flags and `--max-output-chars` bound each call.
+- Plain text input (`text/plain`, `.txt`), always on: paragraphs and hard breaks through the IR,
+  UTF-8/UTF-16 BOM decoding, control characters dropped, `invalid_utf8` warning on lossy decode.
+- Markdown input (`markdown` feature, in `all_formats`; `text/markdown`, `.md`): re-parsed with
+  pulldown-cmark and rendered back, so raw HTML never passes through. Front matter `title:` or the
+  first `# ` heading becomes `Extraction::title`. Available in the CLI, Python, Node and WASM packages; `format` serializes as
+  `"text"` and `"markdown"`.
 - HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
   `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
   canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and
