@@ -39,7 +39,7 @@ HTML from the web: malformed markup, complex layouts, embedded scripts, etc.
 | `<li><input type=checkbox>` | `- [x] item` |
 | `<figure>` + `<figcaption>` | content + `*caption*` |
 | footnote refs / sections | `[^1]` / `[^1]: body` |
-| `<math>`, KaTeX, MathJax | `$tex$` / `$$` block |
+| `<math>`, KaTeX, MathJax | `` $`tex`$ `` / ` ```math ` block |
 | `<em>/<i>` | `*text*` |
 | `<strong>/<b>` | `**text**` |
 | `<del>/<s>` | `~~text~~` |
@@ -221,7 +221,10 @@ serde_json's 128-level recursion limit bounds nesting; invalid JSON is ignored.
 - Nested lists: supported via recursive `collect_list_items` with depth tracking
 - Tables within tables: outer table parsed; inner table content may appear as text
 - Inline SVG: stripped entirely (non-content element)
-- Data URIs: preserved as-is in `src`/`href` attributes (no execution in markdown)
+- URL schemes: links keep `http`, `https`, `mailto`, `tel`, `ftp` and relative URLs;
+  images keep `http`, `https`, relative and raster `data:image/*`. Other schemes drop the
+  link or image and keep its text (see [Threat Model](../security/threat-model.md) T1)
+- Markdown-significant characters in text are escaped at render time (`<`, `*`, `[`, ...)
 - Relative URLs: resolved only when a base is known, see Relative URL Resolution
 - Character encoding: `String::from_utf8_lossy` for byte input; html5ever handles encoding within HTML
 - Null bytes: replaced with U+FFFD by html5ever
@@ -229,8 +232,8 @@ serde_json's 128-level recursion limit bounds nesting; invalid JSON is ignored.
 - Empty containers: all block-level containers with no content are elided
 - HTML entities: decoded by html5ever before reaching parser
 - Blocks inside inline formatting: after an unclosed `<strong>`, html5ever's adoption
-  agency wraps following paragraphs in the formatting element; they render inside the
-  emphasis markers (known limitation, see `malformed` fixture)
+  agency wraps following paragraphs in the formatting element; they render flattened
+  onto one line inside the emphasis markers (known limitation, see `malformed` fixture)
 
 ## See also
 

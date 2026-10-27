@@ -29,19 +29,15 @@ fn xss_event_handler() {
 #[test]
 fn xss_javascript_url() {
     let md = convert(r#"<a href="javascript:alert(1)">Click</a>"#);
-    // Link is rendered but the URL is preserved as-is (consumer's responsibility to sanitize URLs)
-    // The key is no script execution context in markdown
-    assert!(md.contains("Click"));
+    // Script-scheme link dropped, text kept.
+    assert_eq!(md, "Click\n");
 }
 
 #[test]
 fn xss_data_uri_img() {
     let md = convert(r#"<img src="data:text/html,<script>alert(1)</script>" alt="xss">"#);
-    // Image is rendered as markdown image — the data URI is in the URL portion
-    // which is safe in markdown context (no script execution)
-    assert!(md.contains("![xss]"));
-    // The output should not contain raw HTML script tags outside of a URL
-    assert!(!md.starts_with("<script>"));
+    // Non-image data URI: the image is dropped, its alt text kept.
+    assert_eq!(md, "xss\n");
 }
 
 #[test]
@@ -143,7 +139,8 @@ fn self_closing_tags() {
 #[test]
 fn html_entities() {
     let md = convert("<p>5 &gt; 3 &amp; 2 &lt; 4</p>");
-    assert!(md.contains("5 > 3 & 2 < 4"));
+    // `<` is escaped so it cannot open raw HTML when rendered.
+    assert!(md.contains(r"5 > 3 & 2 \< 4"), "{md}");
 }
 
 #[test]
