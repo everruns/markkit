@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   pulldown-cmark and rendered back, so raw HTML never passes through. Front matter `title:` or the
   first `# ` heading becomes `Extraction::title`. Available in the CLI, Python, Node and WASM packages; `format` serializes as
   `"text"` and `"markdown"`.
+- Nightly cargo-fuzz targets for every parser and the renderer (`crates/markkit/fuzz`, `just fuzz`,
+  `.github/workflows/fuzz.yml`), each checking the output-safety oracle.
 - HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
   `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
   canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and
@@ -115,6 +117,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The JSON IR of DOCX and spreadsheet tables now holds raw text (pipes were pre-escaped before).
 - Math TeX (taken from page markup) renders as code, GitHub's `` $`tex`$ `` and ` ```math `
   forms, instead of `$tex$` / `$$`, so it can no longer emit raw HTML or links in plain GFM.
+- XLS files with truncated or inconsistent BIFF records (found by fuzzing) are rejected with an
+  error instead of aborting the process inside calamine. Formula token streams are ignored
+  (cached values were already the only thing rendered).
 - Hidden content is skipped by default as a prompt-injection defence: HTML elements with `hidden`,
   `aria-hidden="true"` or inline `display:none` / `visibility:hidden` / `opacity:0` / `font-size:0`,
   `<template>`, and DOCX hidden (`w:vanish`) runs (warning `hidden_content_skipped`). Opt back in

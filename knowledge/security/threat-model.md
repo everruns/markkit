@@ -266,8 +266,14 @@ process, or smuggling content past a human reviewer.
   `truncated_sheet` warnings.
 
 #### T6c: Parser crashes on malformed input
-- XLS pre-scan rejects records that trip calamine's unchecked arithmetic (inverted
-  DIMENSIONS, inverted MULRK column ranges, out-of-range sheet offsets).
+- XLS pre-scan rejects records that trip calamine's unchecked reads and arithmetic
+  (inverted or empty DIMENSIONS, inverted or full-range MULRK, out-of-range sheet
+  offsets, truncated globals records, SST strings cut mid-header or followed by an
+  empty CONTINUE, MERGECELLS overruns, short defined-name tokens), following calamine
+  past embedded chart substreams. Formula token streams are neutralised (`cce = 0`;
+  only cached values render). calamine reads a container rebuilt from the exact
+  stream scanned, so its own CFB reader cannot see different bytes.
+- Found and kept fixed by nightly fuzzing ([Fuzzing](fuzzing.md), `xls_biff` target).
 - XML: depth capped at 256, tree built iteratively, unclosed elements tolerated.
 - Parsers run under `catch_unwind` (defence in depth; only effective with
   `panic = "unwind"`, which the workspace release profile uses so the CLI and the
@@ -302,6 +308,9 @@ process, or smuggling content past a human reviewer.
   `xlsx_bomb_in_unreferenced_entry_rejected`, `max_input_size_honoured_for_office_documents`
 - `xls_huge_dimensions_rejected`, `xls_far_apart_cells_rejected`,
   `xls_inverted_dimensions_rejected_not_panicking`, `xls_bad_sheet_offset_rejected`,
+  `xls_truncated_records_rejected_before_calamine`, `xls_records_after_embedded_substream_scanned`,
+  `xls_malformed_formula_tokens_neutralised`, `xls_truncated_formula_record_rejected`,
+  `xls_truncated_defined_name_token_rejected`, `xls_valid_records_still_accepted`,
   `ods_repeated_rows_and_columns_rejected`,
   `spreadsheet_integration::xlsx_sparse_far_cell_does_not_allocate_grid`
 - `docx_billion_laughs_not_expanded`, `docx_external_entity_not_resolved`,

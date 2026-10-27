@@ -1,0 +1,103 @@
+# Fuzz targets for markkit (threat model T1, T2, T6, T7, T8, T9).
+# Run: cargo +nightly fuzz run <target> -- -max_total_time=60   (from crates/markkit)
+# Targets and corpus layout: knowledge/security/fuzzing.md
+
+[package]
+name = "markkit-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+pulldown-cmark = { version = "0.13", default-features = false }
+# Fixture builders shared with tests/common (zip + OLE2 containers).
+zip = { version = "9", default-features = false, features = ["deflate"] }
+cfb = "0.15"
+miniz_oxide = "0.9"
+
+[dependencies.markkit]
+path = ".."
+default-features = false
+features = ["html", "docx", "spreadsheet", "pdf", "markdown"]
+
+# Keep out of the main workspace (nightly-only, separate lockfile).
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "html"
+path = "fuzz_targets/html.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "document"
+path = "fuzz_targets/document.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "docx_xml"
+path = "fuzz_targets/docx_xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "xlsx_xml"
+path = "fuzz_targets/xlsx_xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ods_xml"
+path = "fuzz_targets/ods_xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "xls_biff"
+path = "fuzz_targets/xls_biff.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "render_ir"
+path = "fuzz_targets/render_ir.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "xlsb_bin"
+path = "fuzz_targets/xlsb_bin.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pdf"
+path = "fuzz_targets/pdf.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "markdown"
+path = "fuzz_targets/markdown.rs"
+test = false
+doc = false
+bench = false

@@ -2,6 +2,7 @@
 
 ## 2026-10-27
 
+* **Fuzzing**: new [Fuzzing](security/fuzzing.md) concept. Ten cargo-fuzz targets (`crates/markkit/fuzz`, every parser incl. XLSB, PDF, Markdown, plus the renderer) assert the S17 oracle and run nightly (`fuzz.yml`). The `xls_biff` target found calamine panicking on a dozen truncated BIFF record shapes and in its formula decompiler; the XLS pre-scan now rejects them, neutralises formula tokens and hands calamine a container rebuilt from the scanned stream. See [Threat Model](security/threat-model.md) T6c.
 * **XLSB support (#11)**: Excel binary workbooks are read by a new bounds-checked BIFF12 reader (`spreadsheet/xlsb.rs`) instead of being rejected; calamine's XLSB reader was not used because it panics on malformed records. Same caps, hidden-sheet and macro rules as XLSX. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md) T6c.
 * **Over-escaping fix**: line-start `#`, `+` and ordered markers are escaped only when followed by whitespace or the end of the text run, so `4.6 out of 5` no longer renders `4\.6` (eval gap). `> - =` stay always escaped. See [Threat Model](security/threat-model.md) T1, [Evaluation Harness](operations/eval.md).
 * **MCP server**: `markkit mcp` serves `MarkkitTool` over MCP stdio (initialize, ping, tools/list, tools/call); line size capped from `--max-size`, tool failures as `isError` results. New [MCP Server](integrations/mcp-server.md) concept; MCP messages row in the [Threat Model](security/threat-model.md).
