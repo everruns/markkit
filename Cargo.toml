@@ -10,6 +10,7 @@ members = [
     "crates/markkit-eval",
     "crates/markkit-python",
     "crates/markkit-js",
+    "crates/markkit-wasm",
 ]
 
 [workspace.package]
@@ -40,7 +41,10 @@ clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
 
 # HTML parsing
+url = "2"
 scraper = "0.29"
+ego-tree = "0.11"
+schemars = "1"
 html5ever = "0.40"
 
 # Document formats
@@ -51,6 +55,11 @@ cfb = "0.15"            # XLS (OLE2) container pre-scan
 
 # Logging
 tracing = "0.1"
+
+# LLM tool contract (markkit `tool` feature)
+tower = { version = "0.5", default-features = false, features = ["util"] }
+futures-core = "0.3"
+base64 = "0.23"
 
 # Python bindings
 pyo3 = { version = "0.30" }
@@ -70,3 +79,8 @@ lto = "thin"
 codegen-units = 1
 panic = "abort"
 strip = true
+
+# Browser bundle (crates/markkit-wasm/scripts/build.sh): size over speed.
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"

@@ -1,27 +1,96 @@
 //! HTML → IR parser using scraper/html5ever.
+//!
+//! Decisions:
+//! - Footnotes follow the markup GitHub (`data-footnote-ref`,
+//!   `section[data-footnotes]`) and Pandoc (`role="doc-noteref"`,
+//!   `.footnote-ref`, `role="doc-endnotes"`, `.footnotes`) emit. References
+//!   record `target id -> label`; definitions look their `<li id>` up there
+//!   and fall back to their 1-based position. Back-links are dropped.
+//! - Table `colspan`/`rowspan` are clamped to the HTML limits (1000 / 65534;
+//!   `rowspan=0` means "to the end", stored as 65534); the renderer lays them
+//!   out under a grid budget.
+//! - Provenance (`track_sources`): blocks get the absolute XPath of the
+//!   element they came from. Sibling indexes are computed once per parent and
+//!   cached, so cost is O(depth) per block, not O(siblings).
+//! - Math: MathML `<math>` (also inside KaTeX `.katex` / `.katex-display`
+//!   and MathJax `<mjx-container>`) maps to `Math` / `MathBlock` using the
+//!   `application/x-tex` annotation; without one, the text content is kept as
+//!   plain text. KaTeX's visual HTML duplicate is dropped.
+//! - `<figure>` becomes `Figure` only when it has a non-empty `<figcaption>`;
+//!   otherwise it stays a transparent container as before.
 
+use std::cell::RefCell;
+use std::collections::HashMap;
+
+use ego_tree::{NodeId, NodeRef};
 use scraper::{Html, Node as HtmlNode, Selector};
 
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
-use crate::ir::{Document, ListItem, Node};
+use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, Source, TableCell};
+
+use url::Url;
+
+use super::metadata::PageInfo;
+use super::urls;
 
 /// Maximum recursion depth for nested elements.
 const MAX_DEPTH: usize = 200;
+/// HTML-spec clamps for table spans.
+const MAX_COLSPAN: u32 = 1000;
+const MAX_ROWSPAN: u32 = 65534;
 
 /// Parses HTML into the canonical IR.
 pub struct HtmlParser<'a> {
     config: &'a MarkkitBuilder,
+    /// Footnote target id (without `#`) -> label, filled by references.
+    footnote_labels: RefCell<HashMap<String, String>>,
+    /// Base for relative URLs (caller base, then the document `<base href>`).
+    base: Option<Url>,
+    /// Cached 1-based index of an element among same-name element siblings.
+    sibling_index: RefCell<HashMap<NodeId, usize>>,
 }
 
 impl<'a> HtmlParser<'a> {
     pub fn new(config: &'a MarkkitBuilder) -> Self {
-        Self { config }
+        Self {
+            config,
+            footnote_labels: RefCell::new(HashMap::new()),
+            base: urls::parse_base(config.base_url.as_deref()),
+            sibling_index: RefCell::new(HashMap::new()),
+        }
     }
 
     /// Parse an HTML string into a [`Document`].
     pub fn parse(&self, html: &str) -> Result<Document, Error> {
+        self.parse_dom(&Html::parse_document(html))
+    }
+
+    /// Parse an HTML string into a [`Document`] plus page title and metadata.
+    pub(crate) fn parse_page(&self, html: &str) -> Result<(Document, PageInfo), Error> {
         let dom = Html::parse_document(html);
+        let this = self.for_document(&dom);
+        Ok((
+            this.convert_dom(&dom)?,
+            super::metadata::extract(&dom, this.base.as_ref()),
+        ))
+    }
+
+    fn parse_dom(&self, dom: &Html) -> Result<Document, Error> {
+        self.for_document(dom).convert_dom(dom)
+    }
+
+    /// Parser whose base includes the document's `<base href>`.
+    fn for_document(&self, dom: &Html) -> Self {
+        Self {
+            config: self.config,
+            footnote_labels: RefCell::new(HashMap::new()),
+            sibling_index: RefCell::new(HashMap::new()),
+            base: urls::document_base(dom, self.base.clone()),
+        }
+    }
+
+    fn convert_dom(&self, dom: &Html) -> Result<Document, Error> {
         let root = dom.root_element();
 
         let content_nodes: Vec<scraper::ElementRef<'_>> =
@@ -52,6 +121,51 @@ impl<'a> HtmlParser<'a> {
         }
 
         Ok(Document::new(normalize_blocks(nodes)))
+    }
+
+    /// Attach the element's XPath to a block that has no source yet.
+    fn mark_source(&self, node: &mut Node, el: scraper::ElementRef<'_>) {
+        if self.config.track_sources && node.is_block() && node.source().is_none() {
+            node.set_source(Source::path(self.xpath(*el)));
+        }
+    }
+
+    /// Absolute XPath (`/html[1]/body[1]/p[3]`) of an element.
+    fn xpath(&self, node: NodeRef<'_, HtmlNode>) -> String {
+        let mut segs: Vec<String> = Vec::new();
+        let mut cur = Some(node);
+        while let Some(n) = cur {
+            if let Some(e) = n.value().as_element() {
+                segs.push(format!("{}[{}]", e.name(), self.index_among_siblings(n)));
+            }
+            cur = n.parent();
+        }
+        let mut out = String::new();
+        for s in segs.iter().rev() {
+            out.push('/');
+            out.push_str(s);
+        }
+        out
+    }
+
+    fn index_among_siblings(&self, node: NodeRef<'_, HtmlNode>) -> usize {
+        if let Some(&i) = self.sibling_index.borrow().get(&node.id()) {
+            return i;
+        }
+        let Some(parent) = node.parent() else {
+            return 1;
+        };
+        // Index every element child of this parent in one pass.
+        let mut counts: HashMap<&str, usize> = HashMap::new();
+        let mut cache = self.sibling_index.borrow_mut();
+        for child in parent.children() {
+            if let Some(e) = child.value().as_element() {
+                let n = counts.entry(e.name()).or_insert(0);
+                *n += 1;
+                cache.insert(child.id(), *n);
+            }
+        }
+        cache.get(&node.id()).copied().unwrap_or(1)
     }
 
     fn is_excluded(&self, el: &scraper::ElementRef<'_>, exclude: &[Selector]) -> bool {
@@ -91,10 +205,33 @@ impl<'a> HtmlParser<'a> {
                         if self.is_excluded(&el, exclude) {
                             continue;
                         }
+                        let name = el.value().name();
+                        // Captions are consumed by the enclosing figure
+                        if name == "figcaption" && parent.value().name() == "figure" {
+                            continue;
+                        }
+                        if is_footnote_section(&el) {
+                            self.convert_footnotes(el, exclude, out, depth + 1);
+                            continue;
+                        }
+                        if name == "figure"
+                            && let Some(mut fig) = self.convert_figure(el, exclude, depth + 1)
+                        {
+                            self.mark_source(&mut fig, el);
+                            out.push(fig);
+                            continue;
+                        }
+                        if let Some(mut m) = self.math_wrapper(el) {
+                            self.mark_source(&mut m, el);
+                            out.push(m);
+                            continue;
+                        }
                         // Transparent containers: recurse directly into their children
-                        if is_transparent_container(el.value().name()) {
+                        if is_transparent_container(name) {
                             self.convert_children(el, exclude, out, depth + 1);
-                        } else if let Some(node) = self.convert_element(el, exclude, depth + 1) {
+                        } else if let Some(mut node) = self.convert_element(el, exclude, depth + 1)
+                        {
+                            self.mark_source(&mut node, el);
                             out.push(node);
                         }
                     }
@@ -119,6 +256,10 @@ impl<'a> HtmlParser<'a> {
             return Some(Node::Text(trimmed.to_string()));
         }
 
+        if let Some(m) = self.math_wrapper(el) {
+            return Some(m);
+        }
+
         let tag = el.value().name();
 
         match tag {
@@ -128,7 +269,11 @@ impl<'a> HtmlParser<'a> {
                 if children.is_empty() {
                     return None;
                 }
-                Some(Node::Heading { level, children })
+                Some(Node::Heading {
+                    level,
+                    children,
+                    source: None,
+                })
             }
 
             "p" => {
@@ -136,22 +281,21 @@ impl<'a> HtmlParser<'a> {
                 if children.is_empty() {
                     return None;
                 }
-                Some(Node::Paragraph { children })
+                Some(Node::Paragraph {
+                    children,
+                    source: None,
+                })
             }
 
-            "div" | "section" | "article" | "main" | "span" | "figure" | "figcaption" => {
-                let mut nodes = Vec::new();
-                self.convert_children(el, exclude, &mut nodes, depth);
-                if nodes.len() == 1 {
-                    Some(nodes.remove(0))
-                } else if nodes.is_empty() {
-                    None
-                } else if nodes.iter().all(is_inline) {
-                    Some(Node::Paragraph { children: nodes })
-                } else {
-                    None
-                }
+            "figure" => self
+                .convert_figure(el, exclude, depth)
+                .or_else(|| self.convert_container(el, exclude, depth)),
+
+            "div" | "section" | "article" | "main" | "span" | "figcaption" => {
+                self.convert_container(el, exclude, depth)
             }
+
+            "dl" => self.convert_definition_list(el, exclude, depth),
 
             "ul" => {
                 let items = self.collect_list_items(el, exclude, depth);
@@ -162,6 +306,7 @@ impl<'a> HtmlParser<'a> {
                     ordered: false,
                     start: None,
                     items,
+                    source: None,
                 })
             }
 
@@ -175,6 +320,7 @@ impl<'a> HtmlParser<'a> {
                     ordered: true,
                     start,
                     items,
+                    source: None,
                 })
             }
 
@@ -185,7 +331,10 @@ impl<'a> HtmlParser<'a> {
                 if children.is_empty() {
                     return None;
                 }
-                Some(Node::BlockQuote { children })
+                Some(Node::BlockQuote {
+                    children,
+                    source: None,
+                })
             }
 
             "pre" => {
@@ -196,12 +345,17 @@ impl<'a> HtmlParser<'a> {
                         .attr("class")
                         .and_then(extract_language_from_class);
                     let code = code_el.text().collect::<String>();
-                    Some(Node::CodeBlock { language, code })
+                    Some(Node::CodeBlock {
+                        language,
+                        code,
+                        source: None,
+                    })
                 } else {
                     let code = el.text().collect::<String>();
                     Some(Node::CodeBlock {
                         language: None,
                         code,
+                        source: None,
                     })
                 }
             }
@@ -238,6 +392,14 @@ impl<'a> HtmlParser<'a> {
             }
 
             "a" => {
+                if is_footnote_backref(&el) {
+                    return None;
+                }
+                if is_footnote_ref(&el)
+                    && let Some(node) = self.footnote_reference(el)
+                {
+                    return Some(node);
+                }
                 if !self.config.preserve_links {
                     let children = self.collect_inline(el, exclude, depth);
                     return if children.is_empty() {
@@ -245,10 +407,13 @@ impl<'a> HtmlParser<'a> {
                     } else if children.len() == 1 {
                         Some(children.into_iter().next().unwrap())
                     } else {
-                        Some(Node::Paragraph { children })
+                        Some(Node::Paragraph {
+                            children,
+                            source: None,
+                        })
                     };
                 }
-                let url = el.value().attr("href").unwrap_or("").to_string();
+                let url = urls::resolve(self.base.as_ref(), el.value().attr("href").unwrap_or(""));
                 let title = el.value().attr("title").map(|s| s.to_string());
                 let children = self.collect_inline(el, exclude, depth);
                 if children.is_empty() {
@@ -265,7 +430,7 @@ impl<'a> HtmlParser<'a> {
                 if !self.config.preserve_images {
                     return None;
                 }
-                let src = el.value().attr("src").unwrap_or("").to_string();
+                let src = urls::resolve(self.base.as_ref(), el.value().attr("src").unwrap_or(""));
                 let alt = el.value().attr("alt").unwrap_or("").to_string();
                 Some(Node::Image { src, alt })
             }
@@ -287,10 +452,246 @@ impl<'a> HtmlParser<'a> {
                 } else if children.len() == 1 {
                     Some(children.into_iter().next().unwrap())
                 } else {
-                    Some(Node::Paragraph { children })
+                    Some(Node::Paragraph {
+                        children,
+                        source: None,
+                    })
                 }
             }
         }
+    }
+
+    /// MathML or a KaTeX / MathJax wrapper around it.
+    fn math_wrapper(&self, el: scraper::ElementRef<'_>) -> Option<Node> {
+        let v = el.value();
+        let (display, math) = match v.name() {
+            "math" => (v.attr("display") == Some("block"), el),
+            "mjx-container" => (v.attr("display") == Some("true"), find_math(el)?),
+            _ if has_class(&el, "katex-display") => (true, find_math(el)?),
+            _ if has_class(&el, "katex") => (false, find_math(el)?),
+            _ => return None,
+        };
+        let display = display || math.value().attr("display") == Some("block");
+        let annotation = math
+            .descendants()
+            .filter_map(scraper::ElementRef::wrap)
+            .find(|e| {
+                e.value().name() == "annotation"
+                    && e.value()
+                        .attr("encoding")
+                        .is_some_and(|enc| enc.eq_ignore_ascii_case("application/x-tex"))
+            });
+        match annotation {
+            Some(a) => {
+                let tex = a.text().collect::<String>().trim().to_string();
+                if tex.is_empty() {
+                    None
+                } else if display {
+                    Some(Node::MathBlock { tex, source: None })
+                } else {
+                    Some(Node::Math { tex })
+                }
+            }
+            None => {
+                let text = collapse_whitespace(&math.text().collect::<String>());
+                let text = text.trim();
+                (!text.is_empty()).then(|| Node::Text(text.to_string()))
+            }
+        }
+    }
+
+    /// Generic container (`div`, `span`, ...) in inline/element context.
+    fn convert_container(
+        &self,
+        el: scraper::ElementRef<'_>,
+        exclude: &[Selector],
+        depth: usize,
+    ) -> Option<Node> {
+        let mut nodes = Vec::new();
+        self.convert_children(el, exclude, &mut nodes, depth);
+        if nodes.len() == 1 {
+            Some(nodes.remove(0))
+        } else if nodes.is_empty() {
+            None
+        } else if nodes.iter().all(Node::is_inline) {
+            Some(Node::Paragraph {
+                children: nodes,
+                source: None,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// `<figure>` with a non-empty `<figcaption>`; `None` otherwise.
+    fn convert_figure(
+        &self,
+        el: scraper::ElementRef<'_>,
+        exclude: &[Selector],
+        depth: usize,
+    ) -> Option<Node> {
+        let figcaption = el
+            .children()
+            .filter_map(scraper::ElementRef::wrap)
+            .find(|c| c.value().name() == "figcaption" && !self.is_excluded(c, exclude))?;
+        let mut caption = self.collect_inline(figcaption, exclude, depth + 1);
+        trim_edge_text(&mut caption);
+        if caption.is_empty() {
+            return None;
+        }
+        let mut nodes = Vec::new();
+        self.convert_children(el, exclude, &mut nodes, depth);
+        let mut children = normalize_blocks(nodes);
+        if !children.is_empty() && children.iter().all(Node::is_inline) {
+            trim_edge_text(&mut children);
+            children = vec![Node::Paragraph {
+                children,
+                source: None,
+            }];
+        }
+        Some(Node::Figure {
+            children,
+            caption: Some(caption),
+            source: None,
+        })
+    }
+
+    /// `<dl>`: `<dt>` starts a term, each `<dd>` adds a definition. `<div>`
+    /// wrappers (allowed by HTML) are walked through.
+    fn convert_definition_list(
+        &self,
+        el: scraper::ElementRef<'_>,
+        exclude: &[Selector],
+        depth: usize,
+    ) -> Option<Node> {
+        let mut items: Vec<DefinitionItem> = Vec::new();
+        self.collect_definitions(el, exclude, depth, &mut items);
+        items.retain(|i| !i.term.is_empty() || !i.definitions.is_empty());
+        if items.is_empty() {
+            return None;
+        }
+        Some(Node::DefinitionList {
+            items,
+            source: None,
+        })
+    }
+
+    fn collect_definitions(
+        &self,
+        el: scraper::ElementRef<'_>,
+        exclude: &[Selector],
+        depth: usize,
+        items: &mut Vec<DefinitionItem>,
+    ) {
+        if depth >= MAX_DEPTH {
+            return;
+        }
+        for child in el.children().filter_map(scraper::ElementRef::wrap) {
+            if self.is_excluded(&child, exclude) {
+                continue;
+            }
+            match child.value().name() {
+                "dt" => {
+                    let mut term = self.collect_inline(child, exclude, depth + 1);
+                    trim_edge_text(&mut term);
+                    if term.is_empty() {
+                        continue;
+                    }
+                    // Consecutive <dt>s share the following definitions.
+                    match items.last_mut() {
+                        Some(last) if last.definitions.is_empty() && !last.term.is_empty() => {
+                            last.term.push(Node::LineBreak);
+                            last.term.extend(term);
+                        }
+                        _ => items.push(DefinitionItem::new(term, Vec::new())),
+                    }
+                }
+                "dd" => {
+                    let mut nodes = Vec::new();
+                    self.convert_children(child, exclude, &mut nodes, depth + 1);
+                    let mut def = normalize_blocks(nodes);
+                    if def.iter().all(Node::is_inline) {
+                        trim_edge_text(&mut def);
+                    }
+                    if def.is_empty() {
+                        continue;
+                    }
+                    match items.last_mut() {
+                        Some(last) => last.definitions.push(def),
+                        None => items.push(DefinitionItem::new(Vec::new(), vec![def])),
+                    }
+                }
+                "div" => self.collect_definitions(child, exclude, depth + 1, items),
+                _ => {}
+            }
+        }
+    }
+
+    /// Footnote section: one `FootnoteDefinition` per `<li>` of its list.
+    fn convert_footnotes(
+        &self,
+        el: scraper::ElementRef<'_>,
+        exclude: &[Selector],
+        out: &mut Vec<Node>,
+        depth: usize,
+    ) {
+        let ol_sel = Selector::parse("ol").unwrap();
+        let Some(list) = (if el.value().name() == "ol" {
+            Some(el)
+        } else {
+            el.select(&ol_sel).next()
+        }) else {
+            return;
+        };
+        let mut n = 0usize;
+        for li in list.children().filter_map(scraper::ElementRef::wrap) {
+            if li.value().name() != "li" || self.is_excluded(&li, exclude) {
+                continue;
+            }
+            n += 1;
+            let label = li
+                .value()
+                .attr("id")
+                .and_then(|id| self.footnote_labels.borrow().get(id).cloned())
+                .unwrap_or_else(|| n.to_string());
+            let mut nodes = Vec::new();
+            self.convert_children(li, exclude, &mut nodes, depth + 1);
+            let mut children = normalize_blocks(nodes);
+            if children.iter().all(Node::is_inline) {
+                trim_edge_text(&mut children);
+                if !children.is_empty() {
+                    children = vec![Node::Paragraph {
+                        children,
+                        source: None,
+                    }];
+                }
+            }
+            if !children.is_empty() {
+                let mut def = Node::FootnoteDefinition {
+                    label,
+                    children,
+                    source: None,
+                };
+                self.mark_source(&mut def, li);
+                out.push(def);
+            }
+        }
+    }
+
+    /// `<a>` that is a footnote reference: record target and build the node.
+    fn footnote_reference(&self, el: scraper::ElementRef<'_>) -> Option<Node> {
+        let target = el.value().attr("href")?.strip_prefix('#')?;
+        let text: String = el.text().collect();
+        let text = text
+            .trim()
+            .trim_start_matches('[')
+            .trim_end_matches(']')
+            .trim();
+        let label = if text.is_empty() { target } else { text }.to_string();
+        self.footnote_labels
+            .borrow_mut()
+            .insert(target.to_string(), label.clone());
+        Some(Node::FootnoteReference { label })
     }
 
     fn collect_inline(
@@ -349,9 +750,23 @@ impl<'a> HtmlParser<'a> {
             {
                 let mut children = Vec::new();
                 self.convert_children(el, exclude, &mut children, depth + 1);
-                let children = normalize_blocks(children);
+                let mut children = normalize_blocks(children);
+                let checked = task_checkbox(el);
+                if checked.is_some() {
+                    if children.iter().all(Node::is_inline) {
+                        trim_edge_text(&mut children);
+                    } else if let Some(Node::Paragraph {
+                        children: first, ..
+                    }) = children.first_mut()
+                    {
+                        trim_edge_text(first);
+                    }
+                }
                 if !children.is_empty() {
-                    items.push(ListItem::new(children));
+                    items.push(match checked {
+                        Some(c) => ListItem::task(children, c),
+                        None => ListItem::new(children),
+                    });
                 }
             }
         }
@@ -367,18 +782,20 @@ impl<'a> HtmlParser<'a> {
         let thead_sel = Selector::parse("thead").unwrap();
         let tbody_sel = Selector::parse("tbody").unwrap();
         let tr_sel = Selector::parse("tr").unwrap();
-        let th_sel = Selector::parse("th").unwrap();
-        let td_sel = Selector::parse("td").unwrap();
 
-        let mut headers: Vec<Vec<Node>> = Vec::new();
-        let mut rows: Vec<Vec<Vec<Node>>> = Vec::new();
+        let mut headers: Vec<TableCell> = Vec::new();
+        let mut alignments: Vec<Alignment> = Vec::new();
+        let mut rows: Vec<Vec<TableCell>> = Vec::new();
 
         if let Some(thead) = table_el.select(&thead_sel).next()
             && let Some(tr) = thead.select(&tr_sel).next()
         {
-            for th in tr.select(&th_sel) {
-                headers.push(self.collect_inline(th, exclude, depth + 1));
-            }
+            let ths = row_cells(tr, &["th", "td"]);
+            alignments = column_alignments(&ths);
+            headers = ths
+                .into_iter()
+                .map(|th| self.table_cell(th, exclude, depth))
+                .collect();
         }
 
         let body_rows: Vec<scraper::ElementRef<'_>> =
@@ -389,19 +806,24 @@ impl<'a> HtmlParser<'a> {
             };
 
         for tr in body_rows {
-            if headers.is_empty() {
-                let ths: Vec<_> = tr.select(&th_sel).collect();
-                if !ths.is_empty() {
-                    for th in ths {
-                        headers.push(self.collect_inline(th, exclude, depth + 1));
-                    }
-                    continue;
-                }
+            let row = row_cells(tr, &["td", "th"]);
+            // A leading all-<th> row is the header.
+            if headers.is_empty()
+                && rows.is_empty()
+                && !row.is_empty()
+                && row.iter().all(|c| c.value().name() == "th")
+            {
+                alignments = column_alignments(&row);
+                headers = row
+                    .into_iter()
+                    .map(|th| self.table_cell(th, exclude, depth))
+                    .collect();
+                continue;
             }
 
-            let cells: Vec<Vec<Node>> = tr
-                .select(&td_sel)
-                .map(|td| self.collect_inline(td, exclude, depth + 1))
+            let cells: Vec<TableCell> = row
+                .into_iter()
+                .map(|td| self.table_cell(td, exclude, depth))
                 .collect();
 
             if !cells.is_empty() {
@@ -412,9 +834,155 @@ impl<'a> HtmlParser<'a> {
         if headers.is_empty() && rows.is_empty() {
             return None;
         }
+        if alignments.iter().all(|a| *a == Alignment::None) {
+            alignments.clear();
+        }
 
-        Some(Node::Table { headers, rows })
+        Some(Node::Table {
+            alignments,
+            headers,
+            rows,
+            source: None,
+        })
     }
+
+    fn table_cell(
+        &self,
+        cell: scraper::ElementRef<'_>,
+        exclude: &[Selector],
+        depth: usize,
+    ) -> TableCell {
+        let colspan = span_attr(cell, "colspan").map_or(1, |n| n.clamp(1, MAX_COLSPAN));
+        let rowspan = span_attr(cell, "rowspan").map_or(1, |n| {
+            if n == 0 {
+                MAX_ROWSPAN
+            } else {
+                n.min(MAX_ROWSPAN)
+            }
+        });
+        TableCell::new(self.collect_inline(cell, exclude, depth + 1)).with_span(colspan, rowspan)
+    }
+}
+
+/// Direct `th`/`td` children of a row (nested tables' cells excluded).
+fn row_cells<'a>(tr: scraper::ElementRef<'a>, names: &[&str]) -> Vec<scraper::ElementRef<'a>> {
+    tr.children()
+        .filter_map(scraper::ElementRef::wrap)
+        .filter(|c| names.contains(&c.value().name()))
+        .collect()
+}
+
+fn span_attr(cell: scraper::ElementRef<'_>, name: &str) -> Option<u32> {
+    let v = cell.value().attr(name)?.trim();
+    // Very long digit strings saturate instead of failing to parse.
+    let digits: String = v
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .take(10)
+        .collect();
+    if digits.is_empty() {
+        return None;
+    }
+    Some(
+        digits
+            .parse::<u64>()
+            .map_or(u32::MAX, |n| n.min(u32::MAX as u64) as u32),
+    )
+}
+
+/// Per-grid-column alignment from a header row (`align` attr or `text-align` style).
+fn column_alignments(cells: &[scraper::ElementRef<'_>]) -> Vec<Alignment> {
+    let mut out = Vec::new();
+    for cell in cells {
+        let a = cell_alignment(cell);
+        let span = span_attr(*cell, "colspan").map_or(1, |n| n.clamp(1, MAX_COLSPAN));
+        for _ in 0..span {
+            out.push(a);
+        }
+    }
+    out
+}
+
+fn cell_alignment(cell: &scraper::ElementRef<'_>) -> Alignment {
+    let from = |v: &str| match v.trim().to_ascii_lowercase().as_str() {
+        "left" | "start" => Alignment::Left,
+        "center" => Alignment::Center,
+        "right" | "end" => Alignment::Right,
+        _ => Alignment::None,
+    };
+    if let Some(style) = cell.value().attr("style") {
+        for decl in style.split(';') {
+            if let Some((k, v)) = decl.split_once(':')
+                && k.trim().eq_ignore_ascii_case("text-align")
+            {
+                return from(v);
+            }
+        }
+    }
+    cell.value().attr("align").map_or(Alignment::None, from)
+}
+
+/// Task-list checkbox leading a `<li>` (directly or inside its first `<p>`/`<label>`).
+fn task_checkbox(li: scraper::ElementRef<'_>) -> Option<bool> {
+    fn first_checkbox(el: scraper::ElementRef<'_>, nested: bool) -> Option<bool> {
+        for child in el.children() {
+            match child.value() {
+                HtmlNode::Text(t) if t.trim().is_empty() => continue,
+                HtmlNode::Element(e) => {
+                    if e.name() == "input" {
+                        return e
+                            .attr("type")
+                            .filter(|t| t.eq_ignore_ascii_case("checkbox"))
+                            .map(|_| e.attr("checked").is_some());
+                    }
+                    if !nested && matches!(e.name(), "p" | "label") {
+                        return first_checkbox(scraper::ElementRef::wrap(child)?, true);
+                    }
+                    return None;
+                }
+                HtmlNode::Comment(_) => continue,
+                _ => return None,
+            }
+        }
+        None
+    }
+    first_checkbox(li, false)
+}
+
+/// First `<math>` element inside a wrapper.
+fn find_math(el: scraper::ElementRef<'_>) -> Option<scraper::ElementRef<'_>> {
+    el.descendants()
+        .filter_map(scraper::ElementRef::wrap)
+        .find(|e| e.value().name() == "math")
+}
+
+fn has_class(el: &scraper::ElementRef<'_>, class: &str) -> bool {
+    el.value()
+        .attr("class")
+        .is_some_and(|c| c.split_whitespace().any(|x| x == class))
+}
+
+fn is_footnote_ref(el: &scraper::ElementRef<'_>) -> bool {
+    let v = el.value();
+    v.attr("data-footnote-ref").is_some()
+        || v.attr("role") == Some("doc-noteref")
+        || has_class(el, "footnote-ref")
+}
+
+fn is_footnote_backref(el: &scraper::ElementRef<'_>) -> bool {
+    let v = el.value();
+    v.attr("data-footnote-backref").is_some()
+        || v.attr("role") == Some("doc-backlink")
+        || has_class(el, "footnote-back")
+        || has_class(el, "footnote-backref")
+}
+
+fn is_footnote_section(el: &scraper::ElementRef<'_>) -> bool {
+    let v = el.value();
+    matches!(v.name(), "section" | "div" | "aside" | "ol")
+        && (v.attr("data-footnotes").is_some()
+            || matches!(v.attr("role"), Some("doc-endnotes" | "doc-footnotes"))
+            || has_class(el, "footnotes"))
 }
 
 /// Extract language identifier from a class like "language-rust" or "lang-python".
@@ -472,13 +1040,13 @@ fn collapse_whitespace(s: &str) -> String {
 /// drop whitespace-only inline runs and wrap the remaining inline runs in a
 /// `Paragraph` (edge whitespace trimmed). Pure-inline lists are returned as is.
 fn normalize_blocks(nodes: Vec<Node>) -> Vec<Node> {
-    if nodes.iter().all(is_inline) {
+    if nodes.iter().all(Node::is_inline) {
         return nodes;
     }
     let mut out = Vec::with_capacity(nodes.len());
     let mut run: Vec<Node> = Vec::new();
     for node in nodes {
-        if is_inline(&node) {
+        if node.is_inline() {
             run.push(node);
         } else {
             flush_inline_run(&mut run, &mut out);
@@ -493,7 +1061,10 @@ fn flush_inline_run(run: &mut Vec<Node>, out: &mut Vec<Node>) {
     let mut children = std::mem::take(run);
     trim_edge_text(&mut children);
     if !children.is_empty() {
-        out.push(Node::Paragraph { children });
+        out.push(Node::Paragraph {
+            children,
+            source: None,
+        });
     }
 }
 
@@ -524,21 +1095,6 @@ fn is_transparent_container(tag: &str) -> bool {
     matches!(
         tag,
         "div" | "section" | "article" | "main" | "figure" | "figcaption"
-    )
-}
-
-/// Check if a node is inline content.
-fn is_inline(node: &Node) -> bool {
-    matches!(
-        node,
-        Node::Text(_)
-            | Node::Bold { .. }
-            | Node::Italic { .. }
-            | Node::Strikethrough { .. }
-            | Node::InlineCode(_)
-            | Node::Link { .. }
-            | Node::Image { .. }
-            | Node::LineBreak
     )
 }
 

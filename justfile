@@ -54,14 +54,26 @@ test-one name:
 test-scripts:
     python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 
+# Regenerate schema/ir.schema.json from the IR types
+schema:
+    MARKKIT_UPDATE_SCHEMA=1 cargo test -p markkit --features json-schema --lib ir::tests::committed_schema_is_current
+
 # Run every example (CI runs this too)
 examples:
     #!/usr/bin/env bash
     set -euo pipefail
-    for ex in basic custom_selectors configuration ir_access; do
+    for ex in basic custom_selectors configuration ir_access transforms; do
         echo "── example: $ex"
         cargo run -q -p markkit --example "$ex"
     done
+    echo "── example: agent_tool"
+    cargo run -q -p markkit --features tool --example agent_tool
+
+# Build the WASM package and run its Node tests (needs wasm32 target + wasm-bindgen-cli)
+wasm:
+    bash scripts/install-wasm-bindgen.sh
+    bash crates/markkit-wasm/scripts/build.sh release
+    node --test crates/markkit-wasm/__test__/*.test.mjs
 
 # ─── Run ─────────────────────────────────────────────────────
 
@@ -79,13 +91,25 @@ extract-file path:
 
 # ─── Benchmarks ──────────────────────────────────────────────
 
-# Run criterion benchmarks for the core crate
-bench *args:
-    cargo bench -p markkit --bench extraction {{args}}
+# Run the benchmark harness and save JSON/Markdown results to crates/markkit-bench/results/
+bench:
+    cargo run -p markkit-bench --release -- --save
 
-# Run the markkit-bench harness (stub, not yet implemented)
-bench-harness *args:
+# Benchmark with more iterations for accuracy and save results
+bench-accurate:
+    cargo run -p markkit-bench --release -- --iterations 100 --warmup 10 --save
+
+# Exploratory run, nothing saved (e.g. just bench-quick --category html)
+bench-quick *args:
     cargo run -p markkit-bench --release -- {{args}}
+
+# List benchmark cases
+bench-list:
+    cargo run -p markkit-bench --release -- --list
+
+# Run criterion micro-benchmarks for the core crate
+bench-criterion *args:
+    cargo bench -p markkit --bench extraction {{args}}
 
 # ─── Eval ────────────────────────────────────────────────────
 

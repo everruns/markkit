@@ -17,6 +17,8 @@ examples/
   custom_selectors.rs  # include/exclude CSS selectors
   configuration.rs     # How builder options change output
   ir_access.rs         # Parse to IR, inspect nodes, render separately
+  agent_tool.rs        # LLM tool definition, system prompt, execution
+  transforms.rs        # Built-in and closure IR transform passes
 ```
 
 Examples live at the workspace root and are registered as `[[example]]` targets
@@ -47,6 +49,18 @@ Run one with `cargo run -p markkit --example <name>`, all with `just examples`.
 - `parse_html()` returns the IR `Document` (see [IR Specification](../foundations/ir.md))
 - Walk `Document.nodes`, match on `Node` variants
 - Render with `MarkdownRenderer` to show parse and render are separate stages
+
+### agent_tool.rs
+
+- Needs the `tool` feature (`required-features = ["html", "tool"]`)
+- Prints the OpenAI tool definition and system prompt, then executes model-style
+  arguments and prints `ToolOutput::result` (see [Tool Contract](../integrations/tool-contract.md))
+
+### transforms.rs
+
+- `transform(NormalizeHeadings)` shifts `h3`/`h4` to `#`/`##`
+- `transform::from_fn` + `Document::visit_mut` rewrites links in place
+- Prints the pass names (`config().transforms`) and the result
 
 ## Requirements
 

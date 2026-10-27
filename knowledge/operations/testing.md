@@ -23,7 +23,8 @@ tags:
 | `crates/markkit/tests/document_security.rs` | Zip bombs, grid amplification, XML entities, malformed containers |
 | `crates/markkit/tests/common/` | In-memory DOCX/XLSX/XLS/ODS fixture builders |
 | `crates/markkit-cli/tests/cli_integration.rs` | CLI flags and output |
-| `crates/markkit/benches/extraction.rs` | Criterion throughput benchmarks |
+| `crates/markkit/benches/extraction.rs` | Criterion micro-benchmarks |
+| `crates/markkit-bench/` | Benchmark harness; `cargo test` runs every case once |
 | `crates/markkit-eval/src/**` `#[cfg(test)]` | Eval dataset validity, check semantics, scorers, subject |
 
 Office fixtures are generated in code (`tests/common`), not committed binaries, so
@@ -38,7 +39,9 @@ each security test states exactly which bytes it feeds the parser.
   indentation between blocks never changes output
 - **Security**: one or more tests per mitigated threat; the
   [Threat Model](../security/threat-model.md) maps threats to test names
-- **Benchmarks**: `just bench` (criterion); `markkit-bench` harness is a stub
+- **Benchmarks**: `just bench` runs `markkit-bench` (ops/s, throughput, allocations)
+  and saves results; `just bench-criterion` for micro-benchmarks. See
+  [Performance Results](performance-results.md)
 - **Eval**: `just eval` scores extraction quality (mira study, not a gate); its
   unit tests run in `cargo test`. See [Evaluation Harness](eval.md)
 
@@ -62,3 +65,4 @@ tarpaulin coverage (`--engine llvm`; ptrace segfaults on threaded socket tests).
 - [Threat Model](../security/threat-model.md), threat-to-test map
 - [Examples](examples.md), runnable examples CI executes
 - [Maintenance](maintenance.md), periodic test-health review
+- [Performance Results](performance-results.md), benchmark harness and stored results

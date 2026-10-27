@@ -22,6 +22,7 @@ Markkit processes untrusted input from the internet. Key threats:
 - **Mitigation**: Processing time limits
 - **Mitigation**: Output size limits
 - **Mitigation**: Nesting depth limits
+- **Mitigation**: Table span layout bounded by a grid budget (spans dropped past it); see [Threat Model](threat-model.md) T2e
 
 ### TM-SSRF: Server-side request forgery (URL fetching)
 - **Mitigation**: Non-public addresses refused by default, after DNS resolution and on every redirect (opt in with `allow_private_networks`)

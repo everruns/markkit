@@ -28,7 +28,7 @@ use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::format::Format;
-use crate::ir::{Document, Node};
+use crate::ir::{Document, Node, Source, TableCell};
 use crate::render::escape_table_cell;
 
 pub(crate) struct SheetOutput {
@@ -218,10 +218,26 @@ fn fmt_ref(d: &DataRef<'_>) -> String {
 // ─── Grid collection (bounded) ──────────────────────────────────────
 
 struct SheetTable {
+    /// A1 range of the rendered block (bounding box of kept rows/columns).
+    range: String,
     header: Vec<String>,
     rows: Vec<Vec<String>>,
     truncated_rows: bool,
     truncated_cols: bool,
+}
+
+/// Column letters for a 0-based column index (`0` -> `A`, `26` -> `AA`).
+fn col_name(mut col: u32) -> String {
+    let mut out = Vec::new();
+    loop {
+        out.push(b'A' + (col % 26) as u8);
+        if col < 26 {
+            break;
+        }
+        col = col / 26 - 1;
+    }
+    out.reverse();
+    String::from_utf8(out).expect("ASCII")
 }
 
 /// Sparse, capped cell store: keeps the first `max_rows + 1` non-empty rows
@@ -288,6 +304,15 @@ impl Grid {
         } else {
             span
         };
+        let first_row = *self.rows.keys().next()?;
+        let last_row = *self.rows.keys().next_back()?;
+        let range = format!(
+            "{}{}:{}{}",
+            col_name(min_col),
+            first_row as u64 + 1,
+            col_name(min_col + (width as u32 - 1)),
+            last_row as u64 + 1
+        );
         let mut rows = self.rows.into_values().map(|cells| {
             let mut row = vec![String::new(); width];
             for (c, v) in cells {
@@ -300,6 +325,7 @@ impl Grid {
         });
         let header = rows.next()?;
         Some(SheetTable {
+            range,
             header,
             rows: rows.collect(),
             truncated_rows: self.truncated_rows,
@@ -355,6 +381,7 @@ impl<'c> Collector<'c> {
     fn push_sheet(&mut self, name: &str, grid: Grid) {
         let (max_rows, max_cols) = (grid.max_rows, grid.max_cols);
         let Some(SheetTable {
+            range,
             header,
             rows,
             truncated_rows: trunc_rows,
@@ -376,22 +403,27 @@ impl<'c> Collector<'c> {
         self.sheets += 1;
         self.rows += rows.len();
         let cell = |s: String| {
-            if s.is_empty() {
+            TableCell::new(if s.is_empty() {
                 vec![]
             } else {
                 vec![Node::Text(s)]
-            }
+            })
         };
+        let track = self.config.track_sources;
+        let src = |range: Option<String>| track.then(|| Box::new(Source::sheet(name, range)));
         self.nodes.push(Node::Heading {
             level: 2,
             children: vec![Node::Text(name.replace(['\r', '\n'], " "))],
+            source: src(None),
         });
         self.nodes.push(Node::Table {
+            alignments: Vec::new(),
             headers: header.into_iter().map(cell).collect(),
             rows: rows
                 .into_iter()
                 .map(|r| r.into_iter().map(cell).collect())
                 .collect(),
+            source: src(Some(range)),
         });
     }
 

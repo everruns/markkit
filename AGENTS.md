@@ -28,23 +28,30 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 | foundations/ir | Canonical IR between parsers and the markdown renderer |
 | formats/html-extraction | HTML element mapping, stripping, whitespace, depth limits |
 | formats/format-support | Formats, bytes-in API, detection order, DOCX + spreadsheet mapping |
+| integrations/tool-contract | `MarkkitTool` LLM tool (`tool` feature), Everruns toolkit contract |
 | security/security-model | One-page threat/invariant summary |
 | security/threat-model | Threats T1-T6, mitigations, test map, resource limits, invariants S1-S12 |
 | runtimes/python-package | PyO3 `markkit` module, maturin, PyPI |
+| runtimes/wasm-package | wasm-bindgen `@everruns/markkit-wasm`, browser/edge, build + tests |
 | runtimes/node-package | NAPI-RS `@everruns/markkit`, npm, binding parity table |
 | operations/testing | Test layout, categories, CI jobs |
 | operations/documentation | Doc trees and what each must cover |
 | operations/examples | `examples/` contents and requirements |
 | operations/maintenance | Maintenance invocation contract + checklist + workflow credential audit |
 | operations/release-process | Agent-driven release, crates.io + PyPI + npm |
+| operations/performance-results | Benchmark harness, metrics, committed results |
 | operations/eval | mira eval study: dataset, checks, metrics, baseline |
 
 ### Documentation
 
 - User docs: `README.md`, `docs/`
 - API reference: rustdoc in `crates/markkit/src/lib.rs` and modules
-- Binding READMEs (`crates/markkit-python/README.md`, `crates/markkit-js/README.md`) ship to PyPI/npm, keep them in sync with exports
+- Binding READMEs (`crates/markkit-python/README.md`, `crates/markkit-js/README.md`, `crates/markkit-wasm/README.md`) ship to PyPI/npm, keep them in sync with exports
 - Durable engineering knowledge: `knowledge/`, never `docs/`
+
+### Shipping
+
+"Ship" / "ship it" / "fix and ship" = landed on `main` via squash-merge, every CI check green on the PR and on the merge commit's `main` run, tested (positive, negative, security where relevant), smoke tested, knowledge/docs/CHANGELOG updated, ready to release. Use the `ship` skill. Not done at push, PR, or auto-merge; done when `main` is green. Red `main` after merge: fix forward immediately. Ship ≠ release: tag/publish only on "Create release" (`knowledge/operations/release-process.md`).
 
 ### Maintenance invocation
 
@@ -67,7 +74,8 @@ just lint          # clippy -D warnings
 just check         # fmt + clippy + test + knowledge + scripts + examples
 just check-okf     # knowledge/ OKF conformance
 just examples      # Run every example
-just bench         # Criterion benches (crates/markkit/benches)
+just bench         # Benchmark harness, saves results to crates/markkit-bench/results
+just bench-criterion # Criterion micro-benches (crates/markkit/benches)
 just pre-pr        # Pre-PR checks
 ```
 
@@ -77,10 +85,11 @@ just pre-pr        # Pre-PR checks
 |-------|---------|
 | `markkit` | Core extraction library (HTML, DOCX, spreadsheets) |
 | `markkit-cli` | `markkit` CLI |
-| `markkit-bench` | Benchmark harness (stub; real benches are criterion in `markkit`) |
+| `markkit-bench` | Benchmark harness: ops/s, throughput, allocations; results committed |
 | `markkit-eval` | Extraction-quality eval, mira study (`just eval`) |
 | `markkit-python` | Python bindings (PyO3), module `markkit` |
 | `markkit-js` | Node.js bindings (NAPI-RS), package `@everruns/markkit` |
+| `markkit-wasm` | Browser/edge WebAssembly (wasm-bindgen), package `@everruns/markkit-wasm` |
 
 ### Rust
 
@@ -98,6 +107,7 @@ just pre-pr        # Pre-PR checks
 5. Update knowledge if behavior or durable facts change; add a `knowledge/log.md` entry
 6. `CHANGELOG.md` Unreleased entry for user-facing changes
 7. CI green before merge; resolve all PR comments
+8. After merge: `main` CI green on the merge commit
 
 ### CI
 

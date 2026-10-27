@@ -45,6 +45,11 @@ enum Commands {
         /// Output as JSON with metadata
         #[arg(long)]
         json: bool,
+
+        /// Resolve relative links and images in files / stdin against this URL
+        /// (URLs use the final response URL)
+        #[arg(long)]
+        base_url: Option<String>,
     },
 }
 
@@ -61,6 +66,7 @@ async fn main() -> Result<()> {
             exclude_selectors,
             max_size,
             json: output_json,
+            base_url,
         } => {
             let read_stdin = stdin || source.as_deref() == Some("-");
 
@@ -77,34 +83,41 @@ async fn main() -> Result<()> {
                 builder = builder.exclude_selector(sel);
             }
 
+            if let Some(base) = base_url {
+                builder = builder.base_url(base);
+            }
+
             let markkit = builder.build();
 
             let source_label = source.clone().unwrap_or_else(|| "<stdin>".to_string());
 
-            let markdown = if read_stdin {
-                let mut buf = String::new();
-                std::io::stdin().read_to_string(&mut buf)?;
-                markkit.extract_html_sync(&buf)?
+            let extraction = if read_stdin {
+                let mut buf = Vec::new();
+                std::io::stdin().read_to_end(&mut buf)?;
+                markkit
+                    .extract_document_sync(&buf, markkit::DocumentHint::content_type("text/html"))?
             } else if file {
                 let src = source.as_deref().unwrap();
                 let bytes = tokio::fs::read(src).await?;
                 // Format detected from the extension, then magic bytes.
-                markkit
-                    .extract_document_sync(&bytes, markkit::DocumentHint::file_name(src))?
-                    .markdown
+                markkit.extract_document_sync(&bytes, markkit::DocumentHint::file_name(src))?
             } else {
-                let src = source.as_deref().unwrap();
-                markkit.extract_url(src).await?
+                markkit
+                    .extract_url_document(source.as_deref().unwrap())
+                    .await?
             };
 
             if output_json {
                 let output = serde_json::json!({
                     "source": source_label,
-                    "markdown": markdown,
+                    "markdown": extraction.markdown,
+                    "format": extraction.format,
+                    "title": extraction.title,
+                    "metadata": extraction.metadata,
                 });
                 println!("{}", serde_json::to_string_pretty(&output)?);
             } else {
-                print!("{markdown}");
+                print!("{}", extraction.markdown);
             }
         }
     }

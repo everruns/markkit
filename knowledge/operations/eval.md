@@ -119,16 +119,16 @@ accepted answer with code, sidebar), `changelog` (nested lists, strikethrough,
 issue links, CTA), `data` (captioned table with thead/tbody/tfoot), `legacy`
 (table layout, font tags, unclosed `<p>`, hit counter).
 
-## Baseline (2026-10-26)
+## Baseline (2026-10-27, main at IR v2)
 
-0/10 pages pass every check. Mean weighted rate 72.5%: completeness 92.3%,
-accuracy 100%, formatting 93.3%, noise 34.3%. Gaps found:
+0/10 pages pass every check. Mean weighted rate 73.6%: completeness 94.0%,
+accuracy 100%, formatting 95.6%, noise 34.3%. (First run, before IR v2:
+72.5%; row-header tables then collapsed to one column and dropped every
+`<td>`, fixed by IR v2 row-header `<th>` mapping.) Open gaps:
 
 - **Noise**: no readability heuristic, so `<aside>`, ad/promo/cookie/share/
   comment blocks and in-content chrome are kept (default excludes cover only
   `nav, footer, header, script, style, noscript`).
-- **Row-header tables** (`<tr><th>Weight</th><td>1.2 kg</td></tr>`) collapse
-  to one column and drop every `<td>` value (commerce, wiki infobox).
 - **`<tfoot>` and `<caption>`** are dropped (data).
 - **Inline edit links inside headings** leak into the heading text
   (`## Construction[[edit](...)]`).

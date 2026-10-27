@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
+  `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
+  canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and
+  JSON-LD. `markkit extract --json` includes `format`, `title` and `metadata`.
+- IR v2: footnotes (`[^1]`), definition lists (`Term` / `:   definition`), task lists (`- [x]`),
+  figures with captions, table column alignment (`:---:`) and `colspan`/`rowspan` (laid out on a
+  grid; GFM has no spans). HTML maps GitHub and Pandoc footnote markup, `<dl>`, checkbox list items,
+  `<figure>`/`<figcaption>` and table spans/alignment. Row-header `<th>` cells in table bodies are
+  no longer dropped.
+- `Document.ir_version` (`markkit::ir::IR_VERSION = 2`) is serialized with the IR JSON.
+- Relative URL resolution: links, images and metadata URLs resolve against the new
+  `MarkkitBuilder::base_url` (CLI `--base-url`) and the page's `<base href>`; `extract_url` uses
+  the final URL after redirects. Absolute and fragment-only URLs are left unchanged.
+- Math: `$tex$` and `$$` blocks from MathML (`application/x-tex` annotation), KaTeX and MathJax output.
+- IR transforms: `MarkkitBuilder::transform(..)` runs `Transform` passes after parsing and before
+  rendering, for every format. Built-ins `transform::NormalizeHeadings` and `transform::DropImages`;
+  `transform::from_fn` for closures; `Document::visit` / `visit_mut` to walk the tree.
+- JSON Schema for the IR at `schema/ir.schema.json`; `json-schema` feature adds `markkit::ir::json_schema()`.
+- Per-block provenance: `MarkkitBuilder::track_sources(true)` records a `Source` on each IR block
+  (HTML element XPath, DOCX body block index, spreadsheet sheet and A1 range) for citations.
+- `Markkit::parse_document` / `parse_document_sync` return the IR plus metadata (`ParsedDocument`)
+  for any supported format; `ParsedDocument::render()` produces the `Extraction`.
+- `tool` feature: `markkit::tool::MarkkitTool`, an LLM agent tool following the Everruns
+  toolkit-library contract (builder, OpenAI tool definition, input/output schemas, `tower::Service`,
+  single-use `ToolExecution`, `en-US`/`uk-UA` text). One call converts a `url`, `html` or base64
+  document to Markdown, with output capped by `max_output_chars`. Example: `examples/agent_tool.rs`.
+- `@everruns/markkit-wasm`: browser / edge WebAssembly package (`crates/markkit-wasm`), single-threaded,
+  no special headers. `Markkit` class (HTML, DOCX, XLSX/XLS/ODS with validated camelCase options) and
+  `MarkkitTool`. Built by `crates/markkit-wasm/scripts/build.sh`, published by `publish-wasm.yml`.
+- Node (`@everruns/markkit`): every function takes an optional trailing `options` object with all
+  builder settings (selectors, links/images, input, archive and sheet limits) and the URL policy
+  (`allowPrivateNetworks`, `allowedHosts`, `maxRedirects`, `maxProcessingSecs`). New
+  `extractDocument` / `extractDocumentSync` return Markdown with title, format, warnings, stats and
+  page metadata.
+- `Markkit::extract_url_document`: `extract_url` with format, title, warnings and stats.
+
 ### Security
 
 - `extract_url` (CLI, Python and Node `extract_url` too) now refuses non-public destinations by default:
@@ -16,14 +54,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   fetch by `max_processing_secs`. New builder options `allow_private_networks(true)` and `allow_host(..)`;
   refusals return the new `Error::UrlBlocked`.
 
+### Added
+
+- `markkit-bench` harness (`just bench`): per-case latency, ops/s, throughput, heap allocations and
+  peak heap, plus process peak RSS, over a generated HTML/DOCX/XLSX/ODS corpus. Runs are saved as
+  JSON + Markdown in `crates/markkit-bench/results/` and committed.
+
 ### Changed
 
+- **Breaking:** `Error` is `#[non_exhaustive]` (new `Error::Transform`); matches need a `_` arm.
+- **Breaking (IR API):** `Node`, `Document`, `ListItem` and the new IR structs are `#[non_exhaustive]`;
+  matches need a `_` arm and structs are built with constructors. `Node::Table` cells are now
+  `TableCell` (`children`, `colspan`, `rowspan`) with an `alignments` field. Block variants gain a
+  `source` field (use `..` in patterns, `Node::paragraph`/`Node::heading` to construct). DOCX `gridSpan` is
+  carried as `colspan`.
 - `markkit-eval` is now a [mira](https://github.com/everruns/mira) eval study. `just eval` runs
   `markkit_extract`, an offline extraction-quality eval over ten realistic HTML pages scored for
   completeness, accuracy, formatting and noise (needs `cargo install mira-cli`).
 - Design docs moved from `specs/` to an OKF v0.2 knowledge bundle in `knowledge/`, validated in CI.
 - CI workflows declare read-only default permissions and do not persist checkout credentials.
-- CI runs every example; `just bench` now runs the criterion benchmarks.
+- CI runs every example; criterion benchmarks run with `just bench-criterion`.
 - README, SECURITY and binding docs corrected: Python module is `markkit`.
 - Dependencies: drop unused `async-trait`, `futures`, `regex`, `unicode-segmentation`, `encoding_rs`,
   `base64`, `mime`, `lol_html` (core) and `tracing-subscriber`, plus unused deps of the CLI, bindings

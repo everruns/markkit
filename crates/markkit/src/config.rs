@@ -40,6 +40,16 @@ pub struct MarkkitBuilder {
     pub allowed_hosts: Vec<String>,
     /// Maximum redirects `extract_url` follows. Default: 5.
     pub max_redirects: usize,
+    /// Absolute URL that relative HTML links, images and metadata URLs resolve
+    /// against (a document `<base href>` applies on top). `extract_url` uses the
+    /// final response URL instead. Default: none (relative URLs kept as is).
+    pub base_url: Option<String>,
+    /// Record per-block provenance ([`crate::ir::Source`]) in the IR:
+    /// HTML element XPath, DOCX block index, spreadsheet sheet and range.
+    /// Default: false (no cost, no `source` in IR JSON).
+    pub track_sources: bool,
+    /// IR passes run after parsing, before rendering (see [`crate::transform`]).
+    pub transforms: crate::transform::TransformChain,
 }
 
 impl Default for MarkkitBuilder {
@@ -69,6 +79,9 @@ impl Default for MarkkitBuilder {
             allow_private_networks: false,
             allowed_hosts: Vec::new(),
             max_redirects: 5,
+            base_url: None,
+            track_sources: false,
+            transforms: Default::default(),
         }
     }
 }
@@ -91,6 +104,18 @@ impl MarkkitBuilder {
 
     pub fn preserve_images(mut self, yes: bool) -> Self {
         self.preserve_images = yes;
+        self
+    }
+
+    /// Record per-block provenance in the IR (see [`MarkkitBuilder::track_sources`] field).
+    pub fn track_sources(mut self, yes: bool) -> Self {
+        self.track_sources = yes;
+        self
+    }
+
+    /// Append an IR transform pass; passes run in registration order.
+    pub fn transform(mut self, t: impl crate::transform::Transform + 'static) -> Self {
+        self.transforms.push(t);
         self
     }
 
@@ -154,6 +179,13 @@ impl MarkkitBuilder {
 
     pub fn max_redirects(mut self, n: usize) -> Self {
         self.max_redirects = n;
+        self
+    }
+
+    /// Resolve relative HTML URLs against this absolute URL. Ignored when it
+    /// does not parse or cannot be a base (`data:`, `javascript:`, ...).
+    pub fn base_url(mut self, url: impl Into<String>) -> Self {
+        self.base_url = Some(url.into());
         self
     }
 

@@ -353,3 +353,44 @@ fn list_styles_resolve_numbering_and_switch_list_type() {
     .markdown;
     assert_eq!(out, "- one\n  - nested\n- two\n\n1. step a\n2. step b\n");
 }
+
+// ─── Provenance ──────────────────────────────────────────────────────
+
+#[test]
+fn sources_record_body_block_index() {
+    let body = format!(
+        "{}{}{}{}{}",
+        styled_para("Heading1", "Title"),
+        para(""),
+        list_para(1, 0, "one"),
+        list_para(1, 0, "two"),
+        para("After"),
+    );
+    let m = Markkit::builder().track_sources(true).build();
+    let p = m
+        .parse_document_sync(&docx(&body), DocumentHint::content_type(DOCX_CT))
+        .unwrap();
+    let idx: Vec<Option<usize>> = p
+        .document
+        .nodes
+        .iter()
+        .map(|n| n.source().and_then(|s| s.index))
+        .collect();
+    // Blank paragraph 1 is skipped but still counted.
+    assert_eq!(idx, vec![Some(0), Some(2), Some(4)]);
+    assert_eq!(p.render().markdown, md(&body));
+}
+
+#[test]
+fn transforms_apply_to_docx() {
+    let m = Markkit::builder()
+        .transform(markkit::transform::NormalizeHeadings)
+        .build();
+    let out = m
+        .extract_document_sync(
+            &docx(&styled_para("Heading3", "Deep")),
+            DocumentHint::content_type(DOCX_CT),
+        )
+        .unwrap();
+    assert_eq!(out.markdown, "# Deep\n");
+}

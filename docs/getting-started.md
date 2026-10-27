@@ -50,6 +50,22 @@ let doc = markkit.extract_document_sync(&bytes, hint)?;
 println!("{}", doc.markdown);
 ```
 
+## IR and provenance
+
+`parse_document_sync` returns the IR (`markkit::ir::Document`) plus metadata instead of
+Markdown. With `track_sources(true)` every block carries a `Source`: the element XPath
+for HTML, the body block index for DOCX, the sheet and A1 range for spreadsheets. Use it
+to cite where a chunk came from.
+
+```rust
+let markkit = Markkit::builder().track_sources(true).build();
+let parsed = markkit.parse_document_sync(&bytes, hint)?;
+for block in &parsed.document.nodes {
+    println!("{:?}", block.source());
+}
+let markdown = parsed.render().markdown;
+```
+
 ## Configuration
 
 ```rust
