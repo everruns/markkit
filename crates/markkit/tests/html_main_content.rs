@@ -144,3 +144,24 @@ fn non_content_elements_still_stripped() {
     let md = main(&html);
     assert!(!md.contains("alert") && !md.contains("<script") && !md.contains("<style"));
 }
+
+#[test]
+fn provenance_tracked_in_main_content_mode() {
+    let doc = Markkit::builder()
+        .main_content(true)
+        .track_sources(true)
+        .build()
+        .parse_html(&news_page())
+        .unwrap();
+    assert!(!doc.nodes.is_empty());
+    for node in &doc.nodes {
+        let path = node
+            .source()
+            .and_then(|s| s.path.clone())
+            .unwrap_or_default();
+        assert!(
+            path.starts_with("/html[1]/body[1]/"),
+            "{path:?} for {node:?}"
+        );
+    }
+}
