@@ -19,6 +19,7 @@ tags:
 | Byte input | `extract_bytes()` with content-type | Untrusted |
 | Document input | `extract_document()`, `extract_document_sync()` | Untrusted (bytes and `DocumentHint`) |
 | LLM tool arguments | `MarkkitTool::execution()` (tool feature) | Untrusted (model output); validated before execution, see [Tool Contract](../integrations/tool-contract.md) |
+| MCP messages | `markkit mcp` stdin (JSON-RPC lines) | Untrusted; line size capped, malformed input answered with errors, tool args go through `MarkkitTool`, see [MCP Server](../integrations/mcp-server.md) |
 | Configuration | `MarkkitBuilder` methods | Trusted (caller-controlled) |
 | CSS selectors | `include_selector()`, `exclude_selector()` | Semi-trusted (caller-provided) |
 

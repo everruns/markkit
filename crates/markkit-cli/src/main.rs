@@ -6,6 +6,8 @@ use std::time::Duration;
 use clap::{Args, Parser, Subcommand};
 use markkit::{Limits, Markkit};
 
+mod mcp;
+
 #[derive(Parser)]
 #[command(
     name = "markkit",
@@ -52,6 +54,27 @@ enum Commands {
         /// Keep only the detected main content (article body) of HTML pages
         #[arg(long)]
         main_content: bool,
+
+        #[command(flatten)]
+        limits: LimitArgs,
+    },
+    /// Serve the `markkit` tool over MCP (JSON-RPC on stdin/stdout)
+    Mcp {
+        /// Do not offer the `url` source (no network access)
+        #[arg(long)]
+        no_url: bool,
+
+        /// Maximum markdown characters returned per call
+        #[arg(long, default_value_t = markkit::tool::DEFAULT_MAX_OUTPUT_CHARS)]
+        max_output_chars: usize,
+
+        /// Keep only the detected main content (article body) of HTML pages
+        #[arg(long)]
+        main_content: bool,
+
+        /// Locale for tool descriptions and errors (en-US, uk-UA)
+        #[arg(long, default_value = "en-US")]
+        locale: String,
 
         #[command(flatten)]
         limits: LimitArgs,
@@ -133,6 +156,24 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Mcp {
+            no_url,
+            max_output_chars,
+            main_content,
+            locale,
+            limits,
+        } => {
+            let limits = limits.apply(Limits::default());
+            let max_message = mcp::max_message_bytes(limits.max_input_size);
+            let tool = markkit::tool::MarkkitTool::builder()
+                .locale(&locale)
+                .config(Markkit::builder().limits(limits).main_content(main_content))
+                .allow_url(!no_url)
+                .max_output_chars(max_output_chars)
+                .build();
+            let stdin = tokio::io::BufReader::new(tokio::io::stdin());
+            mcp::serve(&tool, stdin, tokio::io::stdout(), max_message).await?;
+        }
         Commands::Extract {
             source,
             file,
@@ -215,7 +256,9 @@ mod tests {
 
     fn limits_from(args: &[&str]) -> Limits {
         let cli = Cli::try_parse_from(["markkit", "extract", "x"].iter().chain(args)).unwrap();
-        let Commands::Extract { limits, .. } = cli.command;
+        let Commands::Extract { limits, .. } = cli.command else {
+            panic!("expected extract");
+        };
         limits.apply(Limits::default())
     }
 
