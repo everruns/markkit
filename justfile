@@ -54,6 +54,10 @@ test-one name:
 test-scripts:
     python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 
+# Regenerate schema/ir.schema.json from the IR types
+schema:
+    MARKKIT_UPDATE_SCHEMA=1 cargo test -p markkit --features json-schema --lib ir::tests::committed_schema_is_current
+
 # Run every example (CI runs this too)
 examples:
     #!/usr/bin/env bash
