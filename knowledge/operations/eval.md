@@ -12,11 +12,14 @@ tags:
 
 ## Status
 
-`markkit_extract` implemented: an offline, deterministic extraction-quality
-eval on the [mira](https://github.com/everruns/mira) eval framework. LLM-backed
-evals (LLM-as-judge, downstream QA over a model matrix) are planned as separate
-evals in the same study; see [Planned evals](#planned-evals). Modeled on
-everruns/bashkit's `bashkit-eval` study.
+Two evals on the [mira](https://github.com/everruns/mira) eval framework,
+modeled on everruns/bashkit's `bashkit-eval` study:
+
+- `markkit_extract`: offline, deterministic extraction quality.
+- `markkit_qa`: LLM answers questions from markkit output vs raw HTML, over a
+  key-gated model matrix; see [LLM QA Eval](#llm-qa-eval-markkit_qa).
+
+LLM-as-judge is planned; see [Planned evals](#planned-evals).
 
 ## Architecture
 
@@ -178,14 +181,42 @@ mira report <run_id>
 `just eval`, `just eval-list` wrap these. `mira run` exits non-zero while any
 page fails, which is expected until the gaps above close.
 
+## LLM QA Eval (`markkit_qa`)
+
+Downstream usefulness: does an LLM answer correctly from markkit's output, and
+at what token cost? Code: `src/qa.rs` (subject, scorer, eval) and
+`src/provider.rs` (HTTP clients).
+
+- **Samples**: `data/qa-tasks.jsonl`, 23 factual questions over the same ten
+  pages (`{"id", "page", "question", "answers"}`); tag = page name. A test
+  checks every question has an accepted answer literally on its page.
+- **`input` axis**: `markdown` (default markkit), `main_content`, `html` (raw
+  page, the baseline). The model gets `SYSTEM_PROMPT` (answer only from the
+  document, shortest answer, else `UNKNOWN`) and one user turn
+  `<document>...</document>` + question.
+- **Scorer** `answer_correct`: pass iff the reply contains an accepted answer
+  (case-insensitive, whitespace collapsed). Deterministic; no judge model.
+- **Metrics**: usage tokens, `doc_bytes`, `input_tokens`, latency. Compare
+  `input` values for accuracy vs input tokens.
+- **Targets** (maintainer decision 2026-10-27): `openrouter/meta/muse-spark-1.3-contributor`
+  (OpenRouter Chat Completions, `OPENROUTER_API_KEY`) and
+  `anthropic/claude-sonnet-5-5` (Messages API, `ANTHROPIC_API_KEY`). Key-gated:
+  unkeyed targets are skipped, so offline runs and CI stay green.
+- **Keys** live in Doppler: `doppler run -- just eval-llm`. Keys stay in the
+  study process (mira targets carry none) and are never logged; error texts
+  name the missing variable only. `ANTHROPIC_BASE_URL` / `OPENROUTER_BASE_URL`
+  override endpoints.
+- **Failures**: HTTP/provider errors and unknown inputs are infra (N/A);
+  a markkit extraction failure gives the model an empty document (scored).
+- **Status**: implemented and smoke-tested end to end against a local mock
+  endpoint; no keyed run yet (the default cloud environment has no Doppler
+  access and blocks `api.doppler.com` / `openrouter.ai`).
+
 ## Planned evals
 
 - **`markkit_judge`**: LLM-as-judge grading each page's markdown against its
   source HTML on the four metrics; judge model from the target matrix, gated on
   API-key env vars so an offline run skips it.
-- **`markkit_qa`**: downstream usefulness. A target model answers questions
-  about a page given markkit's markdown; an axis compares against raw HTML
-  input (accuracy and input tokens).
 - **More formats**: DOCX and spreadsheet pages through `extract_document_sync`.
 
 ## See also

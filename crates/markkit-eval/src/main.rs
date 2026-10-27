@@ -18,6 +18,11 @@ fn markkit_extract() -> Eval {
     mira_study::extract_eval()
 }
 
+#[eval]
+fn markkit_qa() -> Eval {
+    markkit_eval::qa::qa_eval()
+}
+
 fn main() -> std::io::Result<()> {
     mira::Study::registered().serve_blocking()
 }

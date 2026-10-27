@@ -1,0 +1,24 @@
+# markkit_qa dataset: one question per line over data/pages/. answers = accepted substrings (case-insensitive). See knowledge/operations/eval.md
+{"id": "news_article_q1", "page": "news_article.html", "question": "By how many acres will Riverside Park be expanded?", "answers": ["18"]}
+{"id": "news_article_q2", "page": "news_article.html", "question": "What was the council vote count?", "answers": ["7–2", "7-2", "7 to 2"]}
+{"id": "news_article_q3", "page": "news_article.html", "question": "How much is the project expected to cost?", "answers": ["14.2"]}
+{"id": "docs_page_q1", "page": "docs_page.html", "question": "What is the default request timeout?", "answers": ["30s", "30 s", "30 seconds"]}
+{"id": "docs_page_q2", "page": "docs_page.html", "question": "Which file does Tideline read its settings from?", "answers": ["tideline.toml"]}
+{"id": "docs_page_q3", "page": "docs_page.html", "question": "What happens to unknown configuration keys?", "answers": ["reject"]}
+{"id": "blog_post_q1", "page": "blog_post.html", "question": "How long did a clean CI build take before the migration?", "answers": ["47"]}
+{"id": "blog_post_q2", "page": "blog_post.html", "question": "What percentage of builds hit the remote cache after the migration?", "answers": ["92"]}
+{"id": "product_page_q1", "page": "product_page.html", "question": "How much does the backpack weigh?", "answers": ["1.2 kg", "1.2kg"]}
+{"id": "product_page_q2", "page": "product_page.html", "question": "What are the backpack's dimensions?", "answers": ["64"]}
+{"id": "product_page_q3", "page": "product_page.html", "question": "What is the price?", "answers": ["189"]}
+{"id": "recipe_q1", "page": "recipe.html", "question": "How much spaghetti does the recipe use?", "answers": ["350"]}
+{"id": "recipe_q2", "page": "recipe.html", "question": "What replaces the parmesan in the dairy-free version?", "answers": ["breadcrumb"]}
+{"id": "wiki_article_q1", "page": "wiki_article.html", "question": "Who was the architect of the lighthouse?", "answers": ["Sostratus"]}
+{"id": "wiki_article_q2", "page": "wiki_article.html", "question": "About how tall was the lighthouse?", "answers": ["100"]}
+{"id": "forum_thread_q1", "page": "forum_thread.html", "question": "How much extra space does the accepted solution use?", "answers": ["O(1)", "constant"]}
+{"id": "forum_thread_q2", "page": "forum_thread.html", "question": "What is the drawback of the recursive version?", "answers": ["stack", "recursion limit"]}
+{"id": "changelog_q1", "page": "changelog.html", "question": "Which issue number tracked the crash when pasting large images?", "answers": ["1182"]}
+{"id": "changelog_q2", "page": "changelog.html", "question": "What did the v2.3.1 security fix sanitize?", "answers": ["SVG"]}
+{"id": "data_table_q1", "page": "data_table.html", "question": "How many TWh did wind generate in Q4?", "answers": ["24.9"]}
+{"id": "data_table_q2", "page": "data_table.html", "question": "What was total generation in Q4, in TWh?", "answers": ["72.4"]}
+{"id": "legacy_layout_q1", "page": "legacy_layout.html", "question": "On which day does the club meet?", "answers": ["Tuesday"]}
+{"id": "legacy_layout_q2", "page": "legacy_layout.html", "question": "How much are the annual dues?", "answers": ["40"]}
