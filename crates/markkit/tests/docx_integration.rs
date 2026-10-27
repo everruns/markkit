@@ -380,3 +380,17 @@ fn sources_record_body_block_index() {
     assert_eq!(idx, vec![Some(0), Some(2), Some(4)]);
     assert_eq!(p.render().markdown, md(&body));
 }
+
+#[test]
+fn transforms_apply_to_docx() {
+    let m = Markkit::builder()
+        .transform(markkit::transform::NormalizeHeadings)
+        .build();
+    let out = m
+        .extract_document_sync(
+            &docx(&styled_para("Heading3", "Deep")),
+            DocumentHint::content_type(DOCX_CT),
+        )
+        .unwrap();
+    assert_eq!(out.markdown, "# Deep\n");
+}

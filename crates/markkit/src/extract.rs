@@ -170,8 +170,7 @@ impl Markkit {
 
         #[cfg(feature = "html")]
         {
-            let parser = crate::html::HtmlParser::new(&self.config);
-            let doc = parser.parse(html)?;
+            let doc = self.parse_html(html)?;
             let mut renderer = crate::render::MarkdownRenderer::new();
             Ok(renderer.render(&doc))
         }
@@ -192,7 +191,9 @@ impl Markkit {
             )));
         }
         let parser = crate::html::HtmlParser::new(&self.config);
-        parser.parse(html)
+        let mut doc = parser.parse(html)?;
+        self.config.transforms.apply(&mut doc)?;
+        Ok(doc)
     }
 
     /// Extract markdown from raw bytes, auto-detecting the format.
@@ -288,7 +289,8 @@ impl Markkit {
     fn parse_html_doc(&self, bytes: &[u8]) -> crate::Result<ParsedDocument> {
         let text = String::from_utf8_lossy(bytes);
         let parser = crate::html::HtmlParser::new(&self.config);
-        let (doc, page) = parser.parse_page(&text)?;
+        let (mut doc, page) = parser.parse_page(&text)?;
+        self.config.transforms.apply(&mut doc)?;
         let mut p = ParsedDocument::new(doc, Format::Html);
         p.title = page.title;
         p.metadata = page.metadata;
@@ -307,7 +309,9 @@ impl Markkit {
         let out = guarded("DOCX", Error::DocxExtract, || {
             crate::docx::parse(bytes, &self.config)
         })?;
-        let mut p = ParsedDocument::new(out.doc, Format::Docx);
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, Format::Docx);
         p.title = out.title;
         p.stats.paragraphs = Some(out.paragraphs);
         p.stats.tables = Some(out.tables);
@@ -326,7 +330,9 @@ impl Markkit {
         let out = guarded("spreadsheet", Error::SpreadsheetExtract, || {
             crate::spreadsheet::parse(bytes, &self.config)
         })?;
-        let mut p = ParsedDocument::new(out.doc, out.format);
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, out.format);
         p.title = out.title;
         p.warnings = out.warnings;
         p.stats.sheets = Some(out.sheets);

@@ -954,3 +954,74 @@ fn math_dollars_cannot_break_out() {
         r#"<p><math><annotation encoding="application/x-tex">a$ **b** $c</annotation></math></p>"#;
     assert_eq!(convert(html), "$a\\$ **b** \\$c$\n");
 }
+
+// ─── Transforms ──────────────────────────────────────────────────────
+
+#[test]
+fn transforms_run_in_order_for_extract_and_parse() {
+    use markkit::transform::{self, NormalizeHeadings};
+    let m = Markkit::builder()
+        .transform(NormalizeHeadings)
+        .transform(transform::from_fn("uppercase", |doc| {
+            doc.visit_mut(&mut |n| {
+                if let markkit::ir::Node::Text(t) = n {
+                    *t = t.to_uppercase();
+                }
+            });
+            Ok(())
+        }))
+        .build();
+    assert_eq!(
+        m.extract_html_sync("<h3>a</h3><h4>b</h4>").unwrap(),
+        "# A\n\n## B\n"
+    );
+    let doc = m.parse_html("<h2>x</h2>").unwrap();
+    assert!(matches!(
+        &doc.nodes[0],
+        markkit::ir::Node::Heading { level: 1, .. }
+    ));
+    assert_eq!(
+        format!("{:?}", m.config().transforms),
+        r#"["normalize-headings", "uppercase"]"#
+    );
+}
+
+#[test]
+fn transform_error_aborts_extraction() {
+    let m = Markkit::builder()
+        .transform(markkit::transform::from_fn("fail", |_| {
+            Err(markkit::Error::Transform("boom".into()))
+        }))
+        .build();
+    let err = m.extract_html_sync("<p>a</p>").unwrap_err();
+    assert!(
+        matches!(err, markkit::Error::Transform(ref m) if m == "boom"),
+        "{err}"
+    );
+}
+
+#[test]
+fn drop_images_transform() {
+    let m = Markkit::builder()
+        .transform(markkit::transform::DropImages)
+        .build();
+    assert_eq!(
+        m.extract_html_sync(r#"<p><img src="a.png"></p><p>t <img src="b.png"></p>"#)
+            .unwrap(),
+        "t\n"
+    );
+}
+
+#[test]
+fn transforms_apply_to_extract_document_html() {
+    let m = Markkit::builder()
+        .transform(markkit::transform::NormalizeHeadings)
+        .build();
+    let e = m
+        .extract_document_sync(
+            b"<h2>x</h2>",
+            markkit::DocumentHint::content_type("text/html"),
+        )
+        .unwrap();
+    assert_eq!(e.markdown, "# x\n");
+}

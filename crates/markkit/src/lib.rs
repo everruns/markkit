@@ -61,6 +61,7 @@ pub mod render;
 mod spreadsheet;
 #[cfg(feature = "tool")]
 pub mod tool;
+pub mod transform;
 #[cfg(any(feature = "docx", feature = "spreadsheet"))]
 #[cfg_attr(not(feature = "docx"), allow(dead_code))] // spreadsheet uses only `find`/`text`
 mod xml;
