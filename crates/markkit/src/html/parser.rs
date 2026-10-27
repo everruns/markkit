@@ -30,7 +30,10 @@ use crate::error::Error;
 use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, Source, TableCell};
 use crate::limits::Budget;
 
+use url::Url;
+
 use super::metadata::PageInfo;
+use super::urls;
 
 /// HTML-spec clamps for table spans.
 const MAX_COLSPAN: u32 = 1000;
@@ -51,6 +54,8 @@ pub struct HtmlParser<'a> {
     max_depth: usize,
     /// Footnote target id (without `#`) -> label, filled by references.
     footnote_labels: RefCell<HashMap<String, String>>,
+    /// Base for relative URLs (caller base, then the document `<base href>`).
+    base: Option<Url>,
     /// Cached 1-based index of an element among same-name element siblings.
     sibling_index: RefCell<HashMap<NodeId, usize>>,
 }
@@ -63,6 +68,7 @@ impl<'a> HtmlParser<'a> {
             budget: BudgetRef::Owned(Budget::new(&config.limits)),
             max_depth: config.limits.nesting_depth(),
             footnote_labels: RefCell::new(HashMap::new()),
+            base: urls::parse_base(config.base_url.as_deref()),
             sibling_index: RefCell::new(HashMap::new()),
         }
     }
@@ -73,6 +79,7 @@ impl<'a> HtmlParser<'a> {
             budget: BudgetRef::Borrowed(budget),
             max_depth: config.limits.nesting_depth(),
             footnote_labels: RefCell::new(HashMap::new()),
+            base: urls::parse_base(config.base_url.as_deref()),
             sibling_index: RefCell::new(HashMap::new()),
         }
     }
@@ -92,10 +99,31 @@ impl<'a> HtmlParser<'a> {
     /// Parse an HTML string into a [`Document`] plus page title and metadata.
     pub(crate) fn parse_page(&self, html: &str) -> Result<(Document, PageInfo), Error> {
         let dom = Html::parse_document(html);
-        Ok((self.parse_dom(&dom)?, super::metadata::extract(&dom)))
+        let this = self.for_document(&dom);
+        Ok((
+            this.convert_dom(&dom)?,
+            super::metadata::extract(&dom, this.base.as_ref()),
+        ))
     }
 
     fn parse_dom(&self, dom: &Html) -> Result<Document, Error> {
+        self.for_document(dom).convert_dom(dom)
+    }
+
+    /// Parser whose base includes the document's `<base href>`; shares this
+    /// parser's budget.
+    fn for_document(&self, dom: &Html) -> HtmlParser<'_> {
+        HtmlParser {
+            config: self.config,
+            budget: BudgetRef::Borrowed(self.budget()),
+            max_depth: self.max_depth,
+            footnote_labels: RefCell::new(HashMap::new()),
+            sibling_index: RefCell::new(HashMap::new()),
+            base: urls::document_base(dom, self.base.clone()),
+        }
+    }
+
+    fn convert_dom(&self, dom: &Html) -> Result<Document, Error> {
         // html5ever is not interruptible: check right after it finishes.
         self.budget().check_time()?;
         self.budget().add_nodes(dom.tree.nodes().count())?;
@@ -429,7 +457,7 @@ impl<'a> HtmlParser<'a> {
                         })
                     };
                 }
-                let url = el.value().attr("href").unwrap_or("").to_string();
+                let url = urls::resolve(self.base.as_ref(), el.value().attr("href").unwrap_or(""));
                 let title = el.value().attr("title").map(|s| s.to_string());
                 let children = self.collect_inline(el, exclude, depth);
                 if children.is_empty() {
@@ -446,7 +474,7 @@ impl<'a> HtmlParser<'a> {
                 if !self.config.preserve_images {
                     return None;
                 }
-                let src = el.value().attr("src").unwrap_or("").to_string();
+                let src = urls::resolve(self.base.as_ref(), el.value().attr("src").unwrap_or(""));
                 let alt = el.value().attr("alt").unwrap_or("").to_string();
                 Some(Node::Image { src, alt })
             }

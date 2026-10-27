@@ -379,6 +379,8 @@ impl Markkit {
     /// [`MarkkitBuilder::allow_host`] restricts hosts; redirects capped by
     /// `max_redirects`; body capped by `max_input_size`; fetch, parse and render
     /// together capped by `limits.timeout` ([`Error::ResourceLimit`]).
+    ///
+    /// Relative links and images resolve against the final URL after redirects.
     #[cfg(feature = "http_client")]
     pub async fn extract_url(&self, url: &str) -> crate::Result<String> {
         self.extract_url_document(url).await.map(|e| e.markdown)
@@ -387,13 +389,16 @@ impl Markkit {
     /// [`Markkit::extract_url`] with metadata (format, title, warnings, stats).
     ///
     /// The response `Content-Type` is the format hint; same URL policy and limits.
+    /// Relative HTML URLs resolve against the final URL after redirects.
     #[cfg(feature = "http_client")]
     pub async fn extract_url_document(&self, url: &str) -> crate::Result<Extraction> {
         let start = std::time::Instant::now();
         let fetched = crate::fetch::fetch(url, &self.config).await?;
         // Fetch, parse and render share one `timeout` budget.
         let budget = Budget::starting_at(&self.config.limits, start);
-        self.extract_document_with(
+        let mut config = self.config.clone();
+        config.base_url = Some(fetched.url);
+        Markkit::new(config).extract_document_with(
             &fetched.bytes,
             DocumentHint {
                 content_type: fetched.content_type.as_deref(),

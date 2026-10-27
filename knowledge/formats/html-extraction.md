@@ -183,9 +183,22 @@ JSON-LD nodes are the top-level value, array members and `@graph` members; artic
 `@type`s (`Article`, `NewsArticle`, `BlogPosting`, ...) are consulted first.
 
 Untrusted-input rules: values are whitespace-collapsed, control characters dropped,
-capped at 2048 chars. URL fields keep only `http(s)` or scheme-less (relative, not yet
-resolved) values. JSON-LD: first 16 scripts, each at most 1 MiB, at most 256 nodes;
+capped at 2048 chars. URL fields keep only `http(s)` or scheme-less values; the latter
+are resolved like links (below). JSON-LD: first 16 scripts, each at most 1 MiB, at most 256 nodes;
 serde_json's 128-level recursion limit bounds nesting; invalid JSON is ignored.
+
+## Relative URL Resolution
+
+`html/urls.rs`. Applies to `Link.url`, `Image.src`, `metadata.canonical_url`, `metadata.image`.
+
+- Base: `MarkkitBuilder::base_url` (CLI `--base-url`); `extract_url` / `extract_url_document`
+  use the final response URL after redirects. The first `<base href>` resolves on top of it.
+- Caller base must parse and be able to act as a base (`data:`, `javascript:` cannot), else
+  ignored. Page `<base href>` accepted only when the result is `http(s)` (no `file:` rebasing
+  by untrusted markup); a relative `<base>` without a caller base is ignored.
+- Rewritten: scheme-less references only (`x.png`, `../a`, `/r`, `//cdn/x`, `?q`).
+- Untouched, byte-for-byte: absolute URLs of any scheme (incl. `javascript:`, `data:`,
+  `mailto:`), empty, fragment-only `#id`. No base → nothing changes.
 
 ## Edge Cases
 
@@ -193,7 +206,7 @@ serde_json's 128-level recursion limit bounds nesting; invalid JSON is ignored.
 - Tables within tables: outer table parsed; inner table content may appear as text
 - Inline SVG: stripped entirely (non-content element)
 - Data URIs: preserved as-is in `src`/`href` attributes (no execution in markdown)
-- Relative URLs: preserved as-is (no resolution)
+- Relative URLs: resolved only when a base is known, see Relative URL Resolution
 - Character encoding: `String::from_utf8_lossy` for byte input; html5ever handles encoding within HTML
 - Null bytes: replaced with U+FFFD by html5ever
 - Unclosed/mismatched tags: html5ever auto-repairs per HTML5 spec

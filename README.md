@@ -77,8 +77,11 @@ markkit extract --file document.html
 # With CSS selector filtering
 markkit extract https://example.com --include "article" --exclude "nav,footer"
 
-# JSON output; files and stdin also carry format, title and page metadata
-markkit extract --file page.html --json
+# JSON output with format, title and page metadata
+markkit extract https://example.com --json
+
+# Resolve relative links in a saved page
+markkit extract --file page.html --base-url https://example.com/blog/
 
 # From stdin
 cat page.html | markkit extract -

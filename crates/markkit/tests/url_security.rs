@@ -144,6 +144,31 @@ async fn private_networks_reachable_when_allowed() {
     assert_eq!(private_ok().extract_url(&base).await.unwrap(), "# Hi\n");
 }
 
+#[tokio::test]
+async fn relative_urls_resolve_against_final_url_after_redirect() {
+    let (base, _) = serve(|path| {
+        if path == "/start" {
+            redirect("/docs/guide/page")
+        } else {
+            html(
+                r#"<head><title>T</title><link rel=canonical href="/c"></head>
+                <body><p><a href="next">n</a> <img src="../i.png" alt="i"></p></body>"#,
+            )
+        }
+    })
+    .await;
+    let e = private_ok()
+        .extract_url_document(&format!("{base}/start"))
+        .await
+        .unwrap();
+    assert_eq!(
+        e.markdown,
+        format!("[n]({base}/docs/guide/next) ![i]({base}/docs/i.png)\n")
+    );
+    assert_eq!(e.title.as_deref(), Some("T"));
+    assert_eq!(e.metadata.canonical_url, Some(format!("{base}/c")));
+}
+
 // ─── Host allowlist ─────────────────────────────────────────────────
 
 #[tokio::test]

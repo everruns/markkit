@@ -31,6 +31,8 @@ use crate::error::Error;
 pub(crate) struct Fetched {
     pub bytes: Vec<u8>,
     pub content_type: Option<String>,
+    /// Final URL after redirects.
+    pub url: String,
 }
 
 /// Per-call slot for the first block reason seen inside reqwest.
@@ -63,6 +65,7 @@ pub(crate) async fn fetch(url: &str, cfg: &MarkkitBuilder) -> crate::Result<Fetc
             .get(reqwest::header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
             .map(str::to_string);
+        let final_url = response.url().to_string();
         let mut bytes = Vec::new();
         while let Some(chunk) = response.chunk().await? {
             if bytes.len() + chunk.len() > limit {
@@ -75,6 +78,7 @@ pub(crate) async fn fetch(url: &str, cfg: &MarkkitBuilder) -> crate::Result<Fetc
         Ok(Ok(Fetched {
             bytes,
             content_type,
+            url: final_url,
         }))
     };
 

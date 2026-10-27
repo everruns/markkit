@@ -40,6 +40,8 @@ tags:
 - Form elements (`<form>`, `<input>`, `<button>`, `<select>`, `<textarea>`) stripped
 - Page metadata (`Extraction::metadata`): URL fields drop non-`http(s)` schemes
   (`javascript:`, `data:`); values single-line and capped at 2048 chars
+- URL resolution rewrites only scheme-less references, so absolute URLs reach the output
+  unchanged; a page `<base href>` cannot rebase onto non-`http(s)` schemes
 
 **Test Coverage**:
 - `html_security::xss_script_tag`
@@ -52,6 +54,7 @@ tags:
 - `html_proptest::no_script_tags_in_output`
 - `html_proptest::no_style_tags_in_output`
 - `html_metadata::dangerous_url_schemes_dropped`, `values_are_single_line_and_capped`, `html_proptest::metadata_values_single_line`
+- `html_urls::absolute_dangerous_schemes_pass_through_untouched`, `page_base_cannot_switch_to_local_or_script_scheme`, `invalid_caller_base_ignored`
 
 ### T2: Denial of Service (Resource Exhaustion)
 
@@ -295,7 +298,7 @@ process, or smuggling content past a human reviewer.
 |----------|---------|----------|
 | XSS script tags | `<script>alert(1)</script>` | Stripped (non-content element) |
 | Event handlers | `<p onclick="...">` | Attribute not read |
-| JavaScript URLs | `<a href="javascript:...">` | URL preserved as-is in markdown (no execution context) |
+| JavaScript URLs | `<a href="javascript:...">` | URL preserved as-is in markdown (no execution context); never rewritten by base resolution |
 | Data URI payloads | `<img src="data:text/html,...">` | Rendered as markdown image (no execution) |
 | Style expressions | `style="background:url(javascript:...)"` | Attribute not read |
 | Deep nesting | 1000+ nested `<div>` | Flattened to text at `max_nesting_depth` (256) |
@@ -309,6 +312,7 @@ process, or smuggling content past a human reviewer.
 | SVG with scripts | `<svg onload="...">` | SVG element stripped entirely |
 | iframe injection | `<iframe src="evil">` | iframe stripped entirely |
 | Form injection | `<form><input>` | Form elements stripped |
+| Base hijack | `<base href="file:///etc/">` | Ignored: page base must resolve to `http(s)` |
 
 ## Security Invariants
 
