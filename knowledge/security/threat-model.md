@@ -97,6 +97,12 @@ tags:
 - Tests: `html_metadata::deeply_nested_json_ld_does_not_overflow`,
   `oversized_json_ld_skipped`, `many_json_ld_scripts_bounded`, `malformed_json_ld_ignored`
 
+#### T2g: Main-Content Scoring
+- One iterative DOM traversal (no recursion); scored paragraphs are leaf blocks, so text
+  measurement is linear; link density only for the top 10 candidates and the winner's siblings
+- Tests: `html_main_content::deep_nesting_does_not_overflow`, `many_paragraphs_stay_linear`,
+  `many_sibling_containers_stay_bounded`, `non_content_elements_still_stripped`
+
 **Test Coverage**:
 - `html_security::deeply_nested_elements`
 - `html_security::very_long_text_node`

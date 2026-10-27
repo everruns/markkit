@@ -6,6 +6,8 @@
 
 ## 2026-10-26
 
+* **Main content**: opt-in Readability-style detection (`main_content`, CLI `--main-content`) keeps the article body and drops sidebars, comments, share bars; falls back to the full body when nothing scores. Algorithm in [HTML Extraction](formats/html-extraction.md); bounds in [Threat Model](security/threat-model.md) T2g.
+
 * **Relative URLs**: links, images and metadata URLs resolve against `base_url` (or the final `extract_url` response URL) plus `<base href>`. Only scheme-less references change; page bases are limited to `http(s)`. New `extract_url_document`. See [HTML Extraction](formats/html-extraction.md) and [Threat Model](security/threat-model.md) T1.
 * **Transforms**: `transform::Transform` passes between parse and render (`MarkkitBuilder::transform`), built-ins `NormalizeHeadings` / `DropImages`, `from_fn`, IR walkers. `Error` is now `#[non_exhaustive]` with `Error::Transform`. See [Markkit Architecture](foundations/architecture.md), [Examples](operations/examples.md).
 

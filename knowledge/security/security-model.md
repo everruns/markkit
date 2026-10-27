@@ -16,6 +16,7 @@ Markkit processes untrusted input from the internet. Key threats:
 ### TM-INJ: Injection via extracted content
 - **Mitigation**: All output is markdown text; no code execution
 - **Mitigation**: Strip script/style/event handler content
+- **Mitigation**: Metadata URL fields drop non-http(s) schemes; base resolution never rewrites absolute URLs and a page `<base>` must be http(s); see [Threat Model](threat-model.md) T1
 
 ### TM-DOS: Denial of service
 - **Mitigation**: Input size limits
@@ -23,6 +24,7 @@ Markkit processes untrusted input from the internet. Key threats:
 - **Mitigation**: Output size limits
 - **Mitigation**: Nesting depth limits
 - **Mitigation**: Table span layout bounded by a grid budget (spans dropped past it); see [Threat Model](threat-model.md) T2e
+- **Mitigation**: JSON-LD metadata bounded (script count/size, node count, nesting) and main-content scoring linear and non-recursive; see [Threat Model](threat-model.md) T2f, T2g
 
 ### TM-SSRF: Server-side request forgery (URL fetching)
 - **Mitigation**: Non-public addresses refused by default, after DNS resolution and on every redirect (opt in with `allow_private_networks`)

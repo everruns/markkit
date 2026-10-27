@@ -80,6 +80,9 @@ markkit extract https://example.com --include "article" --exclude "nav,footer"
 # JSON output with format, title and page metadata
 markkit extract https://example.com --json
 
+# Keep only the article body (drops sidebars, comments, share bars)
+markkit extract https://example.com/post --main-content
+
 # Resolve relative links in a saved page
 markkit extract --file page.html --base-url https://example.com/blog/
 

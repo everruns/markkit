@@ -50,6 +50,10 @@ pub struct MarkkitBuilder {
     pub track_sources: bool,
     /// IR passes run after parsing, before rendering (see [`crate::transform`]).
     pub transforms: crate::transform::TransformChain,
+    /// Keep only the detected main content (article body) of HTML pages,
+    /// Readability-style. Include selectors win; falls back to the full body when
+    /// nothing scores. Default: false.
+    pub main_content: bool,
 }
 
 impl Default for MarkkitBuilder {
@@ -82,6 +86,7 @@ impl Default for MarkkitBuilder {
             base_url: None,
             track_sources: false,
             transforms: Default::default(),
+            main_content: false,
         }
     }
 }
@@ -186,6 +191,13 @@ impl MarkkitBuilder {
     /// does not parse or cannot be a base (`data:`, `javascript:`, ...).
     pub fn base_url(mut self, url: impl Into<String>) -> Self {
         self.base_url = Some(url.into());
+        self
+    }
+
+    /// Extract only the detected main content of HTML pages (drops sidebars,
+    /// comments, share bars and other boilerplate).
+    pub fn main_content(mut self, yes: bool) -> Self {
+        self.main_content = yes;
         self
     }
 
