@@ -1,0 +1,1317 @@
+{
+  "cases": [
+    {
+      "aggregate": 0.8254545454545456,
+      "eval": "markkit_extract",
+      "input": [
+        "News article with cookie banner, site nav, inline ad, newsletter form, related-stories aside and footer"
+      ],
+      "params": {
+        "mode": "default"
+      },
+      "passed": false,
+      "sample": "news_article",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "15/21 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 40%); failed: not_contains \"We use cookies\"; not_contains \"Refinance today\"; not_contains \"Advertisement\"; not_contains \"Related stories\"; not_contains \"New bike lanes\"; not_contains \"Get the morning briefing\"",
+          "scorer": "markkit_expectations",
+          "value": 0.7272727272727273
+        },
+        {
+          "pass": true,
+          "reason": "6/6 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "2/2 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "3/3 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "4/10 checks passed; failed: not_contains \"We use cookies\"; not_contains \"Refinance today\"; not_contains \"Advertisement\"; not_contains \"Related stories\"; not_contains \"New bike lanes\"; not_contains \"Get the morning briefing\"",
+          "scorer": "noise",
+          "value": 0.4
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "We use cookies to improve your experience. [Privacy policy](/privacy)\n\n# City Council Approves Riverside Park Expansion\n\nBy [Maria Chen](/authors/maria-chen) · March 14, 2026\n\n![Aerial view of Riverside Park](https://cdn.harborgazette.test/img/riverside-park.jpg)\n\n*The current park covers 42 acres along the east bank.*\n\nThe city council voted 7–2 on Tuesday to expand Riverside Park by **18 acres**, converting a former rail yard into wetlands and walking trails.\n\nAdvertisement[Refinance today at 2.9% APR](https://ads.example.test/click?id=991)\n\nThe project is expected to cost $14.2 million, with most of the funding coming from a state conservation grant approved last year.\n\n> This is the largest addition to our public green space in fifty years.\n\nConstruction will begin in the fall and is scheduled to finish by *spring 2028*. Residents can review the plans at the [city parks website](https://harbor.test/parks/riverside).\n\n## What happens to the rail yard\n\nContaminated soil will be removed in the first phase. The two historic signal towers will be preserved as observation decks.\n\n### Get the morning briefing\n\n## Related stories\n - [New bike lanes open downtown](/local/bike-lanes)\n- [Council debates 2027 budget](/local/budget)\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 2118.0,
+          "input_bytes": 2918.0,
+          "output_bytes": 1247.0,
+          "size_ratio": 0.4273474982864976
+        },
+        "timing": {
+          "duration_ms": 2
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_extract",
+      "input": [
+        "News article with cookie banner, site nav, inline ad, newsletter form, related-stories aside and footer"
+      ],
+      "params": {
+        "mode": "main_content"
+      },
+      "passed": true,
+      "sample": "news_article",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "21/21 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 100%)",
+          "scorer": "markkit_expectations",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "6/6 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "2/2 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "3/3 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "10/10 checks passed",
+          "scorer": "noise",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# City Council Approves Riverside Park Expansion\n\nBy [Maria Chen](/authors/maria-chen) · March 14, 2026\n\n![Aerial view of Riverside Park](https://cdn.harborgazette.test/img/riverside-park.jpg)\n\n*The current park covers 42 acres along the east bank.*\n\nThe city council voted 7–2 on Tuesday to expand Riverside Park by **18 acres**, converting a former rail yard into wetlands and walking trails.\n\nThe project is expected to cost $14.2 million, with most of the funding coming from a state conservation grant approved last year.\n\n> This is the largest addition to our public green space in fifty years.\n\nConstruction will begin in the fall and is scheduled to finish by *spring 2028*. Residents can review the plans at the [city parks website](https://harbor.test/parks/riverside).\n\n## What happens to the rail yard\n\nContaminated soil will be removed in the first phase. The two historic signal towers will be preserved as observation decks.\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 2300.0,
+          "input_bytes": 2918.0,
+          "output_bytes": 943.0,
+          "size_ratio": 0.3231665524331734
+        },
+        "timing": {
+          "duration_ms": 2
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.8476190476190476,
+      "eval": "markkit_extract",
+      "input": [
+        "Docs page with sidebar nav, option table, TOML and Rust code blocks, callout, edit link and pager"
+      ],
+      "params": {
+        "mode": "default"
+      },
+      "passed": false,
+      "sample": "docs_page",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "16/20 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 43%); failed: not_contains \"Quickstart\"; not_contains \"Edit this page\"; not_contains \"Last updated\"; not_contains \"Previous:\"",
+          "scorer": "markkit_expectations",
+          "value": 0.8095238095238095
+        },
+        {
+          "pass": true,
+          "reason": "4/4 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "3/3 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "6/6 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "3/7 checks passed; failed: not_contains \"Quickstart\"; not_contains \"Edit this page\"; not_contains \"Last updated\"; not_contains \"Previous:\"",
+          "scorer": "noise",
+          "value": 0.42857142857142855
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# Configuration\n\nTideline reads its settings from `tideline.toml` in the project root. Every key is optional.\n\n## Options\n\n| Key | Type | Default | Description |\n| --- | --- | --- | --- |\n| `workers` | integer | 4 | Number of worker threads |\n| `timeout` | string | 30s | Request timeout |\n| `retry` | boolean | true | Retry failed requests once |\n\n## Example\n\n```toml\n[server]\nworkers = 8\ntimeout = \"45s\"\n\n[cache]\nenabled = true\n```\n\n## Loading from code\n\nUse `Config::load` to read the file manually:\n\n```rust\nuse tideline::Config;\n\nfn main() -> anyhow::Result<()> {\n    let cfg = Config::load(\"tideline.toml\")?;\n    println!(\"{} workers\", cfg.workers);\n    Ok(())\n}\n```\n\n**Warning:** unknown keys are rejected at startup.\n\nSee [environment variables](/docs/env) to override settings per deployment.\n\n[Edit this page on GitHub](https://github.test/tideline/docs/edit/main/config.md) Last updated on Feb 2, 2026  [← Previous: Quickstart](/docs/quickstart) [Next: Environment →](/docs/env)\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1972.0,
+          "input_bytes": 2223.0,
+          "output_bytes": 994.0,
+          "size_ratio": 0.4471434997750787
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.9238095238095236,
+      "eval": "markkit_extract",
+      "input": [
+        "Docs page with sidebar nav, option table, TOML and Rust code blocks, callout, edit link and pager"
+      ],
+      "params": {
+        "mode": "main_content"
+      },
+      "passed": false,
+      "sample": "docs_page",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "18/20 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 71%); failed: not_contains \"Edit this page\"; not_contains \"Last updated\"",
+          "scorer": "markkit_expectations",
+          "value": 0.9047619047619048
+        },
+        {
+          "pass": true,
+          "reason": "4/4 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "3/3 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "6/6 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "5/7 checks passed; failed: not_contains \"Edit this page\"; not_contains \"Last updated\"",
+          "scorer": "noise",
+          "value": 0.7142857142857143
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# Configuration\n\nTideline reads its settings from `tideline.toml` in the project root. Every key is optional.\n\n## Options\n\n| Key | Type | Default | Description |\n| --- | --- | --- | --- |\n| `workers` | integer | 4 | Number of worker threads |\n| `timeout` | string | 30s | Request timeout |\n| `retry` | boolean | true | Retry failed requests once |\n\n## Example\n\n```toml\n[server]\nworkers = 8\ntimeout = \"45s\"\n\n[cache]\nenabled = true\n```\n\n## Loading from code\n\nUse `Config::load` to read the file manually:\n\n```rust\nuse tideline::Config;\n\nfn main() -> anyhow::Result<()> {\n    let cfg = Config::load(\"tideline.toml\")?;\n    println!(\"{} workers\", cfg.workers);\n    Ok(())\n}\n```\n\n**Warning:** unknown keys are rejected at startup.\n\nSee [environment variables](/docs/env) to override settings per deployment.\n\n[Edit this page on GitHub](https://github.test/tideline/docs/edit/main/config.md) Last updated on Feb 2, 2026\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 3351.0,
+          "input_bytes": 2223.0,
+          "output_bytes": 913.0,
+          "size_ratio": 0.410706252811516
+        },
+        "timing": {
+          "duration_ms": 3
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.7176470588235294,
+      "eval": "markkit_extract",
+      "input": [
+        "Engineering blog post with share buttons, author bio, comment section and newsletter popup"
+      ],
+      "params": {
+        "mode": "default"
+      },
+      "passed": false,
+      "sample": "blog_post",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "9/16 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 0%); failed: not_contains \"We're hiring\"; not_contains \"Share on X\"; not_contains \"Share on LinkedIn\"; not_contains \"14 Comments\"; not_contains \"Did you consider Buck2\"; not_contains \"Log in to comment\"; not_contains \"Subscribe to our newsletter\"",
+          "scorer": "markkit_expectations",
+          "value": 0.5882352941176471
+        },
+        {
+          "pass": true,
+          "reason": "3/3 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "1/1 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "5/5 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "0/7 checks passed; failed: not_contains \"We're hiring\"; not_contains \"Share on X\"; not_contains \"Share on LinkedIn\"; not_contains \"14 Comments\"; not_contains \"Did you consider Buck2\"; not_contains \"Log in to comment\"; not_contains \"Subscribe to our newsletter\"",
+          "scorer": "noise",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "[Lattice Engineering Blog](/) | [We're hiring!](/careers)\n\n# Why we moved our build to Bazel\n\nPosted by Jordan Alvarez on 9 January 2026 · 6 min read  [Share on X](https://twitter.test/share?u=bazel) [Share on LinkedIn](https://linkedin.test/share?u=bazel)\n\nOur monorepo had grown to 1.4 million lines of code, and a clean CI build took **47 minutes**. Incremental builds were unreliable, so engineers ran clean builds out of habit.\n\n## What we tried first\n\n1. Caching `node_modules` between CI runs\n2. Splitting the test suite across 12 shards\n3. Upgrading CI runners to 32 cores\n\nEach change helped a little, but none fixed the root problem: the build had no accurate dependency graph.\n\n## Results\n\nAfter the migration, the median CI build takes 6 minutes, and 92% of builds hit the remote cache.\n\nThanks to the developer productivity team for leading the migration.\n\n![Jordan Alvarez](/avatars/jordan.png)\n\nJordan Alvarez is a staff engineer on the platform team.\n\n### 14 Comments\n\n**devops_dan** said: Great write-up! Did you consider Buck2? **sarahk** said: How long did the migration take? [Log in to comment](/login)\n\nSubscribe to our newsletter for weekly posts!\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1243.0,
+          "input_bytes": 1878.0,
+          "output_bytes": 1172.0,
+          "size_ratio": 0.6240681576144835
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_extract",
+      "input": [
+        "Engineering blog post with share buttons, author bio, comment section and newsletter popup"
+      ],
+      "params": {
+        "mode": "main_content"
+      },
+      "passed": true,
+      "sample": "blog_post",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "16/16 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 100%)",
+          "scorer": "markkit_expectations",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "3/3 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "1/1 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "5/5 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "7/7 checks passed",
+          "scorer": "noise",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# Why we moved our build to Bazel\n\nPosted by Jordan Alvarez on 9 January 2026 · 6 min read\n\nOur monorepo had grown to 1.4 million lines of code, and a clean CI build took **47 minutes**. Incremental builds were unreliable, so engineers ran clean builds out of habit.\n\n## What we tried first\n\n1. Caching `node_modules` between CI runs\n2. Splitting the test suite across 12 shards\n3. Upgrading CI runners to 32 cores\n\nEach change helped a little, but none fixed the root problem: the build had no accurate dependency graph.\n\n## Results\n\nAfter the migration, the median CI build takes 6 minutes, and 92% of builds hit the remote cache.\n\nThanks to the developer productivity team for leading the migration.\n\n![Jordan Alvarez](/avatars/jordan.png)\n\nJordan Alvarez is a staff engineer on the platform team.\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 5009.0,
+          "input_bytes": 1878.0,
+          "output_bytes": 802.0,
+          "size_ratio": 0.42705005324813633
+        },
+        "timing": {
+          "duration_ms": 5
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.8827067669172932,
+      "eval": "markkit_extract",
+      "input": [
+        "Product page with nav, breadcrumbs, buy box form, spec table, reviews, recommendations and promo banner"
+      ],
+      "params": {
+        "mode": "default"
+      },
+      "passed": false,
+      "sample": "product_page",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "15/18 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 57%); failed: not_contains \"You may also like\"; not_contains \"Ridgeline 30L\"; not_contains \"TRAIL10\"",
+          "scorer": "markkit_expectations",
+          "value": 0.8421052631578947
+        },
+        {
+          "pass": true,
+          "reason": "6/6 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "1/1 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "4/4 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "4/7 checks passed; failed: not_contains \"You may also like\"; not_contains \"Ridgeline 30L\"; not_contains \"TRAIL10\"",
+          "scorer": "noise",
+          "value": 0.5714285714285714
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "[Home](/) / [Packs](/packs) / Northwind Trail 40L\n\n# Northwind Trail 40L Backpack\n\n$189.00\n\nA lightweight pack for multi-day hikes, with a ventilated back panel and a removable rain cover.\n\n## Features\n\n- Recycled 210D ripstop nylon\n- Adjustable torso length (15–21 in)\n- Hydration sleeve fits a 3 L reservoir\n\n## Specifications\n\n|  |  |\n| --- | --- |\n| Weight | 1.2 kg |\n| Capacity | 40 L |\n| Dimensions | 64 × 32 × 24 cm |\n\n## Customer reviews\n\n4.6 out of 5 stars (212 reviews)\n\n**Comfortable on a 4-day trip.** The hip belt pockets are big enough for a phone.\n\n## You may also like\n - [Ridgeline 30L Daypack](/p/ridgeline-30)\n- [Carbon Trek Poles](/p/trek-poles)\n\nFree shipping on orders over $75! Use code TRAIL10 for 10% off.\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1652.0,
+          "input_bytes": 1718.0,
+          "output_bytes": 735.0,
+          "size_ratio": 0.4278230500582072
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_extract",
+      "input": [
+        "Product page with nav, breadcrumbs, buy box form, spec table, reviews, recommendations and promo banner"
+      ],
+      "params": {
+        "mode": "main_content"
+      },
+      "passed": true,
+      "sample": "product_page",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "18/18 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 100%)",
+          "scorer": "markkit_expectations",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "6/6 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "1/1 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "4/4 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "7/7 checks passed",
+          "scorer": "noise",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# Northwind Trail 40L Backpack\n\n$189.00\n\nA lightweight pack for multi-day hikes, with a ventilated back panel and a removable rain cover.\n\n## Features\n\n- Recycled 210D ripstop nylon\n- Adjustable torso length (15–21 in)\n- Hydration sleeve fits a 3 L reservoir\n\n## Specifications\n\n|  |  |\n| --- | --- |\n| Weight | 1.2 kg |\n| Capacity | 40 L |\n| Dimensions | 64 × 32 × 24 cm |\n\n## Customer reviews\n\n4.6 out of 5 stars (212 reviews)\n\n**Comfortable on a 4-day trip.** The hip belt pockets are big enough for a phone.\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1943.0,
+          "input_bytes": 1718.0,
+          "output_bytes": 516.0,
+          "size_ratio": 0.30034924330616997
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.79,
+      "eval": "markkit_extract",
+      "input": [
+        "Recipe with sponsored ad slots, ingredient list, numbered steps and a rating widget"
+      ],
+      "params": {
+        "mode": "default"
+      },
+      "passed": false,
+      "sample": "recipe",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "11/15 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 20%); failed: not_contains \"Sponsored\"; not_contains \"MealBox\"; not_contains \"Chef's knife\"; not_contains \"Rate this recipe\"",
+          "scorer": "markkit_expectations",
+          "value": 0.75
+        },
+        {
+          "pass": true,
+          "reason": "2/2 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "1/1 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "7/7 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "1/5 checks passed; failed: not_contains \"Sponsored\"; not_contains \"MealBox\"; not_contains \"Chef's knife\"; not_contains \"Rate this recipe\"",
+          "scorer": "noise",
+          "value": 0.2
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# Weeknight Lemon Garlic Pasta\n\nReady in 20 minutes with ingredients you probably already have.\n\nSponsored: Try MealBox free for 2 weeks\n\n- Prep: 5 min\n- Cook: 15 min\n- Serves: 4\n\n## Ingredients\n\n- 350 g spaghetti\n- 4 cloves garlic, thinly sliced\n- Zest and juice of 1 lemon\n- 60 ml olive oil\n- 40 g grated parmesan\n\n## Instructions\n\n1. Cook the spaghetti in salted water until al dente. Reserve 1 cup of pasta water.\n2. Warm the olive oil and garlic over low heat until fragrant, about 3 minutes.\n3. Toss the pasta with the garlic oil, lemon zest, lemon juice and parmesan.\n4. Loosen with pasta water as needed and serve immediately.\n\n## Notes\n\nFor a dairy-free version, replace the parmesan with toasted breadcrumbs.\n\nSponsored: Chef's knife sale, 40% off\n\nRate this recipe:\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1534.0,
+          "input_bytes": 1608.0,
+          "output_bytes": 777.0,
+          "size_ratio": 0.4832089552238806
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.9475,
+      "eval": "markkit_extract",
+      "input": [
+        "Recipe with sponsored ad slots, ingredient list, numbered steps and a rating widget"
+      ],
+      "params": {
+        "mode": "main_content"
+      },
+      "passed": false,
+      "sample": "recipe",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "14/15 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 80%); failed: not_contains \"Rate this recipe\"",
+          "scorer": "markkit_expectations",
+          "value": 0.9375
+        },
+        {
+          "pass": true,
+          "reason": "2/2 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "1/1 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "7/7 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "4/5 checks passed; failed: not_contains \"Rate this recipe\"",
+          "scorer": "noise",
+          "value": 0.8
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# Weeknight Lemon Garlic Pasta\n\nReady in 20 minutes with ingredients you probably already have.\n\n- Prep: 5 min\n- Cook: 15 min\n- Serves: 4\n\n## Ingredients\n\n- 350 g spaghetti\n- 4 cloves garlic, thinly sliced\n- Zest and juice of 1 lemon\n- 60 ml olive oil\n- 40 g grated parmesan\n\n## Instructions\n\n1. Cook the spaghetti in salted water until al dente. Reserve 1 cup of pasta water.\n2. Warm the olive oil and garlic over low heat until fragrant, about 3 minutes.\n3. Toss the pasta with the garlic oil, lemon zest, lemon juice and parmesan.\n4. Loosen with pasta water as needed and serve immediately.\n\n## Notes\n\nFor a dairy-free version, replace the parmesan with toasted breadcrumbs.\n\nRate this recipe:\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1494.0,
+          "input_bytes": 1608.0,
+          "output_bytes": 697.0,
+          "size_ratio": 0.43345771144278605
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.62,
+      "eval": "markkit_extract",
+      "input": [
+        "Encyclopedia article with infobox, inline citations, table of contents, edit links, categories and footer"
+      ],
+      "params": {
+        "mode": "default"
+      },
+      "passed": false,
+      "sample": "wiki_article",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "8/17 checks passed (completeness 100%, accuracy 100%, formatting 60%, noise 0%); failed: heading \"## Construction\"; heading \"## Destruction\"; not_contains \"Log in\"; not_contains \"Random article\"; not_contains \"[edit]\"; not_contains \"From OpenWiki, the free encyclopedia\"; not_contains \"Contents\"; not_contains \"Categories:\"; not_contains \"last edited on\"",
+          "scorer": "markkit_expectations",
+          "value": 0.5
+        },
+        {
+          "pass": true,
+          "reason": "5/5 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "1/1 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "2/4 checks passed; failed: heading \"## Construction\"; heading \"## Destruction\"",
+          "scorer": "formatting",
+          "value": 0.6
+        },
+        {
+          "pass": false,
+          "reason": "0/7 checks passed; failed: not_contains \"Log in\"; not_contains \"Random article\"; not_contains \"[edit]\"; not_contains \"From OpenWiki, the free encyclopedia\"; not_contains \"Contents\"; not_contains \"Categories:\"; not_contains \"last edited on\"",
+          "scorer": "noise",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "[OpenWiki](/wiki/Main_Page) [Log in](/login) [Random article](/random)\n\n# Lighthouse of Alexandria\n\nFrom OpenWiki, the free encyclopedia\n\n| Lighthouse of Alexandria |  |\n| --- | --- |\n| Location | Pharos, Alexandria, Egypt |\n| Built | c. 280 BC |\n| Height | about 100 m |\n\nThe **Lighthouse of Alexandria** was a lighthouse built by the Ptolemaic Kingdom on the island of Pharos.[[1]](#cite_note-1) It was one of the Seven Wonders of the Ancient World.\n\n## Contents\n\n- [1 Construction](#Construction)\n- [2 Destruction](#Destruction)\n\n## Construction[[edit](/edit?section=1)]\n\nConstruction was completed during the reign of Ptolemy II Philadelphus. The architect was Sostratus of Cnidus.\n\n### Design\n\nThe tower had three stages: a square lower section, an octagonal middle section and a circular top.\n\n## Destruction[[edit](/edit?section=2)]\n\nThe lighthouse was badly damaged by earthquakes between 956 and 1323 AD and became an abandoned ruin.\n\n## References\n\n1. Clayton, Peter; Price, Martin (1988). *The Seven Wonders of the Ancient World*. Routledge.\n\nCategories: [Lighthouses](/wiki/Category:Lighthouses) | [Seven Wonders of the Ancient World](/wiki/Category:Seven_Wonders)  This page was last edited on 3 March 2026. Text is available under the Creative Commons Attribution-ShareAlike License.\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1530.0,
+          "input_bytes": 2171.0,
+          "output_bytes": 1298.0,
+          "size_ratio": 0.5978811607554122
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.739047619047619,
+      "eval": "markkit_extract",
+      "input": [
+        "Encyclopedia article with infobox, inline citations, table of contents, edit links, categories and footer"
+      ],
+      "params": {
+        "mode": "main_content"
+      },
+      "passed": false,
+      "sample": "wiki_article",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "11/17 checks passed (completeness 100%, accuracy 100%, formatting 60%, noise 43%); failed: heading \"## Construction\"; heading \"## Destruction\"; not_contains \"[edit]\"; not_contains \"From OpenWiki, the free encyclopedia\"; not_contains \"Contents\"; not_contains \"Categories:\"",
+          "scorer": "markkit_expectations",
+          "value": 0.6666666666666666
+        },
+        {
+          "pass": true,
+          "reason": "5/5 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "1/1 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "2/4 checks passed; failed: heading \"## Construction\"; heading \"## Destruction\"",
+          "scorer": "formatting",
+          "value": 0.6
+        },
+        {
+          "pass": false,
+          "reason": "3/7 checks passed; failed: not_contains \"[edit]\"; not_contains \"From OpenWiki, the free encyclopedia\"; not_contains \"Contents\"; not_contains \"Categories:\"",
+          "scorer": "noise",
+          "value": 0.42857142857142855
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# Lighthouse of Alexandria\n\nFrom OpenWiki, the free encyclopedia\n\n| Lighthouse of Alexandria |  |\n| --- | --- |\n| Location | Pharos, Alexandria, Egypt |\n| Built | c. 280 BC |\n| Height | about 100 m |\n\nThe **Lighthouse of Alexandria** was a lighthouse built by the Ptolemaic Kingdom on the island of Pharos.[[1]](#cite_note-1) It was one of the Seven Wonders of the Ancient World.\n\n## Contents\n\n- [1 Construction](#Construction)\n- [2 Destruction](#Destruction)\n\n## Construction[[edit](/edit?section=1)]\n\nConstruction was completed during the reign of Ptolemy II Philadelphus. The architect was Sostratus of Cnidus.\n\n### Design\n\nThe tower had three stages: a square lower section, an octagonal middle section and a circular top.\n\n## Destruction[[edit](/edit?section=2)]\n\nThe lighthouse was badly damaged by earthquakes between 956 and 1323 AD and became an abandoned ruin.\n\n## References\n\n1. Clayton, Peter; Price, Martin (1988). *The Seven Wonders of the Ancient World*. Routledge.\n\nCategories: [Lighthouses](/wiki/Category:Lighthouses) | [Seven Wonders of the Ancient World](/wiki/Category:Seven_Wonders)\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 2292.0,
+          "input_bytes": 2171.0,
+          "output_bytes": 1105.0,
+          "size_ratio": 0.5089820359281437
+        },
+        "timing": {
+          "duration_ms": 2
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.8625,
+      "eval": "markkit_extract",
+      "input": [
+        "Q&A thread with vote widgets, tags, accepted answer with code, user cards and sidebar"
+      ],
+      "params": {
+        "mode": "default"
+      },
+      "passed": false,
+      "sample": "forum_thread",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "12/15 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 50%); failed: not_contains \"Viewed 48k times\"; not_contains \"Hot Network Questions\"; not_contains \"CSS grid\"",
+          "scorer": "markkit_expectations",
+          "value": 0.8125
+        },
+        {
+          "pass": true,
+          "reason": "5/5 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "2/2 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "2/2 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "3/6 checks passed; failed: not_contains \"Viewed 48k times\"; not_contains \"Hot Network Questions\"; not_contains \"CSS grid\"",
+          "scorer": "noise",
+          "value": 0.5
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# How do I reverse a linked list in place?\n\nAsked 3 years ago · Viewed 48k times 312\n\nI have a singly linked list and want to reverse it without allocating a new list. My attempt loses the rest of the list after the first node:\n\n```\nwhile node:\n    node.next = prev\n    prev = node\n    node = node.next\n```\n\n[python](/tags/python) [linked-list](/tags/linked-list)\n\n## 2 Answers\n\n518 Accepted\n\nYou overwrite `node.next` before saving it. Keep a reference to the next node first:\n\n```python\ndef reverse(head):\n    prev = None\n    node = head\n    while node:\n        nxt = node.next\n        node.next = prev\n        prev = node\n        node = nxt\n    return prev\n```\n\nThis runs in O(n) time and O(1) extra space.\n\nanswered by [ada](/users/88/ada)   41\n\nA recursive version also works, but it uses O(n) stack space and can hit the recursion limit on long lists.\n\n### Hot Network Questions\n\n- [Why is my CSS grid collapsing?](/q/1)\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1496.0,
+          "input_bytes": 2048.0,
+          "output_bytes": 928.0,
+          "size_ratio": 0.453125
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.5116666666666667,
+      "eval": "markkit_extract",
+      "input": [
+        "Q&A thread with vote widgets, tags, accepted answer with code, user cards and sidebar"
+      ],
+      "params": {
+        "mode": "main_content"
+      },
+      "passed": false,
+      "sample": "forum_thread",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "10/15 checks passed (completeness 60%, accuracy 0%, formatting 33%, noise 100%); failed: heading \"# How do I reverse a linked list in place?\"; contains \"reverse it without allocating a new list\"; contains \"recursive version also works\"; order \"without allocating a new list\" before \"You overwrite\"; order \"O(1) extra space\" before \"recursive version\"",
+          "scorer": "markkit_expectations",
+          "value": 0.625
+        },
+        {
+          "pass": false,
+          "reason": "3/5 checks passed; failed: contains \"reverse it without allocating a new list\"; contains \"recursive version also works\"",
+          "scorer": "completeness",
+          "value": 0.6
+        },
+        {
+          "pass": false,
+          "reason": "0/2 checks passed; failed: order \"without allocating a new list\" before \"You overwrite\"; order \"O(1) extra space\" before \"recursive version\"",
+          "scorer": "accuracy",
+          "value": 0.0
+        },
+        {
+          "pass": false,
+          "reason": "1/2 checks passed; failed: heading \"# How do I reverse a linked list in place?\"",
+          "scorer": "formatting",
+          "value": 0.3333333333333333
+        },
+        {
+          "pass": true,
+          "reason": "6/6 checks passed",
+          "scorer": "noise",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "You overwrite `node.next` before saving it. Keep a reference to the next node first:\n\n```python\ndef reverse(head):\n    prev = None\n    node = head\n    while node:\n        nxt = node.next\n        node.next = prev\n        prev = node\n        node = nxt\n    return prev\n```\n\nThis runs in O(n) time and O(1) extra space.\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1648.0,
+          "input_bytes": 2048.0,
+          "output_bytes": 317.0,
+          "size_ratio": 0.15478515625
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.9200000000000002,
+      "eval": "markkit_extract",
+      "input": [
+        "Release notes with nested lists, strikethrough, issue links and call-to-action box"
+      ],
+      "params": {
+        "mode": "default"
+      },
+      "passed": false,
+      "sample": "changelog",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "13/14 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 67%); failed: not_contains \"Start your free trial\"",
+          "scorer": "markkit_expectations",
+          "value": 0.9333333333333332
+        },
+        {
+          "pass": true,
+          "reason": "3/3 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "2/2 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "6/6 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "2/3 checks passed; failed: not_contains \"Start your free trial\"",
+          "scorer": "noise",
+          "value": 0.6666666666666666
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# Changelog\n\nAll notable changes to Quillstack are documented here. Subscribe via [RSS](/changelog.rss).\n\n## v2.4.0 — 2026-04-02\n\n### Added\n\n- Offline mode for the desktop editor\n- Export to EPUB\n  - Custom cover images\n  - Table of contents generation\n\n### Fixed\n\n- Crash when pasting images larger than 20 MB ([#1182](https://git.test/quillstack/issues/1182))\n- ~~Spellcheck ignored code blocks~~ Spellcheck now skips code blocks\n\n## v2.3.1 — 2026-03-10\n\n### Security\n\n- Sanitize SVG uploads to prevent stored XSS\n\nReady to write? [Start your free trial](/signup)\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1110.0,
+          "input_bytes": 1317.0,
+          "output_bytes": 570.0,
+          "size_ratio": 0.4328018223234624
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.9200000000000002,
+      "eval": "markkit_extract",
+      "input": [
+        "Release notes with nested lists, strikethrough, issue links and call-to-action box"
+      ],
+      "params": {
+        "mode": "main_content"
+      },
+      "passed": false,
+      "sample": "changelog",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "13/14 checks passed (completeness 100%, accuracy 100%, formatting 100%, noise 67%); failed: not_contains \"Start your free trial\"",
+          "scorer": "markkit_expectations",
+          "value": 0.9333333333333332
+        },
+        {
+          "pass": true,
+          "reason": "3/3 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "2/2 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "6/6 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "2/3 checks passed; failed: not_contains \"Start your free trial\"",
+          "scorer": "noise",
+          "value": 0.6666666666666666
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# Changelog\n\nAll notable changes to Quillstack are documented here. Subscribe via [RSS](/changelog.rss).\n\n## v2.4.0 — 2026-04-02\n\n### Added\n\n- Offline mode for the desktop editor\n- Export to EPUB\n  - Custom cover images\n  - Table of contents generation\n\n### Fixed\n\n- Crash when pasting images larger than 20 MB ([#1182](https://git.test/quillstack/issues/1182))\n- ~~Spellcheck ignored code blocks~~ Spellcheck now skips code blocks\n\n## v2.3.1 — 2026-03-10\n\n### Security\n\n- Sanitize SVG uploads to prevent stored XSS\n\nReady to write? [Start your free trial](/signup)\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1388.0,
+          "input_bytes": 1317.0,
+          "output_bytes": 570.0,
+          "size_ratio": 0.4328018223234624
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.7633333333333333,
+      "eval": "markkit_extract",
+      "input": [
+        "Data report with a captioned table including thead, tbody and tfoot"
+      ],
+      "params": {
+        "mode": "default"
+      },
+      "passed": false,
+      "sample": "data_table",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "10/14 checks passed (completeness 40%, accuracy 100%, formatting 100%, noise 67%); failed: contains \"Total\"; contains \"72.4\"; contains \"Quarterly generation\"; not_contains \"Share:\"",
+          "scorer": "markkit_expectations",
+          "value": 0.75
+        },
+        {
+          "pass": false,
+          "reason": "2/5 checks passed; failed: contains \"Total\"; contains \"72.4\"; contains \"Quarterly generation\"",
+          "scorer": "completeness",
+          "value": 0.4
+        },
+        {
+          "pass": true,
+          "reason": "2/2 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "4/4 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": false,
+          "reason": "2/3 checks passed; failed: not_contains \"Share:\"",
+          "scorer": "noise",
+          "value": 0.6666666666666666
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# Electricity Generation by Source, 2025\n\nFigures are in terawatt-hours (TWh). Source: national grid operator, published February 2026.\n\n| Source | Q1 | Q2 | Q3 | Q4 |\n| --- | --- | --- | --- | --- |\n| Wind | 21.4 | 15.2 | 12.8 | 24.9 |\n| Solar | 4.1 | 11.7 | 13.3 | 3.6 |\n| Natural gas | 30.2 | 22.5 | 26.0 | 31.8 |\n| Nuclear | 12.0 | 11.6 | 11.9 | 12.1 |\n\nWind overtook natural gas in no quarter, but the gap narrowed to **6.9 TWh** in Q4.\n\n[Download the data (CSV)](/reports/2025-energy.csv)\n\nShare: [X](https://twitter.test/s) [Email](https://mail.test/s)\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1429.0,
+          "input_bytes": 1397.0,
+          "output_bytes": 560.0,
+          "size_ratio": 0.4008589835361489
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.8425,
+      "eval": "markkit_extract",
+      "input": [
+        "Data report with a captioned table including thead, tbody and tfoot"
+      ],
+      "params": {
+        "mode": "main_content"
+      },
+      "passed": false,
+      "sample": "data_table",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "11/14 checks passed (completeness 40%, accuracy 100%, formatting 100%, noise 100%); failed: contains \"Total\"; contains \"72.4\"; contains \"Quarterly generation\"",
+          "scorer": "markkit_expectations",
+          "value": 0.8125
+        },
+        {
+          "pass": false,
+          "reason": "2/5 checks passed; failed: contains \"Total\"; contains \"72.4\"; contains \"Quarterly generation\"",
+          "scorer": "completeness",
+          "value": 0.4
+        },
+        {
+          "pass": true,
+          "reason": "2/2 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "4/4 checks passed",
+          "scorer": "formatting",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "3/3 checks passed",
+          "scorer": "noise",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "# Electricity Generation by Source, 2025\n\nFigures are in terawatt-hours (TWh). Source: national grid operator, published February 2026.\n\n| Source | Q1 | Q2 | Q3 | Q4 |\n| --- | --- | --- | --- | --- |\n| Wind | 21.4 | 15.2 | 12.8 | 24.9 |\n| Solar | 4.1 | 11.7 | 13.3 | 3.6 |\n| Natural gas | 30.2 | 22.5 | 26.0 | 31.8 |\n| Nuclear | 12.0 | 11.6 | 11.9 | 12.1 |\n\nWind overtook natural gas in no quarter, but the gap narrowed to **6.9 TWh** in Q4.\n\n[Download the data (CSV)](/reports/2025-energy.csv)\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1561.0,
+          "input_bytes": 1397.0,
+          "output_bytes": 495.0,
+          "size_ratio": 0.3543307086614173
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.6607142857142857,
+      "eval": "markkit_extract",
+      "input": [
+        "1990s table-layout page with font tags, unclosed paragraphs, line breaks and a hit counter"
+      ],
+      "params": {
+        "mode": "default"
+      },
+      "passed": false,
+      "sample": "legacy_layout",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "8/12 checks passed (completeness 100%, accuracy 100%, noise 0%); failed: not_contains \"MENU\"; not_contains \"Guestbook\"; not_contains \"visitor number\"; not_contains \"Netscape Navigator\"",
+          "scorer": "markkit_expectations",
+          "value": 0.6428571428571429
+        },
+        {
+          "pass": true,
+          "reason": "6/6 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "2/2 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "na": true,
+          "pass": false,
+          "reason": "no checks for this metric",
+          "scorer": "formatting",
+          "value": 0.0
+        },
+        {
+          "pass": false,
+          "reason": "0/4 checks passed; failed: not_contains \"MENU\"; not_contains \"Guestbook\"; not_contains \"visitor number\"; not_contains \"Netscape Navigator\"",
+          "scorer": "noise",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "|  |  |\n| --- | --- |\n| **MENU**  \n [Home](index.htm)  \n [Our Layout](layout.htm)  \n [Join](join.htm)  \n [Guestbook](guestbook.htm)  | **Pine Hollow Model Railroad Club** Welcome to the home of the Pine Hollow Model Railroad Club! We meet every **Tuesday at 7 PM** in the basement of the Grange Hall, 18 Mill Road.\n\nOur HO scale layout has over 600 feet of track and models the Boston & Maine railroad in 1952.\n\nNew members are always welcome.  \n Annual dues are $40.  \n Contact our secretary, Walt Brennan, at [walt@pinehollow.test](mailto:walt@pinehollow.test).\n\n---\nYou are visitor number ![004127](counter.gif) since 1998.\n\nBest viewed in Netscape Navigator 4.0 at 800x600.\n\n |\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1221.0,
+          "input_bytes": 1283.0,
+          "output_bytes": 682.0,
+          "size_ratio": 0.5315666406858924
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.8642857142857143,
+      "eval": "markkit_extract",
+      "input": [
+        "1990s table-layout page with font tags, unclosed paragraphs, line breaks and a hit counter"
+      ],
+      "params": {
+        "mode": "main_content"
+      },
+      "passed": false,
+      "sample": "legacy_layout",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "10/12 checks passed (completeness 100%, accuracy 100%, noise 60%); failed: not_contains \"visitor number\"; not_contains \"Netscape Navigator\"",
+          "scorer": "markkit_expectations",
+          "value": 0.8571428571428571
+        },
+        {
+          "pass": true,
+          "reason": "6/6 checks passed",
+          "scorer": "completeness",
+          "value": 1.0
+        },
+        {
+          "pass": true,
+          "reason": "2/2 checks passed",
+          "scorer": "accuracy",
+          "value": 1.0
+        },
+        {
+          "na": true,
+          "pass": false,
+          "reason": "no checks for this metric",
+          "scorer": "formatting",
+          "value": 0.0
+        },
+        {
+          "pass": false,
+          "reason": "2/4 checks passed; failed: not_contains \"visitor number\"; not_contains \"Netscape Navigator\"",
+          "scorer": "noise",
+          "value": 0.6
+        }
+      ],
+      "skipped": false,
+      "target": "markkit",
+      "transcript": {
+        "final_response": "**Pine Hollow Model Railroad Club**\n\nWelcome to the home of the Pine Hollow Model Railroad Club! We meet every **Tuesday at 7 PM** in the basement of the Grange Hall, 18 Mill Road.\n\nOur HO scale layout has over 600 feet of track and models the Boston & Maine railroad in 1952.\n\nNew members are always welcome.  \n Annual dues are $40.  \n Contact our secretary, Walt Brennan, at [walt@pinehollow.test](mailto:walt@pinehollow.test).\n\n---\n\nYou are visitor number ![004127](counter.gif) since 1998.\n\nBest viewed in Netscape Navigator 4.0 at 800x600.\n",
+        "iterations": 0,
+        "metrics": {
+          "extract_us": 1392.0,
+          "input_bytes": 1283.0,
+          "output_bytes": 545.0,
+          "size_ratio": 0.4247856586126267
+        },
+        "timing": {
+          "duration_ms": 1
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    }
+  ],
+  "summary": {
+    "failed": 17,
+    "na": 0,
+    "passed": 3,
+    "scored": 20,
+    "skipped": 0,
+    "total_cost_usd": 0.0,
+    "total_duration_ms": 29,
+    "total_tokens": 0,
+    "total_tool_calls": 0
+  }
+}

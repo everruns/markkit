@@ -119,17 +119,40 @@ accepted answer with code, sidebar), `changelog` (nested lists, strikethrough,
 issue links, CTA), `data` (captioned table with thead/tbody/tfoot), `legacy`
 (table layout, font tags, unclosed `<p>`, hit counter).
 
-## Baseline (2026-10-27, main at IR v2)
+## Mode Axis
 
-0/10 pages pass every check. Mean weighted rate 73.6%: completeness 94.0%,
-accuracy 100%, formatting 95.6%, noise 34.3%. (First run, before IR v2:
-72.5%; row-header tables then collapsed to one column and dropped every
-`<td>`, fixed by IR v2 row-header `<th>` mapping.) Open gaps:
+`mode` axis (`mira run --axis mode=main_content`): `default` = builder
+defaults; `main_content` = `main_content(true)`, the opt-in Readability-style
+detector. Same pages and checks, so reports compare the two side by side.
+Unknown mode = infra error.
 
-- **Noise**: no readability heuristic, so `<aside>`, ad/promo/cookie/share/
-  comment blocks and in-content chrome are kept (default excludes cover only
-  `nav, footer, header, script, style, noscript`).
-- **`<tfoot>` and `<caption>`** are dropped (data).
+## Results
+
+Committed under `crates/markkit-eval/results/`: `markkit_extract-<date>.md`
+(summary: per mode, per metric, per page, failed checks) and the matching mira
+JSON report (per-case scores, transcripts). Mira run folders stay local
+(gitignored). Re-run `just eval` after extraction changes and commit a new
+dated pair when scores move.
+
+## Baseline (2026-10-27)
+
+| mode | pages passing | overall | completeness | accuracy | formatting | noise |
+|---|---|---|---|---|---|---|
+| `default` | 0/10 | 73.6% | 94.0% | 100% | 95.6% | 34.3% |
+| `main_content` | 3/10 | 87.4% | 90.0% | 90.0% | 88.1% | 82.1% |
+
+First run (before IR v2, default only): 72.5%; row-header tables then
+collapsed to one column and dropped every `<td>`, fixed by IR v2 row-header
+`<th>` mapping. Open gaps:
+
+- **Noise (default)**: `<aside>`, ad/promo/cookie/share/comment blocks and
+  in-content chrome are kept (default excludes cover only `nav, footer,
+  header, script, style, noscript`). `main_content` fixes most of it.
+- **`main_content` on Q&A pages** keeps only the accepted answer: the forum
+  question title and body are dropped (forum 81% default vs 62%).
+- **`main_content` on the wiki page** keeps the TOC, `[edit]` links and
+  categories.
+- **`<tfoot>` and `<caption>`** are dropped (data), both modes.
 - **Inline edit links inside headings** leak into the heading text
   (`## Construction[[edit](...)]`).
 - **List after a heading** inside an `<aside>` renders with a stray leading
@@ -138,7 +161,7 @@ accuracy 100%, formatting 95.6%, noise 34.3%. (First run, before IR v2:
 ## CLI
 
 Install the host once with `cargo install mira-cli` (0.5). Saved runs go to
-`crates/markkit-eval/results/` (`mira.toml`, gitignored).
+`crates/markkit-eval/results/<run_id>/` (`mira.toml`, gitignored).
 
 ```
 mira list --study-bin markkit-eval

@@ -3,7 +3,7 @@
 ## 2026-10-27
 
 * **Spreadsheet follow-ups (#11)**: single-row sheets render as data under column letters; XLSX/ODS/XLS titles come from document properties; XLSB content type no longer maps to XLSX; XLSX without `_rels/.rels` parses; trailing-newline output documented as intended; release profile switched to `panic = "unwind"` so `catch_unwind` is effective in markkit's own binaries. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md) T6c.
-* **Eval harness on mira**: `markkit-eval` is now a mira study (modeled on bashkit-eval). `markkit_extract` scores markkit's HTML output on ten realistic pages with typed deterministic checks and one scorer per metric; baseline 73.6% mean, noise 34.3%, with gaps recorded (`tfoot`/`caption` dropped, asides and ads kept, edit links in headings). See [Evaluation Harness](operations/eval.md).
+* **Eval harness on mira**: `markkit-eval` is now a mira study (modeled on bashkit-eval). `markkit_extract` scores markkit's HTML output on ten realistic pages with typed deterministic checks and one scorer per metric; a `mode` axis compares defaults with `main_content` (73.6% vs 87.4% mean, noise 34% vs 82%); dated results committed in `crates/markkit-eval/results/`; gaps recorded (`main_content` drops the forum question, `tfoot`/`caption` dropped, edit links in headings). See [Evaluation Harness](operations/eval.md).
 
 ## 2026-10-26
 

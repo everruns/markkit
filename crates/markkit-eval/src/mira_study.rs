@@ -11,6 +11,11 @@
 //      weighted pass rate) plus one scorer per quality metric (completeness,
 //      accuracy, formatting, noise), so reports break quality down by metric.
 //
+// Decision: a `mode` axis compares extraction configs on the same pages:
+// `default` (builder defaults) vs `main_content` (opt-in Readability-style
+// main-content detection). One axis, not one eval per config, so reports put
+// the configs side by side.
+//
 // Decision: the thing under test is markkit, not a model, so the eval's only
 // target is `Target::cli("markkit")`: always available, no API key, fully
 // offline and deterministic. LLM-backed evals (judge, downstream QA) add model
@@ -30,6 +35,18 @@ pub const PAGE_FILE: &str = "page.html";
 
 /// Name of the all-checks scorer.
 pub const EXPECTATIONS_SCORER: &str = "markkit_expectations";
+
+/// Values of the `mode` axis: which markkit configuration extracts the page.
+pub const MODES: [&str; 2] = ["default", "main_content"];
+
+/// Build markkit for a `mode` axis value; `None` for an unknown mode.
+pub fn markkit_for(mode: &str) -> Option<Markkit> {
+    match mode {
+        "default" => Some(Markkit::builder().build()),
+        "main_content" => Some(Markkit::builder().main_content(true).build()),
+        _ => None,
+    }
+}
 
 /// The single target: markkit itself.
 pub fn markkit_target() -> Target {
@@ -64,9 +81,8 @@ fn task_from_sample(sample: &Sample) -> Result<ExtractTask, String> {
     serde_json::from_value(value).map_err(|e| format!("bad task metadata: {e}"))
 }
 
-/// Run markkit with default settings on a page and describe the run.
-pub fn extract_transcript(html: &str) -> Transcript {
-    let markkit = Markkit::builder().build();
+/// Run `markkit` on a page and describe the run.
+pub fn extract_transcript(markkit: &Markkit, html: &str) -> Transcript {
     let start = Instant::now();
     let result = markkit.extract_html_sync(html);
     let elapsed = start.elapsed();
@@ -88,11 +104,16 @@ pub fn extract_transcript(html: &str) -> Transcript {
     t
 }
 
-/// Subject: extract the sample's page with markkit.
+/// Subject: extract the sample's page with markkit in the case's `mode`
+/// (`default` when the axis is not set).
 fn extract_subject() -> impl Subject {
-    subject_fn(|sample: Sample, _cx| async move {
+    subject_fn(|sample: Sample, cx| async move {
+        let mode = cx.param("mode").unwrap_or("default").to_string();
+        let Some(markkit) = markkit_for(&mode) else {
+            return Transcript::infra_error(format!("unknown mode {mode:?}"));
+        };
         match sample.files.get(PAGE_FILE) {
-            Some(html) => extract_transcript(html),
+            Some(html) => extract_transcript(&markkit, html),
             None => Transcript::infra_error("sample missing page.html"),
         }
     })
@@ -168,6 +189,7 @@ pub fn extract_eval() -> Eval {
         .subject(extract_subject())
         .scorer(expectations_scorer())
         .max_turns(1)
+        .axis("mode", MODES)
         .target(markkit_target());
     for m in Metric::ALL {
         b = b.scorer(metric_scorer(m));
@@ -241,9 +263,9 @@ mod tests {
     #[test]
     fn extraction_failure_is_not_infra() {
         // Over the input limit: markkit refuses, which must count against it.
-        let markkit_limit = Markkit::builder().build().config().max_input_size;
-        let huge = "a".repeat(markkit_limit + 1);
-        let t = extract_transcript(&huge);
+        let markkit = Markkit::builder().build();
+        let huge = "a".repeat(markkit.config().limits.max_input_size + 1);
+        let t = extract_transcript(&markkit, &huge);
         assert!(t.error.is_some() && !t.errored_infra());
     }
 
@@ -258,6 +280,46 @@ mod tests {
         for m in ["extract_us", "input_bytes", "output_bytes", "size_ratio"] {
             assert!(t.metrics.contains_key(m), "missing metric {m}");
         }
+    }
+
+    fn cx(mode: &str) -> RunCx {
+        let mut cx = RunCx::new(markkit_target());
+        cx.params.insert("mode".to_string(), mode.to_string());
+        cx
+    }
+
+    #[test]
+    fn every_mode_builds_and_unknown_is_rejected() {
+        for m in MODES {
+            assert!(markkit_for(m).is_some(), "{m}");
+        }
+        assert!(markkit_for("readability").is_none());
+    }
+
+    #[tokio::test]
+    async fn main_content_mode_changes_extraction() {
+        // The news page wraps the article in chrome; main-content detection
+        // must drop at least some of it, or the axis measures nothing.
+        let s = extract_samples(TASKS)
+            .unwrap()
+            .into_iter()
+            .find(|s| s.id == "news_article")
+            .unwrap();
+        let default = extract_subject().run(&s, &cx("default")).await;
+        let main = extract_subject().run(&s, &cx("main_content")).await;
+        assert!(default.error.is_none() && main.error.is_none());
+        assert_ne!(default.final_response, main.final_response);
+    }
+
+    #[tokio::test]
+    async fn unknown_mode_is_infra() {
+        let s = sample(r#"[{"check":"contains","text":"x"}]"#);
+        assert!(
+            extract_subject()
+                .run(&s, &cx("bogus"))
+                .await
+                .errored_infra()
+        );
     }
 
     #[tokio::test]

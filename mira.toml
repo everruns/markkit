@@ -1,6 +1,6 @@
 # mira host config for the markkit-eval study.
 # Saved run folders (<run_id>/ with per-case results) land here so `mira report`
-# and `--resume` find them. Local only (gitignored): the extraction eval is
-# deterministic and re-runs offline in seconds. See knowledge/operations/eval.md.
+# and `--resume` find them. Run folders are local (gitignored); dated summaries
+# and JSON reports in this dir are committed. See knowledge/operations/eval.md.
 [results]
 dir = "crates/markkit-eval/results"
