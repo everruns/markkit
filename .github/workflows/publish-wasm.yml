@@ -1,0 +1,77 @@
+# Publish @everruns/markkit-wasm (browser / edge WebAssembly package) to npm.
+#
+# Run from the verified release tag, like publish-js.yml. Defaults to a dry run.
+# Publishes with npm trusted publishing (GitHub OIDC), no stored token:
+#   npmjs.com @everruns/markkit-wasm > Settings > Trusted publisher:
+#   GitHub Actions, everruns/markkit, workflow publish-wasm.yml, no environment.
+# npm >= 11.5.1 is required for the OIDC exchange (provenance is automatic).
+
+name: Publish WASM
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run"
+        required: false
+        default: "true"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish npm package (wasm)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing + provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify publish source is reachable from main
+        run: |
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$(git rev-parse HEAD)" origin/main
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+          registry-url: "https://registry.npmjs.org"
+      - name: Require npm with trusted publishing (>= 11.5.1)
+        run: |
+          npm_ok() {
+            node -e 'const [a,b,c]=process.argv[1].split(".").map(Number);process.exit(a>11||(a==11&&(b>5||(b==5&&c>=1)))?0:1)' "$(npm --version)"
+          }
+          npm_ok || npm install -g npm@11.6.2
+          npm_ok || { echo "::error::npm $(npm --version) lacks trusted publishing"; exit 1; }
+      - name: Install wasm-bindgen-cli (matches Cargo.lock)
+        run: bash scripts/install-wasm-bindgen.sh
+      - name: Build package
+        run: bash crates/markkit-wasm/scripts/build.sh release
+      - name: Verify build preserved the lockfile
+        run: git diff --exit-code -- Cargo.lock
+      - name: Integration tests (headless Node)
+        run: node --test crates/markkit-wasm/__test__/*.test.mjs
+      - name: Verify tag matches package version
+        run: |
+          PKG_VERSION=$(node -p "require('./crates/markkit-wasm/pkg/package.json').version")
+          if [[ "$GITHUB_REF" =~ ^refs/tags/v ]] && [ "${GITHUB_REF#refs/tags/v}" != "$PKG_VERSION" ]; then
+            echo "::error::tag ${GITHUB_REF#refs/tags/} does not match package version $PKG_VERSION"
+            exit 1
+          fi
+      - name: Publish
+        working-directory: crates/markkit-wasm/pkg
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" != "false" ]; then
+            npm publish --dry-run --ignore-scripts --access public
+          else
+            npm publish --ignore-scripts --access public
+          fi

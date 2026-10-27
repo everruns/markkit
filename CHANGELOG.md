@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   toolkit-library contract (builder, OpenAI tool definition, input/output schemas, `tower::Service`,
   single-use `ToolExecution`, `en-US`/`uk-UA` text). One call converts a `url`, `html` or base64
   document to Markdown, with output capped by `max_output_chars`. Example: `examples/agent_tool.rs`.
+- `@everruns/markkit-wasm`: browser / edge WebAssembly package (`crates/markkit-wasm`), single-threaded,
+  no special headers. `Markkit` class (HTML, DOCX, XLSX/XLS/ODS with validated camelCase options) and
+  `MarkkitTool`. Built by `crates/markkit-wasm/scripts/build.sh`, published by `publish-wasm.yml`.
 - `Markkit::extract_url_document`: `extract_url` with format, title, warnings and stats.
 
 ### Security
