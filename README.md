@@ -20,6 +20,7 @@ package for browsers and edge runtimes.
 - **HTML** – Web pages and HTML documents; nav, header, footer, scripts, styles and forms stripped by default
 - **DOCX** – Headings, lists, tables, links, emphasis
 - **Spreadsheets** – XLSX/XLSM, XLS and ODS workbooks to markdown tables, one section per sheet
+- **Plain text / Markdown** – Text to paragraphs; Markdown normalized through the same IR (raw HTML never passed through)
 - **Format detection** – Content type, then file extension, then magic bytes
 - **URL fetching** – Fetch and extract in one call (`http_client` feature)
 - **Configurable** – CSS include/exclude selectors, link/image preservation, resource limits
@@ -32,6 +33,8 @@ package for browsers and edge runtimes.
 | HTML / XHTML | Supported | `html` (default) |
 | DOCX | Supported | `docx` |
 | XLSX, XLSM, XLS, ODS | Supported | `spreadsheet` |
+| Plain text | Supported | always on |
+| Markdown | Supported | `markdown` |
 | PDF | Planned | `pdf` |
 | DOC, PPTX, XLSB | Detected, rejected explicitly | – |
 
@@ -181,7 +184,8 @@ let markkit = Markkit::builder()
 | `docx` | No | DOCX conversion (zip + quick-xml) |
 | `spreadsheet` | No | XLSX/XLSM, XLS, ODS conversion (calamine) |
 | `pdf` | No | Placeholder; PDF currently returns `UnsupportedFormat` |
-| `all_formats` | No | `html`, `pdf`, `docx`, `spreadsheet` |
+| `markdown` | No | Markdown normalization (pulldown-cmark) |
+| `all_formats` | No | `html`, `pdf`, `docx`, `spreadsheet`, `markdown` |
 | `tool` | No | `markkit::tool::MarkkitTool` LLM agent tool (Everruns toolkit contract) |
 | `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
 

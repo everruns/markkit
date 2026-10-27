@@ -34,6 +34,8 @@
 //! - **HTML** (`html`, default): Convert HTML to markdown with configurable rules
 //! - **DOCX** (`docx`): Convert Word documents
 //! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLS and ODS workbooks to tables
+//! - **Plain text** (always on): `text/plain`, `.txt`
+//! - **Markdown** (`markdown`): `text/markdown`, `.md`, normalized through the IR
 //! - **PDF** (`pdf`): Planned; currently returns [`Error::UnsupportedFormat`]
 //! - **URL fetching** (`http_client`, opt-in): Fetch and extract from URLs via reqwest
 //! - **Agent tool** (`tool`): `markkit::tool::MarkkitTool`, an LLM tool following the
@@ -58,9 +60,12 @@ pub mod format;
 pub mod html;
 pub mod ir;
 pub mod limits;
+#[cfg(feature = "markdown")]
+mod markdown;
 pub mod render;
 #[cfg(feature = "spreadsheet")]
 mod spreadsheet;
+mod text;
 #[cfg(feature = "tool")]
 pub mod tool;
 pub mod transform;

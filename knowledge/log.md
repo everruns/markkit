@@ -3,6 +3,7 @@
 ## 2026-10-27
 
 * **Spreadsheet follow-ups (#11)**: single-row sheets render as data under column letters; XLSX/ODS/XLS titles come from document properties; XLSB content type no longer maps to XLSX; XLSX without `_rels/.rels` parses; trailing-newline output documented as intended; release profile switched to `panic = "unwind"` so `catch_unwind` is effective in markkit's own binaries. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md) T6c.
+* **Plain text and Markdown input**: text is always on and goes through the IR; Markdown (`markdown` feature) is re-parsed with pulldown-cmark rather than passed through, so raw HTML never reaches output. Neither is sniffed from bytes. Shares the call's `Limits` budget (timeout, nodes, nesting depth). New threat T7 and invariant S18. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md).
 
 ## 2026-10-26
 

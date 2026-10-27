@@ -296,6 +296,34 @@ process, or smuggling content past a human reviewer.
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
   `spreadsheet_integration::xlsm_with_vba_project_extracts_values_only`
 
+### T7: Text and Markdown Input
+
+**Description**: Plain text or Markdown carrying terminal escapes, NULs, invalid encodings,
+raw HTML (`<script>`, event handlers) or pathological nesting.
+
+**Impact**: Medium -- raw HTML passed through re-introduces T1; deep nesting can crash.
+
+**Mitigations**:
+- Text and Markdown are never sniffed; a content type or extension must select them
+- Decoding is total: invalid UTF-8/UTF-16 is replaced (U+FFFD) with an `invalid_utf8` warning
+- C0 controls (except tab/newline) and DEL are dropped before parsing
+- Markdown is re-parsed (pulldown-cmark) into the IR; raw HTML is never copied. HTML blocks
+  go through the HTML parser (T1 stripping) or are dropped; inline tags are dropped
+- Explicit-stack IR builder, nesting capped at `max_nesting_depth` (deeper content flattened);
+  the call's `timeout` and `max_nodes` budget covers decoding, parsing and HTML blocks
+
+**Residual**: none specific to text. Literal text that looks like markup (a `<script>` line
+in a `.txt`) is emitted as `Node::Text` and escaped by the renderer (S17), like every format.
+
+**Test Coverage** (`text_integration`):
+- `security_control_chars_stripped`, `security_arbitrary_bytes_never_panic`
+- `security_invalid_utf8_lossy_with_warning`, `security_utf16_malformed_no_panic`
+- `security_markdown_raw_html_never_passes_through`
+- `security_markdown_deep_nesting_no_stack_overflow`, `security_long_line`
+- `security_input_size_limit`, `security_output_bounded_by_input`
+- `security_text_and_markdown_share_limits` (timeout, `max_nodes`)
+- `security_plain_text_markup_is_escaped`
+
 ### T5: Information Disclosure
 
 **Description**: Error messages or output leak sensitive information.
@@ -317,7 +345,7 @@ process, or smuggling content past a human reviewer.
 | Output size | 128 MiB | `max_output_size(usize)` | Renderer, per block / list item / table row |
 | Processing time | 60 s | `timeout(Duration)`, `max_processing_secs(u64)` | One budget per call: fetch, parse, render (cooperative) |
 | Parsed nodes | 5 000 000 | `max_nodes(usize)` | After html5ever (DOM count); while building DOCX XML trees |
-| Nesting depth | 256 (hard max 512) | `max_nesting_depth(usize)` | HTML walk (flatten); DOCX XML build (reject) |
+| Nesting depth | 256 (hard max 512) | `max_nesting_depth(usize)` | HTML walk and Markdown IR build (flatten); DOCX XML build (reject) |
 | Redirects (`extract_url`) | 5 | `max_redirects(usize)` | Every redirect hop |
 | Fetched body (`extract_url`) | = input size | `max_input_size(usize)` | `Content-Length` and while streaming |
 | Table span grid | 1 000 000 slots | Hardcoded `MAX_TABLE_GRID_CELLS` | Renderer table layout (spans dropped past it) |
@@ -372,6 +400,7 @@ process, or smuggling content past a human reviewer.
 | S15 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
 | S16 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
 | S17 | Rendered markdown has no raw HTML, no non-allowlisted link/image scheme, and document text cannot create Markdown structure | `output_safety::*` (pulldown-cmark oracle + proptests) |
+| S18 | Text and Markdown output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*` |
 
 ## See also
 
