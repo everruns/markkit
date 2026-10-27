@@ -30,20 +30,20 @@ Design and metric definitions: `knowledge/operations/performance-results.md`.
 ## Latest baseline (vm, linux x86_64, 4 CPUs, 2026-10-27)
 
 20 iterations, 3 warmup, release. Full report:
-[`bench-vm-linux-x86_64-1793067120.md`](results/bench-vm-linux-x86_64-1793067120.md).
+[`bench-vm-linux-x86_64-1793070312.md`](results/bench-vm-linux-x86_64-1793070312.md).
 Last column: the 0.1.1 baseline ([`bench-vm-linux-x86_64-1793058767.md`](results/bench-vm-linux-x86_64-1793058767.md)).
 
 | Case | Input | Mean | Ops/s | Throughput | Allocs/op | Peak heap | Allocs / peak in 0.1.1 |
 |------|------:|-----:|------:|-----------:|----------:|----------:|------:|
-| HTML article (fixture) | 881 B | 59 µs | 16,840 | 14 MiB/s | 158 | 22 KiB | 213 / 28 KiB |
-| HTML blog post with nav/scripts | 15 KiB | 632 µs | 1,583 | 24 MiB/s | 2,505 | 241 KiB | 2,427 / 304 KiB |
-| HTML long docs page | 300 KiB | 16.4 ms | 61 | 18 MiB/s | 49,342 | 4.7 MiB | 47,578 / 7.5 MiB |
-| HTML 50 tables | 257 KiB | 14.2 ms | 70 | 18 MiB/s | 33,635 | 5.1 MiB | 50,349 / 8.6 MiB |
-| HTML mostly boilerplate | 45 KiB | 696 µs | 1,436 | 63 MiB/s | 66 | 252 KiB | 81 / 305 KiB |
-| HTML 1000 nested divs | 11 KiB | 483 µs | 2,069 | 22 MiB/s | 551 | 52 KiB | 442 / 147 KiB |
-| DOCX memo | 1.4 KiB | 77 µs | 13,047 | 18 MiB/s | 499 | 59 KiB | 733 / 93 KiB |
-| DOCX 400-section report | 9 KiB (262 KiB out) | 22.9 ms | 44 | 0.4 MiB/s | 136,866 | 3.9 MiB | 265,791 / 18.5 MiB |
-| XLSX 50×5 | 2.8 KiB | 298 µs | 3,354 | 9 MiB/s | 1,165 | 129 KiB | 1,668 / 129 KiB |
-| XLSX 3 sheets, 150k cells | 766 KiB | 183 ms | 5 | 4 MiB/s | 512,786 | 21.5 MiB | 782,800 / 24.9 MiB |
-| ODS 2000×8 | 70 KiB | 23.6 ms | 42 | 3 MiB/s | 72,498 | 3.0 MiB | 92,515 / 3.0 MiB |
-| Format sniffing (DOCX) | 9 KiB | 2.1 µs | 480,480 | n/a | 0 | 0 B | 0 / 0 B |
+| HTML article (fixture) | 881 B | 54 µs | 18,375 | 15 MiB/s | 158 | 22 KiB | 213 / 28 KiB |
+| HTML blog post with nav/scripts | 15 KiB | 690 µs | 1,449 | 22 MiB/s | 2,505 | 241 KiB | 2,427 / 304 KiB |
+| HTML long docs page | 300 KiB | 15.1 ms | 66 | 19 MiB/s | 49,342 | 4.7 MiB | 47,578 / 7.5 MiB |
+| HTML 50 tables | 257 KiB | 18.3 ms | 55 | 14 MiB/s | 33,635 | 5.1 MiB | 50,349 / 8.6 MiB |
+| HTML mostly boilerplate | 45 KiB | 704 µs | 1,420 | 63 MiB/s | 66 | 252 KiB | 81 / 305 KiB |
+| HTML 1000 nested divs | 11 KiB | 512 µs | 1,953 | 20 MiB/s | 551 | 52 KiB | 442 / 147 KiB |
+| DOCX memo | 1.4 KiB | 75 µs | 13,401 | 18 MiB/s | 499 | 59 KiB | 733 / 93 KiB |
+| DOCX 400-section report | 9 KiB (262 KiB out) | 22.3 ms | 45 | 0.4 MiB/s | 136,866 | 3.9 MiB | 265,791 / 18.5 MiB |
+| XLSX 50×5 | 2.8 KiB | 301 µs | 3,321 | 9 MiB/s | 1,165 | 129 KiB | 1,668 / 129 KiB |
+| XLSX 3 sheets, 150k cells | 766 KiB | 172 ms | 6 | 4 MiB/s | 512,786 | 21.5 MiB | 782,800 / 24.9 MiB |
+| ODS 2000×8 | 70 KiB | 24.5 ms | 41 | 3 MiB/s | 72,498 | 3.0 MiB | 92,515 / 3.0 MiB |
+| Format sniffing (DOCX) | 9 KiB | 0.9 µs | 1,076,774 | n/a | 0 | 0 B | 0 / 0 B |
