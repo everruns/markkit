@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `markkit mcp`: Model Context Protocol server over stdio exposing the `markkit` tool
+  (`tools/list`, `tools/call`). URL fetching keeps the SSRF guard; `--no-url` keeps it offline,
+  `--max-size` / `--max-output-chars` bound each call.
 - HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
   `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
   canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and

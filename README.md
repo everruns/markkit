@@ -88,7 +88,12 @@ markkit extract --file page.html --base-url https://example.com/blog/
 
 # From stdin
 cat page.html | markkit extract -
+
+# MCP server (stdio) exposing the `markkit` tool to agents
+markkit mcp            # add --no-url to keep it offline
 ```
+
+MCP client config: `{"mcpServers": {"markkit": {"command": "markkit", "args": ["mcp"]}}}`.
 
 ### Python
 
