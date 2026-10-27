@@ -195,6 +195,21 @@ impl MarkkitBuilder {
         self
     }
 
+    pub fn max_pdf_pages(mut self, n: usize) -> Self {
+        self.limits.max_pdf_pages = n;
+        self
+    }
+
+    pub fn max_pdf_stream_size(mut self, bytes: usize) -> Self {
+        self.limits.max_pdf_stream_size = bytes;
+        self
+    }
+
+    pub fn max_pdf_decoded_size(mut self, bytes: usize) -> Self {
+        self.limits.max_pdf_decoded_size = bytes;
+        self
+    }
+
     /// Resolve relative HTML URLs against this absolute URL. Ignored when it
     /// does not parse or cannot be a base (`data:`, `javascript:`, ...).
     pub fn base_url(mut self, url: impl Into<String>) -> Self {

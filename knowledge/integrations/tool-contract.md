@@ -12,7 +12,7 @@ tags:
 # Tool Contract
 
 ## Status
-Implemented (Rust core, `tool` feature) and exposed in the [WASM Package](../runtimes/wasm-package.md) as `MarkkitTool` (no `url` source there). Python/Node bindings and an MCP server are not wired yet.
+Implemented (Rust core, `tool` feature) and exposed in the [WASM Package](../runtimes/wasm-package.md) as `MarkkitTool` (no `url` source there). Served over MCP by `markkit mcp` ([MCP Server](mcp-server.md)). Python/Node bindings are not wired yet.
 
 ## Summary
 
@@ -113,3 +113,4 @@ stream closing, and the `tower` service.
 - [Markkit Architecture](../foundations/architecture.md), the extraction pipeline the tool wraps
 - [Threat Model](../security/threat-model.md), T3 SSRF and the tool arguments surface
 - [Examples](../operations/examples.md), `agent_tool.rs`
+- [MCP Server](mcp-server.md), stdio transport for this tool

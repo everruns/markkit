@@ -483,3 +483,80 @@ pub fn rezip(bytes: &[u8], drop: &[&str], add: &[(&str, &[u8])]) -> Vec<u8> {
 pub fn xls(sheets: &[XlsSheet]) -> Vec<u8> {
     xls_from_stream(&biff8_workbook(sheets))
 }
+
+// ─── PDF ────────────────────────────────────────────────────────────
+
+/// Zlib-compress (for `/FlateDecode` streams).
+pub fn zlib(data: &[u8]) -> Vec<u8> {
+    miniz_oxide::deflate::compress_to_vec_zlib(data, 9)
+}
+
+/// A stream object body: `<< dict /Length n >> stream … endstream`.
+pub fn pdf_stream(dict: &str, data: &[u8]) -> Vec<u8> {
+    let mut out = format!("<< {dict} /Length {} >>\nstream\n", data.len()).into_bytes();
+    out.extend_from_slice(data);
+    out.extend_from_slice(b"\nendstream");
+    out
+}
+
+/// Assemble a PDF from object bodies (object `i + 1` = `objects[i]`) with a
+/// correct xref table. Object 1 must be the catalog.
+pub fn pdf_bytes_with_trailer(objects: &[Vec<u8>], trailer_extra: &str) -> Vec<u8> {
+    let mut out = b"%PDF-1.7\n%\xE2\xE3\xCF\xD3\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, body) in objects.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend(format!("{} 0 obj\n", i + 1).bytes());
+        out.extend_from_slice(body);
+        out.extend_from_slice(b"\nendobj\n");
+    }
+    let xref = out.len();
+    out.extend(format!("xref\n0 {}\n0000000000 65535 f \n", objects.len() + 1).bytes());
+    for off in offsets {
+        out.extend(format!("{off:010} 00000 n \n").bytes());
+    }
+    out.extend(
+        format!(
+            "trailer\n<< /Size {} /Root 1 0 R {trailer_extra} >>\nstartxref\n{xref}\n%%EOF\n",
+            objects.len() + 1
+        )
+        .bytes(),
+    );
+    out
+}
+
+pub fn pdf_bytes(objects: &[Vec<u8>]) -> Vec<u8> {
+    pdf_bytes_with_trailer(objects, "")
+}
+
+/// Single- or multi-page PDF; each page's content uses `/F1` = Helvetica
+/// (WinAnsi). Objects: 1 catalog, 2 pages, 3 font, then (page, content) pairs.
+pub fn pdf_pages(contents: &[&str]) -> Vec<u8> {
+    pdf_pages_with(contents, "/F1 3 0 R", &[])
+}
+
+/// Like [`pdf_pages`] with a custom font resource dict body and extra objects
+/// appended after the pages (numbered from `4 + 2 * contents.len()`).
+pub fn pdf_pages_with(contents: &[&str], fonts: &str, extra: &[Vec<u8>]) -> Vec<u8> {
+    let n = contents.len();
+    let kids: Vec<String> = (0..n).map(|i| format!("{} 0 R", 4 + 2 * i)).collect();
+    let mut objs = vec![
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        format!("<< /Type /Pages /Kids [{}] /Count {n} >>", kids.join(" ")).into_bytes(),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"
+            .to_vec(),
+    ];
+    for (i, c) in contents.iter().enumerate() {
+        objs.push(
+            format!(
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << {fonts} >> /XObject << /X1 {} 0 R >> >> /Contents {} 0 R >>",
+                4 + 2 * n,
+                5 + 2 * i
+            )
+            .into_bytes(),
+        );
+        objs.push(pdf_stream("", c.as_bytes()));
+    }
+    objs.extend(extra.iter().cloned());
+    pdf_bytes(&objs)
+}

@@ -200,6 +200,7 @@ fn extract_document_legacy_doc_and_pptx_unsupported() {
     }
 }
 
+#[cfg(not(feature = "pdf"))]
 #[test]
 fn pdf_is_explicitly_unsupported_not_empty() {
     let m = Markkit::builder().build();

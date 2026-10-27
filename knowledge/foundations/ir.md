@@ -68,7 +68,7 @@ All block variants except `ThematicBreak` also carry `source` (see Provenance).
 | `DefinitionList` | `items: Vec<DefinitionItem>` | Terms with one or more definitions. |
 | `Figure` | `children: Vec<Node>`, `caption: Option<Vec<Node>>` | Block content with inline caption. |
 | `FootnoteDefinition` | `label: String`, `children: Vec<Node>` | Footnote body (blocks). |
-| `MathBlock` | `tex: String` | Display math, TeX source. Renders `$$` fenced; `$$` inside is split. |
+| `MathBlock` | `tex: String` | Display math, TeX source. Renders as a ` ```math ` code fence (math on GitHub, inert code elsewhere; TeX is untrusted, S17). |
 
 #### Inline Variants
 
@@ -83,7 +83,7 @@ All block variants except `ThematicBreak` also carry `source` (see Provenance).
 | `Image` | `src: String`, `alt: String` | Image reference. Leaf node (no children). |
 | `LineBreak` | (unit) | Hard line break. Renders as two trailing spaces + newline. |
 | `FootnoteReference` | `label: String` | Marker pointing at the `FootnoteDefinition` with the same label. |
-| `Math` | `tex: String` | Inline math, TeX source. Renders `$tex$`: one line, trimmed, unescaped `$` escaped. |
+| `Math` | `tex: String` | Inline math, TeX source. Renders GitHub's `` $`tex`$ `` form: one line, trimmed, inside a code span so plain-GFM readers never parse it as Markdown or HTML. |
 
 ### Provenance (`Source`)
 
@@ -141,7 +141,8 @@ At render time, the `normalize_output` function:
 
 - Block nodes separated by blank lines
 - Inline content concatenated directly
-- Lists indented with 2-space increments per depth level
+- List item bodies (continuation lines, nested lists, sub-blocks) indented by the marker
+  width (`- ` = 2, `1. ` = 3)
 - BlockQuote lines prefixed with `> `
 - Tables rendered as GFM pipe tables; separator carries alignment
   (`:---`, `:---:`, `---:`). Spans are laid out on a grid: content in the
@@ -153,6 +154,9 @@ At render time, the `normalize_output` function:
 - Definition lists: term line, then `:   definition` per definition
   (continuation indented 4), items separated by blank lines
 - Figures: children, then the caption as an italic paragraph
+- Text, code and URLs escaped by `render/escape.rs` so IR text renders verbatim and
+  unsafe link/image schemes are dropped ([Threat Model](../security/threat-model.md) T1).
+  The IR itself always holds unescaped text.
 
 ## IR Invariants
 

@@ -571,13 +571,14 @@ fn ordered_list_default_start() {
 #[test]
 fn link_empty_url() {
     let md = convert(r#"<p><a href="">text</a></p>"#);
-    assert!(md.contains("[text]()"));
+    // Empty destination is written as `<>` so a title cannot parse as the URL.
+    assert!(md.contains("[text](<>)"), "{md}");
 }
 
 #[test]
 fn image_empty_src() {
     let md = convert(r#"<img src="" alt="x">"#);
-    assert!(md.contains("![x]()"));
+    assert!(md.contains("![x](<>)"), "{md}");
 }
 
 #[test]
@@ -929,20 +930,20 @@ fn sources_do_not_change_markdown() {
 #[test]
 fn mathml_with_tex_annotation() {
     let html = r#"<p>Area <math><semantics><mi>π</mi><annotation encoding="application/x-tex">\pi r^2</annotation></semantics></math> here.</p>"#;
-    assert_eq!(convert(html), "Area $\\pi r^2$ here.\n");
+    assert_eq!(convert(html), "Area $`\\pi r^2`$ here.\n");
 }
 
 #[test]
 fn katex_inline_and_display() {
     let html = r#"<p>Inline <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span>x2</span></span></span>.</p>
     <div class="katex-display"><span class="katex"><span class="katex-mathml"><math display="block"><semantics><annotation encoding="application/x-tex">E = mc^2</annotation></semantics></math></span><span class="katex-html">E=mc2</span></span></div>"#;
-    assert_eq!(convert(html), "Inline $x^2$.\n\n$$\nE = mc^2\n$$\n");
+    assert_eq!(convert(html), "Inline $`x^2`$.\n\n```math\nE = mc^2\n```\n");
 }
 
 #[test]
 fn mathjax_container() {
     let html = r#"<mjx-container class="MathJax" display="true"><mjx-math>visual</mjx-math><mjx-assistive-mml><math display="block"><annotation encoding="application/x-tex">\int f</annotation></math></mjx-assistive-mml></mjx-container>"#;
-    assert_eq!(convert(html), "$$\n\\int f\n$$\n");
+    assert_eq!(convert(html), "```math\n\\int f\n```\n");
 }
 
 #[test]
@@ -955,7 +956,7 @@ fn mathml_without_tex_keeps_text() {
 fn math_dollars_cannot_break_out() {
     let html =
         r#"<p><math><annotation encoding="application/x-tex">a$ **b** $c</annotation></math></p>"#;
-    assert_eq!(convert(html), "$a\\$ **b** \\$c$\n");
+    assert_eq!(convert(html), "$`a$ **b** $c`$\n");
 }
 
 // ─── Transforms ──────────────────────────────────────────────────────

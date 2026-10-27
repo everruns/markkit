@@ -67,16 +67,15 @@ fn metadata_urls_resolve() {
 // ─── Untrusted input ────────────────────────────────────────────────
 
 #[test]
-fn absolute_dangerous_schemes_pass_through_untouched() {
-    // Resolution never rewrites (or normalizes) an absolute URL.
+fn absolute_dangerous_schemes_are_not_resolved() {
+    // Resolution never rewrites (or normalizes) an absolute URL, so a script
+    // scheme is not turned into a page-relative link; the renderer's scheme
+    // allowlist then drops it (text kept). Safe absolute URLs pass untouched.
     let md = convert(
         Some("https://ex.com/"),
         r#"<p><a href="JaVaScRiPt:alert(1)">j</a> <img src="data:image/png;base64,AA" alt="d"></p>"#,
     );
-    assert_eq!(
-        md,
-        "[j](JaVaScRiPt:alert(1)) ![d](data:image/png;base64,AA)\n"
-    );
+    assert_eq!(md, "j ![d](data:image/png;base64,AA)\n");
 }
 
 #[test]
