@@ -161,6 +161,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - XLSX packages missing `_rels/.rels` no longer fail inside calamine.
 - Release builds use `panic = "unwind"`, so a parser panic becomes an error instead of aborting the
   CLI or the host Python/Node process.
+- Text that only looks like a block marker is no longer escaped: `4.6 out of 5` stays `4.6`, not
+  `4\.6`; same for `#tag` and `+1`. Markers followed by whitespace (`1. `, `# `, `+ `) are still
+  escaped.
 - Exclude selectors now apply to `<li>`, `<tr>`, `<th>` and `<td>`; they were ignored there.
 - Indented HTML (most real web pages) now keeps blank lines between blocks; previously
   headings, paragraphs, lists and tables after the first ran together with a leading space
