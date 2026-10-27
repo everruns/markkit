@@ -21,7 +21,8 @@ Follows [Semantic Versioning](https://semver.org/):
 Releases are agent-driven; CI creates the tag, GitHub Release and crates.io upload.
 
 1. Ask the agent: "Create release v0.X.Y".
-2. Agent bumps `version` in root `Cargo.toml`, moves `CHANGELOG.md` Unreleased entries
+2. Agent bumps `version` in root `Cargo.toml`, `crates/markkit-js/package.json` and
+   `crates/markkit-wasm/package.json`, moves `CHANGELOG.md` Unreleased entries
    under `## [0.X.Y] - YYYY-MM-DD`, runs `just pre-pr`, and opens a PR titled
    `chore(release): prepare v0.X.Y`.
 3. Merging that PR to `main` (squash keeps the title as the commit subject) runs
@@ -35,7 +36,7 @@ Releases are agent-driven; CI creates the tag, GitHub Release and crates.io uplo
 
 Manual fallback: run the **Release** workflow from `main` (workflow_dispatch); it reads the
 version from `Cargo.toml`. Python and npm packages are published separately with
-`publish-python.yml` / `publish-js.yml`.
+`publish-python.yml` / `publish-js.yml` / `publish-wasm.yml`.
 
 ## Artifacts
 
@@ -44,6 +45,7 @@ version from `Cargo.toml`. Python and npm packages are published separately with
 | Rust crate | `cargo publish` | crates.io |
 | Python wheel | `maturin build` | PyPI |
 | npm package | `napi build` | npm |
+| npm WASM package | `wasm-bindgen` | npm (`@everruns/markkit-wasm`, OIDC) |
 
 ## Native package scope and verification
 
