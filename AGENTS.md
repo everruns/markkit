@@ -48,6 +48,10 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 - Binding READMEs (`crates/markkit-python/README.md`, `crates/markkit-js/README.md`, `crates/markkit-wasm/README.md`) ship to PyPI/npm, keep them in sync with exports
 - Durable engineering knowledge: `knowledge/`, never `docs/`
 
+### Shipping
+
+"Ship" / "ship it" / "fix and ship" = landed on `main` via squash-merge, every CI check green on the PR and on the merge commit's `main` run, tested (positive, negative, security where relevant), smoke tested, knowledge/docs/CHANGELOG updated, ready to release. Use the `ship` skill. Not done at push, PR, or auto-merge; done when `main` is green. Red `main` after merge: fix forward immediately. Ship ≠ release: tag/publish only on "Create release" (`knowledge/operations/release-process.md`).
+
 ### Maintenance invocation
 
 "Run maintenance" (incl. "maintainace" / "maintaiance") = analyze, fix, validate, ship through green CI and squash-merge. Use the `maintain` and `ship` skills; checklist in `knowledge/operations/maintenance.md`. Don't stop at a report, local commit, or deferral issues. Analysis-only needs an explicit request. Preserve security contracts; never merge red CI.
@@ -101,6 +105,7 @@ just pre-pr        # Pre-PR checks
 5. Update knowledge if behavior or durable facts change; add a `knowledge/log.md` entry
 6. `CHANGELOG.md` Unreleased entry for user-facing changes
 7. CI green before merge; resolve all PR comments
+8. After merge: `main` CI green on the merge commit
 
 ### CI
 
