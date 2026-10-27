@@ -37,7 +37,7 @@ console.log(doc.title, doc.format, doc.markdown);
 
 ## Options
 
-`maxInputSize`, `maxOutputSize`, `maxNodes`, `maxNestingDepth`, `preserveLinks`, `preserveImages`, `includeSelectors`,
+`maxInputSize`, `maxOutputSize`, `maxNodes`, `maxNestingDepth`, `baseUrl`, `mainContent`, `preserveLinks`, `preserveImages`, `includeSelectors`,
 `excludeSelectors` (added to the defaults), `maxArchiveEntries`,
 `maxArchiveEntrySize`, `maxArchiveTotalSize`, `maxSheetRows`, `maxSheetCols`,
 `maxSpreadsheetCells`, `includeHiddenSheets`. Unknown keys throw. There is no

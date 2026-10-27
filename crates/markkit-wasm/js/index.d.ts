@@ -16,6 +16,10 @@ export interface MarkkitOptions {
   maxNodes?: number;
   /** Maximum element nesting (default 256, capped at 512). */
   maxNestingDepth?: number;
+  /** Absolute URL relative links and images resolve against. */
+  baseUrl?: string;
+  /** Keep only the detected main content (article body) of HTML pages. */
+  mainContent?: boolean;
   preserveLinks?: boolean;
   preserveImages?: boolean;
   /** CSS selectors to include (empty = whole document). */

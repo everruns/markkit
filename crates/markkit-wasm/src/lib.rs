@@ -24,6 +24,9 @@ struct Options {
     max_nodes: Option<usize>,
     /// Capped at 512.
     max_nesting_depth: Option<usize>,
+    /// Absolute URL relative links and images resolve against.
+    base_url: Option<String>,
+    main_content: Option<bool>,
     preserve_links: Option<bool>,
     preserve_images: Option<bool>,
     /// Added to the default selector set.
@@ -52,6 +55,8 @@ impl Options {
             max_output_size,
             max_nodes,
             max_nesting_depth,
+            base_url,
+            main_content,
             preserve_links,
             preserve_images,
             max_archive_entries,

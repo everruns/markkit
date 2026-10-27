@@ -30,7 +30,7 @@ const doc = m.extractDocumentSync(buf, { fileName: 'report.docx' });
 
 Every function takes an optional trailing `options` object (`MarkkitOptions`):
 the camelCase builder fields shared with the [WASM Package](wasm-package.md)
-(`maxInputSize`, `maxOutputSize`, `maxNodes`, `maxNestingDepth`, `preserveLinks`, `preserveImages`, `includeSelectors`,
+(`maxInputSize`, `maxOutputSize`, `maxNodes`, `maxNestingDepth`, `baseUrl`, `mainContent`, `preserveLinks`, `preserveImages`, `includeSelectors`,
 `excludeSelectors`, archive and sheet limits, `includeHiddenSheets`) plus the URL
 policy fields `timeout` (seconds, float; whole call), `maxProcessingSecs`
 (whole-second alias, `timeout` wins), `allowPrivateNetworks`, `allowedHosts`,
@@ -45,7 +45,7 @@ Errors reject (or throw) with the Rust error's `Display` text as the reason.
 | Capability | Python | Node.js | WASM |
 |---|---|---|---|
 | HTML async / sync | yes | yes | sync |
-| HTML with options | `extract_html_sync_with_options` (selectors, size) | all builder options | all builder options |
+| HTML with options | `extract_html_sync_with_options` (selectors, size, `base_url`, `main_content`) | all builder options | all builder options |
 | Resource limits (`Limits`) | `limits=markkit.Limits(...)` on every function | flat option keys, incl. `timeout` | flat option keys, no `timeout` (no clock) |
 | URL | yes, defaults only | yes, with URL policy options | no (host fetches) |
 | Bytes | yes | yes | yes |

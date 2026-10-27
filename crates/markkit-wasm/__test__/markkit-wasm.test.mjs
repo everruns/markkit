@@ -47,6 +47,14 @@ test("output, node and depth limits", () => {
   assert.throws(() => new Markkit({ timeout: 1 }), /invalid options/);
 });
 
+test("baseUrl and mainContent options", () => {
+  const page = '<body><nav><a href="/n">menu</a></nav><article><h1>T</h1>' + "<p>Long article text, with commas, and more words here.</p>".repeat(8) + '<p><a href="/a">rel</a></p></article><aside>side</aside></body>';
+  const md = new Markkit({ baseUrl: "https://x.test/d/", mainContent: true }).extractHtml(page);
+  assert.ok(md.includes("(https://x.test/a)"));
+  assert.ok(!md.includes("side"));
+  assert.ok(new Markkit().extractHtml(page).includes("side"));
+});
+
 test("extractDocument returns metadata", () => {
   const mk = new Markkit();
   const out = mk.extractDocument(new TextEncoder().encode("<p>bytes</p>"), { fileName: "a.html" });

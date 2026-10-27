@@ -28,6 +28,11 @@ pub struct MarkkitOptions {
     pub max_nodes: Option<u32>,
     /// Maximum element nesting (default 256, capped at 512).
     pub max_nesting_depth: Option<u32>,
+    /// Absolute URL relative links and images resolve against (`extractUrl`
+    /// uses the final response URL).
+    pub base_url: Option<String>,
+    /// Keep only the detected main content (article body) of HTML pages.
+    pub main_content: Option<bool>,
     pub preserve_links: Option<bool>,
     pub preserve_images: Option<bool>,
     /// CSS selectors to include (empty = whole document).
@@ -140,6 +145,12 @@ fn markkit(options: Option<MarkkitOptions>) -> napi::Result<markkit::Markkit> {
     }
     if let Some(v) = o.max_nesting_depth {
         b = b.max_nesting_depth(v as usize);
+    }
+    if let Some(v) = o.base_url {
+        b = b.base_url(v);
+    }
+    if let Some(v) = o.main_content {
+        b = b.main_content(v);
     }
     if let Some(v) = o.preserve_links {
         b = b.preserve_links(v);

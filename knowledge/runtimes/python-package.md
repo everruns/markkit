@@ -33,6 +33,8 @@ markdown = markkit.extract_html_sync_with_options(
     include_selectors=["article"],
     exclude_selectors=["nav"],
     max_input_size=1_000_000,
+    base_url="https://example.com/docs/",
+    main_content=True,
 )
 
 # Resource limits: every function takes keyword-only `limits=`

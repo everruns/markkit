@@ -34,6 +34,14 @@ test("resource limit options", () => {
   assert.ok(!m.extractHtmlSync(deep, { maxNestingDepth: 5 }).includes("> ".repeat(6)));
 });
 
+test("baseUrl and mainContent options", () => {
+  const page = '<body><nav><a href="/n">menu</a></nav><article><h1>T</h1>' + "<p>Long article text, with commas, and more words here.</p>".repeat(8) + '<p><a href="/a">rel</a></p></article><aside>side</aside></body>';
+  const md = m.extractHtmlSync(page, { baseUrl: "https://x.test/d/", mainContent: true });
+  assert.ok(md.includes("(https://x.test/a)"));
+  assert.ok(!md.includes("side"));
+  assert.ok(m.extractHtmlSync(page).includes("side"));
+});
+
 test("invalid numeric options are rejected", () => {
   assert.throws(() => m.extractHtmlSync("<p>x</p>", { maxArchiveTotalSize: -1 }), /invalid options/);
   assert.throws(() => m.extractHtmlSync("<p>x</p>", { maxSpreadsheetCells: 1.5 }), /invalid options/);

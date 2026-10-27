@@ -165,17 +165,24 @@ fn extract_html_sync(html: String, limits: Option<PyRef<'_, Limits>>) -> PyResul
 ///   include_selectors: list of CSS selectors to include
 ///   exclude_selectors: list of CSS selectors to exclude
 ///   max_input_size: maximum input size in bytes (overrides limits.max_input_size)
+///   base_url: absolute URL relative links and images resolve against
+///   main_content: keep only the detected article body (default False)
 ///   limits: markkit.Limits
 #[pyfunction]
-#[pyo3(signature = (html, *, include_selectors=None, exclude_selectors=None, max_input_size=None, limits=None))]
+#[pyo3(signature = (html, *, include_selectors=None, exclude_selectors=None, max_input_size=None, base_url=None, main_content=false, limits=None))]
 fn extract_html_sync_with_options(
     html: String,
     include_selectors: Option<Vec<String>>,
     exclude_selectors: Option<Vec<String>>,
     max_input_size: Option<usize>,
+    base_url: Option<String>,
+    main_content: bool,
     limits: Option<PyRef<'_, Limits>>,
 ) -> PyResult<String> {
-    let mut builder = builder(limits.as_deref());
+    let mut builder = builder(limits.as_deref()).main_content(main_content);
+    if let Some(base) = base_url {
+        builder = builder.base_url(base);
+    }
     if let Some(size) = max_input_size {
         builder = builder.max_input_size(size);
     }

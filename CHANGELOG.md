@@ -53,6 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   alias of `--max-input-size`), Python `markkit.Limits(...)` passed as `limits=` to every function,
   and flat Node.js and WASM option keys (`maxOutputSize`, `maxNodes`, `maxNestingDepth`, plus
   `timeout` in Node.js).
+- Node.js and WASM options gain `baseUrl` and `mainContent`; Python `extract_html_sync_with_options`
+  gains `base_url=` and `main_content=`, matching the core builder.
 
 ### Security
 
