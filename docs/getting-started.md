@@ -77,6 +77,12 @@ let markkit = Markkit::builder()
     .build();
 ```
 
+Every resource an input can drive (input/output size, time, nesting, node count,
+archives, spreadsheets, redirects) is bounded by `markkit::Limits` with generous
+defaults. The same limits are available as CLI flags (`markkit extract --help`,
+"Limits" section), as `markkit.Limits(...)` in Python and as flat option keys in
+Node.js and WASM.
+
 ## Next Steps
 
 - [HTML extraction](../knowledge/formats/html-extraction.md): element mapping and stripping rules
