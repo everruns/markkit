@@ -13,7 +13,8 @@ tags:
 
 "Run maintenance", "maintain", and misspellings such as "maintainace" and
 "maintaiance" mean **analyze, fix, and ship**: local validation, push, PR, fix
-CI and review findings, then squash-merge with every required check green.
+CI and review findings, then squash-merge with every required check green and
+confirm the merge commit's `main` CI is green.
 A report, a local commit, or a set of deferral issues is not a completed pass.
 Only an explicit analysis-only request narrows this.
 
