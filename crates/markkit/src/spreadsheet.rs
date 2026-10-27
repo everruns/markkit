@@ -334,11 +334,27 @@ fn fmt_xlsb(v: &xlsb::Value, is_1904: bool) -> String {
     }
 }
 
+/// Same output as [`fmt_data`], without first cloning into an owned `Data`.
 fn fmt_ref(d: &DataRef<'_>) -> String {
     match d {
+        DataRef::Int(i) => i.to_string(),
+        DataRef::Float(f) => fmt_float(*f),
+        DataRef::String(s) | DataRef::DurationIso(s) => s.clone(),
         DataRef::SharedString(s) => (*s).to_string(),
-        other => fmt_data(&Data::from(other.clone())),
+        DataRef::DateTimeIso(s) => s.replacen('T', " ", 1),
+        DataRef::Bool(b) => b.to_string(),
+        DataRef::DateTime(dt) => fmt_datetime(dt),
+        DataRef::Error(e) => e.to_string(),
+        DataRef::Empty => String::new(),
     }
+}
+
+/// Trim in place, keeping the allocation.
+fn trim_owned(mut s: String) -> String {
+    s.truncate(s.trim_end().len());
+    let lead = s.len() - s.trim_start().len();
+    s.drain(..lead);
+    s
 }
 
 // ─── Grid collection (bounded) ──────────────────────────────────────
@@ -388,7 +404,8 @@ impl Grid {
     }
 
     fn add(&mut self, r: u32, c: u32, value: String) {
-        if value.trim().is_empty() {
+        let value = trim_owned(value);
+        if value.is_empty() {
             return;
         }
         let keep = self.max_rows.saturating_add(1);
@@ -444,7 +461,7 @@ impl Grid {
             for (c, v) in cells {
                 let idx = (c - min_col) as usize;
                 if idx < width {
-                    row[idx] = v.trim().to_string();
+                    row[idx] = v;
                 }
             }
             row
@@ -1183,6 +1200,35 @@ fn prescan_ods(content: &[u8], max_cells: u64) -> Result<(), Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fmt_ref_matches_fmt_data() {
+        let dt =
+            calamine::ExcelDateTime::new(45_000.5, calamine::ExcelDateTimeType::DateTime, false);
+        let refs = [
+            DataRef::Int(-3),
+            DataRef::Float(2.0),
+            DataRef::Float(0.25),
+            DataRef::String("s".into()),
+            DataRef::SharedString("shared"),
+            DataRef::Bool(true),
+            DataRef::DateTime(dt),
+            DataRef::DateTimeIso("2024-01-02T03:04:05".into()),
+            DataRef::DurationIso("PT1H".into()),
+            DataRef::Error(calamine::CellErrorType::Div0),
+            DataRef::Empty,
+        ];
+        for r in refs {
+            assert_eq!(fmt_ref(&r), fmt_data(&Data::from(r.clone())), "{r:?}");
+        }
+    }
+
+    #[test]
+    fn trim_owned_trims_unicode_whitespace() {
+        assert_eq!(trim_owned("\u{a0} a b \t\n".into()), "a b");
+        assert_eq!(trim_owned(" \u{3000} ".into()), "");
+        assert_eq!(trim_owned("x".into()), "x");
+    }
 
     #[test]
     fn float_formatting() {

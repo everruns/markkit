@@ -6,7 +6,9 @@
 //! only internal targets are followed for parts; external targets are kept as
 //! hyperlink URLs only.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use crate::ir::{ListItem, Node};
 use crate::xml::Element;
@@ -85,27 +87,29 @@ pub(crate) struct Fmt {
     pub strike: bool,
 }
 
-pub(crate) enum Seg {
+/// Inline segment. Text borrows from the XML tree until it becomes an IR node;
+/// the link is shared by every segment of a hyperlink.
+pub(crate) enum Seg<'e> {
     Text {
-        text: String,
+        text: Cow<'e, str>,
         fmt: Fmt,
-        link: Option<String>,
+        link: Option<Rc<str>>,
     },
     Break {
-        link: Option<String>,
+        link: Option<Rc<str>>,
     },
 }
 
-impl Seg {
-    pub(crate) fn link(&self) -> Option<&str> {
+impl Seg<'_> {
+    pub(crate) fn link(&self) -> Option<&Rc<str>> {
         match self {
-            Seg::Text { link, .. } | Seg::Break { link } => link.as_deref(),
+            Seg::Text { link, .. } | Seg::Break { link } => link.as_ref(),
         }
     }
 }
 
 /// Merge segments and turn them into IR inline nodes.
-pub(crate) fn build_inline(segs: Vec<Seg>) -> Vec<Node> {
+pub(crate) fn build_inline(segs: Vec<Seg<'_>>) -> Vec<Node> {
     // 1. Merge adjacent text with identical formatting and link.
     let mut merged: Vec<Seg> = Vec::with_capacity(segs.len());
     for seg in segs {
@@ -120,81 +124,77 @@ pub(crate) fn build_inline(segs: Vec<Seg>) -> Vec<Node> {
             && pf == fmt
             && pl == link
         {
-            prev.push_str(text);
+            prev.to_mut().push_str(text);
             continue;
         }
         merged.push(seg);
     }
 
     // 2. Group by link.
-    let mut out: Vec<Node> = Vec::new();
-    let mut i = 0;
-    while i < merged.len() {
-        let link = merged[i].link().map(str::to_string);
-        let mut j = i;
-        while j < merged.len() && merged[j].link() == link.as_deref() {
-            j += 1;
+    let mut out: Vec<Node> = Vec::with_capacity(merged.len());
+    let mut segs = merged.into_iter().peekable();
+    while let Some(first) = segs.next() {
+        let Some(url) = first.link().cloned() else {
+            format_seg(first, &mut out);
+            continue;
+        };
+        let mut nodes = Vec::new();
+        format_seg(first, &mut nodes);
+        while let Some(next) = segs.next_if(|s| s.link() == Some(&url)) {
+            format_seg(next, &mut nodes);
         }
-        let nodes = format_nodes(&merged[i..j]);
-        match link {
-            Some(url) if !is_blank(&nodes) => {
-                let (lead, core, trail) = split_ws_nodes(nodes);
-                out.extend(lead);
-                out.push(Node::Link {
-                    url,
-                    title: None,
-                    children: core,
-                });
-                out.extend(trail);
-            }
-            _ => out.extend(nodes),
+        if is_blank(&nodes) {
+            out.extend(nodes);
+        } else {
+            let (lead, core, trail) = split_ws_nodes(nodes);
+            out.extend(lead);
+            out.push(Node::Link {
+                url: url.to_string(),
+                title: None,
+                children: core,
+            });
+            out.extend(trail);
         }
-        i = j;
     }
     tidy_inline(out)
 }
 
-pub(crate) fn format_nodes(segs: &[Seg]) -> Vec<Node> {
-    let mut out = Vec::new();
-    for seg in segs {
-        match seg {
-            Seg::Break { .. } => out.push(Node::LineBreak),
-            Seg::Text { text, fmt, .. } => {
-                let core = text.trim();
-                if core.is_empty() || *fmt == Fmt::default() {
-                    out.push(Node::Text(text.clone()));
-                    continue;
-                }
-                let start = text.len() - text.trim_start().len();
-                let lead = &text[..start];
-                let trail = &text[start + core.len()..];
-                if !lead.is_empty() {
-                    out.push(Node::Text(lead.to_string()));
-                }
-                let mut node = Node::Text(core.to_string());
-                if fmt.strike {
-                    node = Node::Strikethrough {
-                        children: vec![node],
-                    };
-                }
-                if fmt.italic {
-                    node = Node::Italic {
-                        children: vec![node],
-                    };
-                }
-                if fmt.bold {
-                    node = Node::Bold {
-                        children: vec![node],
-                    };
-                }
-                out.push(node);
-                if !trail.is_empty() {
-                    out.push(Node::Text(trail.to_string()));
-                }
-            }
-        }
+fn format_seg(seg: Seg<'_>, out: &mut Vec<Node>) {
+    let (text, fmt) = match seg {
+        Seg::Break { .. } => return out.push(Node::LineBreak),
+        Seg::Text { text, fmt, .. } => (text, fmt),
+    };
+    let core = text.trim();
+    if core.is_empty() || fmt == Fmt::default() {
+        out.push(Node::Text(text.into_owned()));
+        return;
     }
-    out
+    let start = text.len() - text.trim_start().len();
+    let lead = &text[..start];
+    let trail = &text[start + core.len()..];
+    if !lead.is_empty() {
+        out.push(Node::Text(lead.to_string()));
+    }
+    let mut node = Node::Text(core.to_string());
+    if fmt.strike {
+        node = Node::Strikethrough {
+            children: vec![node],
+        };
+    }
+    if fmt.italic {
+        node = Node::Italic {
+            children: vec![node],
+        };
+    }
+    if fmt.bold {
+        node = Node::Bold {
+            children: vec![node],
+        };
+    }
+    out.push(node);
+    if !trail.is_empty() {
+        out.push(Node::Text(trail.to_string()));
+    }
 }
 
 /// Split leading/trailing whitespace text out of a node list (for link text).
@@ -220,22 +220,33 @@ pub(crate) fn split_ws_nodes(mut nodes: Vec<Node>) -> (Vec<Node>, Vec<Node>, Vec
 }
 
 /// Merge adjacent text nodes and strip leading/trailing line breaks.
-pub(crate) fn tidy_inline(nodes: Vec<Node>) -> Vec<Node> {
-    let mut out: Vec<Node> = Vec::with_capacity(nodes.len());
-    for n in nodes {
-        match (out.last_mut(), n) {
-            (Some(Node::Text(prev)), Node::Text(t)) => prev.push_str(&t),
-            (_, Node::Text(t)) if t.is_empty() => {}
-            (_, n) => out.push(n),
+pub(crate) fn tidy_inline(mut nodes: Vec<Node>) -> Vec<Node> {
+    // In place: `w` is the write cursor, read slots are taken by swap.
+    let mut w = 0;
+    for r in 0..nodes.len() {
+        match std::mem::replace(&mut nodes[r], Node::LineBreak) {
+            Node::Text(t) if t.is_empty() => {}
+            Node::Text(t) if w > 0 && matches!(nodes[w - 1], Node::Text(_)) => {
+                if let Node::Text(prev) = &mut nodes[w - 1] {
+                    prev.push_str(&t);
+                }
+            }
+            n => {
+                nodes[w] = n;
+                w += 1;
+            }
         }
     }
-    while matches!(out.first(), Some(Node::LineBreak)) {
-        out.remove(0);
+    nodes.truncate(w);
+    while matches!(nodes.last(), Some(Node::LineBreak)) {
+        nodes.pop();
     }
-    while matches!(out.last(), Some(Node::LineBreak)) {
-        out.pop();
-    }
-    out
+    let lead = nodes
+        .iter()
+        .take_while(|n| matches!(n, Node::LineBreak))
+        .count();
+    nodes.drain(..lead);
+    nodes
 }
 
 pub(crate) fn is_blank(nodes: &[Node]) -> bool {

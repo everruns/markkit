@@ -254,37 +254,36 @@ Other options: `include_hidden_sheets`, `allow_private_networks`, `allow_host`.
 ## Performance
 
 Measured with `just bench` (in-process, release build, 20 iterations after 3 warmup) on a
-4-CPU Linux x86_64 VM, markkit 0.1.1. Allocations and peak heap are per single extraction.
-Full report: [`bench-vm-linux-x86_64-1793058767.md`](https://github.com/everruns/markkit/blob/main/crates/markkit-bench/results/bench-vm-linux-x86_64-1793058767.md); history in
+4-CPU Linux x86_64 VM. Allocations and peak heap are per single extraction; the last column
+is the 0.1.1 baseline. Full report: [`bench-vm-linux-x86_64-1793070312.md`](https://github.com/everruns/markkit/blob/main/crates/markkit-bench/results/bench-vm-linux-x86_64-1793070312.md); history in
 [`crates/markkit-bench/results/`](https://github.com/everruns/markkit/blob/main/crates/markkit-bench/results/).
 
-| Case | Input | Mean | Ops/s | Throughput | Allocs/op | Peak heap |
-|------|------:|-----:|------:|-----------:|----------:|----------:|
-| HTML article (fixture) | 881 B | 49 µs | 20,365 | 17 MiB/s | 213 | 28 KiB |
-| HTML blog post with nav/scripts | 15 KiB | 641 µs | 1,561 | 23 MiB/s | 2,427 | 304 KiB |
-| HTML long docs page | 300 KiB | 13.0 ms | 77 | 22 MiB/s | 47,578 | 7.5 MiB |
-| HTML 50 tables | 257 KiB | 15.0 ms | 67 | 17 MiB/s | 50,349 | 8.6 MiB |
-| HTML mostly boilerplate | 45 KiB | 706 µs | 1,417 | 63 MiB/s | 81 | 305 KiB |
-| HTML 1000 nested divs | 11 KiB | 3.6 ms | 282 | 3 MiB/s | 442 | 147 KiB |
-| DOCX memo | 1.4 KiB | 87 µs | 11,508 | 16 MiB/s | 733 | 93 KiB |
-| DOCX 400-section report | 9 KiB (262 KiB out) | 35.7 ms | 28 | 0.2 MiB/s | 265,791 | 18.5 MiB |
-| XLSX 50×5 | 2.8 KiB | 291 µs | 3,435 | 9 MiB/s | 1,668 | 129 KiB |
-| XLSX 3 sheets, 150k cells | 766 KiB | 172 ms | 6 | 4 MiB/s | 782,800 | 24.9 MiB |
-| ODS 2000×8 | 70 KiB | 23.2 ms | 43 | 3 MiB/s | 92,515 | 3.0 MiB |
-| Format sniffing (DOCX) | 9 KiB | 0.9 µs | 1,141,227 | n/a | 0 | 0 B |
+| Case | Input | Mean | Ops/s | Throughput | Allocs/op | Peak heap | Allocs / peak in 0.1.1 |
+|------|------:|-----:|------:|-----------:|----------:|----------:|------:|
+| HTML article (fixture) | 881 B | 54 µs | 18,375 | 15 MiB/s | 158 | 22 KiB | 213 / 28 KiB |
+| HTML blog post with nav/scripts | 15 KiB | 690 µs | 1,449 | 22 MiB/s | 2,505 | 241 KiB | 2,427 / 304 KiB |
+| HTML long docs page | 300 KiB | 15.1 ms | 66 | 19 MiB/s | 49,342 | 4.7 MiB | 47,578 / 7.5 MiB |
+| HTML 50 tables | 257 KiB | 18.3 ms | 55 | 14 MiB/s | 33,635 | 5.1 MiB | 50,349 / 8.6 MiB |
+| HTML mostly boilerplate | 45 KiB | 704 µs | 1,420 | 63 MiB/s | 66 | 252 KiB | 81 / 305 KiB |
+| HTML 1000 nested divs | 11 KiB | 512 µs | 1,953 | 20 MiB/s | 551 | 52 KiB | 442 / 147 KiB |
+| DOCX memo | 1.4 KiB | 75 µs | 13,401 | 18 MiB/s | 499 | 59 KiB | 733 / 93 KiB |
+| DOCX 400-section report | 9 KiB (262 KiB out) | 22.3 ms | 45 | 0.4 MiB/s | 136,866 | 3.9 MiB | 265,791 / 18.5 MiB |
+| XLSX 50×5 | 2.8 KiB | 301 µs | 3,321 | 9 MiB/s | 1,165 | 129 KiB | 1,668 / 129 KiB |
+| XLSX 3 sheets, 150k cells | 766 KiB | 172 ms | 6 | 4 MiB/s | 512,786 | 21.5 MiB | 782,800 / 24.9 MiB |
+| ODS 2000×8 | 70 KiB | 24.5 ms | 41 | 3 MiB/s | 72,498 | 3.0 MiB | 92,515 / 3.0 MiB |
+| Format sniffing (DOCX) | 9 KiB | 0.9 µs | 1,076,774 | n/a | 0 | 0 B | 0 / 0 B |
 
 Takeaways:
 
-- **HTML** extracts at 17–25 MiB/s; peak heap is ~25x the input size.
+- **HTML** extracts at 14–22 MiB/s with peak heap 16–20x the input (was ~25x).
+- **Deep nesting is linear**: 1000 nested `<div>`s take 0.5 ms (was 3.6 ms), and 64k nested
+  `<div>`s take 2.4 ms (was 12.6 s).
 - **Boilerplate-heavy pages are cheap**: scripts, styles and nav are dropped at ~60 MiB/s.
-- **Deep nesting is the slow outlier**: 1000 nested `<div>`s run at 3 MiB/s with few
-  allocations, so the cost is CPU in tree building, not memory.
-- **Office formats allocate most**: a 150k-cell XLSX takes 172 ms and ~5 allocations per cell;
-  a 9 KiB compressed DOCX peaks at 18.5 MiB of heap (~2000x its compressed size).
-- **Format detection** is effectively free (under 1 µs, no allocations).
-
-Timings on a shared VM are noisy (stddev up to ~70% on the smallest cases); allocation counts
-are deterministic and the better regression signal. Compare runs from the same machine only.
+- **DOCX** streams the document body: a 400-section report peaks at 3.9 MiB (was 18.5 MiB) with
+  half the allocations.
+- **Spreadsheets** cost about 3.4 allocations per cell (was 5.2); one is calamine's and two are
+  the cell's text and its table node, so peak heap now tracks the size of the output table.
+- **Format detection** is effectively free (microseconds, no allocations).
 
 ## Security
 

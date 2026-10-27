@@ -18,7 +18,9 @@
 //! - Skipped: deleted text, field instructions, drawings/text boxes, comments,
 //!   headers/footers, footnotes. Macros (`vbaProject.bin`) are never read.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
@@ -69,6 +71,22 @@ impl Parts<'_, '_> {
     fn read_xml(&mut self, path: &str) -> Result<Option<Element>, Error> {
         match self.zip.read(path).map_err(archive_err)? {
             Some(bytes) => xml::parse(&bytes, self.max_depth, self.budget)
+                .map(Some)
+                .map_err(|e| xml_err(path, e)),
+            None => Ok(None),
+        }
+    }
+
+    /// Read a part, passing each child of the `split` element path to `sink`
+    /// as soon as it is complete (see [`xml::parse_split`]).
+    fn read_xml_split(
+        &mut self,
+        path: &str,
+        split: &[&str],
+        sink: &mut dyn FnMut(Element),
+    ) -> Result<Option<Element>, Error> {
+        match self.zip.read(path).map_err(archive_err)? {
+            Some(bytes) => xml::parse_split(&bytes, self.max_depth, self.budget, split, sink)
                 .map(Some)
                 .map_err(|e| xml_err(path, e)),
             None => Ok(None),
@@ -311,13 +329,13 @@ impl Ctx<'_> {
             .map(|a| format!("#{}", a.replace(' ', "%20")))
     }
 
-    fn collect_segs(&self, el: &Element, link: Option<&str>, segs: &mut Vec<Seg>) {
+    fn collect_segs<'e>(&self, el: &'e Element, link: Option<&Rc<str>>, segs: &mut Vec<Seg<'e>>) {
         for child in el.elements() {
             match child.name.as_str() {
                 "r" => self.run_segs(child, link, segs),
                 "hyperlink" => {
-                    let url = self.hyperlink_url(child);
-                    self.collect_segs(child, url.as_deref().or(link), segs);
+                    let url = self.hyperlink_url(child).map(Rc::from);
+                    self.collect_segs(child, url.as_ref().or(link), segs);
                 }
                 "sdt" => {
                     if let Some(content) = child.child("sdtContent") {
@@ -332,15 +350,15 @@ impl Ctx<'_> {
         }
     }
 
-    fn run_segs(&self, run: &Element, link: Option<&str>, segs: &mut Vec<Seg>) {
+    fn run_segs<'e>(&self, run: &'e Element, link: Option<&Rc<str>>, segs: &mut Vec<Seg<'e>>) {
         let rpr = run.child("rPr");
         if !self.include_hidden && toggle_on(rpr.and_then(|r| r.child("vanish"))) {
             self.hidden_runs.set(self.hidden_runs.get() + 1);
             return;
         }
         let fmt = run_fmt(rpr);
-        let link = link.map(str::to_string);
-        let push_text = |segs: &mut Vec<Seg>, t: String| {
+        let link = link.cloned();
+        let push_text = |segs: &mut Vec<Seg<'e>>, t: Cow<'e, str>| {
             segs.push(Seg::Text {
                 text: t,
                 fmt,
@@ -350,8 +368,8 @@ impl Ctx<'_> {
         for c in run.elements() {
             match c.name.as_str() {
                 "t" => push_text(segs, c.text()),
-                "tab" | "ptab" => push_text(segs, " ".to_string()),
-                "noBreakHyphen" => push_text(segs, "-".to_string()),
+                "tab" | "ptab" => push_text(segs, Cow::Borrowed(" ")),
+                "noBreakHyphen" => push_text(segs, Cow::Borrowed("-")),
                 "br" | "cr" => match c.attr("type") {
                     Some("page") | Some("column") => {}
                     _ => segs.push(Seg::Break { link: link.clone() }),
@@ -413,29 +431,33 @@ impl Ctx<'_> {
             if self.budget.expired() {
                 return;
             }
-            match child.name.as_str() {
-                "p" => {
-                    let index = body.next_index;
-                    body.next_index += 1;
-                    self.paragraph(child, body, index);
-                }
-                "tbl" => {
-                    let index = body.next_index;
-                    body.next_index += 1;
-                    body.flush_list();
-                    if let Some(t) = self.table(child) {
-                        body.tables += 1;
-                        body.push(t, index);
-                    }
-                }
-                "sdt" => {
-                    if let Some(content) = child.child("sdtContent") {
-                        self.blocks(content, body);
-                    }
-                }
-                "ins" | "moveTo" | "customXml" | "smartTag" => self.blocks(child, body),
-                _ => {}
+            self.block(child, body);
+        }
+    }
+
+    fn block(&self, child: &Element, body: &mut Body) {
+        match child.name.as_str() {
+            "p" => {
+                let index = body.next_index;
+                body.next_index += 1;
+                self.paragraph(child, body, index);
             }
+            "tbl" => {
+                let index = body.next_index;
+                body.next_index += 1;
+                body.flush_list();
+                if let Some(t) = self.table(child) {
+                    body.tables += 1;
+                    body.push(t, index);
+                }
+            }
+            "sdt" => {
+                if let Some(content) = child.child("sdtContent") {
+                    self.blocks(content, body);
+                }
+            }
+            "ins" | "moveTo" | "customXml" | "smartTag" => self.blocks(child, body),
+            _ => {}
         }
     }
 
@@ -619,9 +641,6 @@ pub(crate) fn parse(
         .map(|t| resolve_target("", t))
         .unwrap_or_else(|| "docProps/core.xml".to_string());
 
-    let main = zip
-        .read_xml(&main_path)?
-        .ok_or_else(|| Error::DocxExtract("missing main document part".into()))?;
     let (dir, file) = split_dir(&main_path);
     let rels = parse_rels(zip.read_xml(&format!("{dir}/_rels/{file}.rels"))?);
 
@@ -640,13 +659,6 @@ pub(crate) fn parse(
         .and_then(|c| c.find("title").map(|t| t.text().trim().to_string()))
         .filter(|t| !t.is_empty());
 
-    let document = main
-        .child("document")
-        .ok_or_else(|| Error::DocxExtract("main part is not a w:document".into()))?;
-    let body_el = document
-        .child("body")
-        .ok_or_else(|| Error::DocxExtract("document has no body".into()))?;
-
     // Hyperlinks only resolve through external relationships or explicit targets.
     let ctx = Ctx {
         rels: &rels,
@@ -660,7 +672,19 @@ pub(crate) fn parse(
         track: config.track_sources,
         ..Body::default()
     };
-    ctx.blocks(body_el, &mut body);
+    // Body blocks are converted as they are parsed and freed right after, so
+    // the whole document tree is never held at once.
+    let main = zip
+        .read_xml_split(&main_path, &["document", "body"], &mut |el| {
+            if !budget.expired() {
+                ctx.block(&el, &mut body);
+            }
+        })?
+        .ok_or_else(|| Error::DocxExtract("missing main document part".into()))?;
+    main.child("document")
+        .ok_or_else(|| Error::DocxExtract("main part is not a w:document".into()))?
+        .child("body")
+        .ok_or_else(|| Error::DocxExtract("document has no body".into()))?;
     budget.check_time()?;
     body.flush_list();
 

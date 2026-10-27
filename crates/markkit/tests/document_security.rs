@@ -629,6 +629,35 @@ fn docx_missing_document_part_is_error() {
     assert!(matches!(err, Error::DocxExtract(_)), "{err:?}");
 }
 
+#[cfg(feature = "docx")]
+#[test]
+fn docx_without_document_or_body_is_error() {
+    // The body is streamed while parsing; structure errors must still surface.
+    let w = r#"xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main""#;
+    for doc in [
+        format!("<w:other {w}><w:body><w:p><w:r><w:t>x</w:t></w:r></w:p></w:body></w:other>"),
+        format!("<w:document {w}><w:p><w:r><w:t>x</w:t></w:r></w:p></w:document>"),
+        format!("<w:x {w}><w:document><w:body><w:p/></w:body></w:document></w:x>"),
+    ] {
+        let bytes = zip_bytes(&[("word/document.xml", doc.as_bytes())]);
+        let err = run(&Markkit::builder().build(), &bytes, DOCX_CT).unwrap_err();
+        assert!(matches!(err, Error::DocxExtract(_)), "{doc}: {err:?}");
+    }
+}
+
+#[cfg(feature = "docx")]
+#[test]
+fn docx_streamed_body_keeps_node_and_depth_limits() {
+    let body = para("x").repeat(2_000);
+    let err = run(
+        &Markkit::builder().max_nodes(500).build(),
+        &docx(&body),
+        DOCX_CT,
+    )
+    .unwrap_err();
+    assert!(matches!(err, Error::ResourceLimit(_)), "{err:?}");
+}
+
 #[cfg(feature = "spreadsheet")]
 #[test]
 fn spreadsheet_garbage_is_error() {

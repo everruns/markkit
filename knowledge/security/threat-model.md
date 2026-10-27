@@ -249,7 +249,8 @@ process, or smuggling content past a human reviewer.
 
 #### T6a: Zip bombs
 - Limits apply to bytes actually produced by the decompressor (`Read::take`), never to
-  attacker-controlled header sizes.
+  attacker-controlled header sizes. A declared size is only a buffer capacity hint,
+  clamped to `max_archive_entry_size` and 16 MiB.
 - `max_archive_entries` (10 000), `max_archive_entry_size` (64 MiB),
   `max_archive_total_size` (256 MiB) → `Error::ResourceLimit`.
 - DOCX reads only the parts it needs, each through the bounded reader.
