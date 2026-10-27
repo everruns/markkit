@@ -89,6 +89,14 @@ jobs:
             echo "HTTP client leaked into the docx,spreadsheet,markdown,email feature set"
             exit 1
           fi
+          if cargo tree -p markkit --no-default-features --features docx,spreadsheet -e normal | grep -E 'tokio'; then
+            echo "tokio leaked into the docx,spreadsheet feature set"
+            exit 1
+          fi
+          if cargo tree -p markkit -e normal | grep -E 'tokio'; then
+            echo "tokio leaked into the default feature set"
+            exit 1
+          fi
       - name: Run examples
         run: |
           for ex in basic custom_selectors configuration ir_access transforms; do

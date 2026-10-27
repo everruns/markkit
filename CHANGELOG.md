@@ -157,6 +157,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   collapsing).
 - Spreadsheets make a third fewer allocations per cell (XLSX values are formatted without an
   intermediate copy and trimmed in place).
+- Dependencies: `tokio` is optional, pulled in only by `http_client` and `tool`, so default and
+  `docx,spreadsheet` builds no longer link it. CI checks both trees. `serde_json` stays required
+  (always-on `.ipynb` input).
 - **Breaking**: limit fields moved from `MarkkitBuilder` to `MarkkitBuilder::limits`
   (`config().max_input_size` → `config().limits.max_input_size`); `max_processing_secs` field is
   now `limits.timeout: Duration`. Builder setters are unchanged, plus new `timeout`,

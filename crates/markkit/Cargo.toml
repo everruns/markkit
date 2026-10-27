@@ -23,17 +23,17 @@ spreadsheet = ["dep:calamine", "dep:zip", "dep:quick-xml", "dep:cfb"]
 markdown = ["dep:pulldown-cmark"]
 email = ["dep:mail-parser"]
 # Opt-in: the default build has no network stack (no reqwest/hyper/TLS).
-http_client = ["dep:reqwest", "tokio/net"]
+http_client = ["dep:reqwest", "dep:tokio", "tokio/net"]
 logging = ["dep:tracing"]
 # LLM tool contract (`markkit::tool`): Everruns toolkit-library shape.
-tool = ["dep:tower", "dep:futures-core", "dep:base64"]
+tool = ["dep:tower", "dep:futures-core", "dep:base64", "dep:tokio", "tokio/sync"]
 # JSON Schema for the IR (`markkit::ir::json_schema()`)
 json-schema = ["dep:schemars"]
 all_formats = ["html", "pdf", "docx", "pptx", "spreadsheet", "markdown", "email"]
 
 [dependencies]
-# Async
-tokio = { workspace = true, features = ["sync", "io-util"] }
+# Async (optional): only URL fetching and the tool's output channel need tokio.
+tokio = { workspace = true, optional = true }
 
 # Error handling
 thiserror.workspace = true

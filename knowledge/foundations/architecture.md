@@ -21,7 +21,7 @@ It follows a pipeline architecture: **detect → parse → normalize → convert
 2. **Streaming where possible**: Process large documents without loading entirely into memory
 3. **Configurable output**: Users control what gets included/excluded
 4. **Safe by default**: All input is treated as untrusted; no code execution
-5. **Feature-gated formats**: Only compile what you need
+5. **Feature-gated formats**: Only compile what you need. `tokio` is optional (`http_client`, `tool`). `serde_json` stays required: always-on Jupyter notebook input parses JSON
 
 ## Pipeline
 
