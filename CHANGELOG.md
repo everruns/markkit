@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `markkit_qa` LLM eval (`just eval-llm`): models answer 23 questions about the eval pages from
+  markkit markdown, main-content markdown or raw HTML, scored on correct answers with token usage
+  per input. Targets: Meta Muse Spark 1.3 contributor via OpenRouter and Claude Sonnet 5.5;
+  key-gated (`OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, from Doppler).
 - XLSB (Excel binary workbook) support in the `spreadsheet` feature, via a new bounds-checked
   reader: values, shared strings, dates and durations, hidden-sheet skipping, row/column caps and
   the workbook title. Previously XLSB returned `UnsupportedFormat`.

@@ -12,3 +12,5 @@
 pub mod checks;
 pub mod dataset;
 pub mod mira_study;
+pub mod provider;
+pub mod qa;

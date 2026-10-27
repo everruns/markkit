@@ -136,6 +136,12 @@ eval-list:
 eval *args:
     mira run --study-bin markkit-eval markkit_extract {{args}}
 
+# Run the LLM QA eval (markkit markdown vs raw HTML as model context). Needs
+# ANTHROPIC_API_KEY / OPENROUTER_API_KEY; unkeyed targets are skipped. Keys live
+# in Doppler: doppler run -- just eval-llm
+eval-llm *args:
+    mira run --study-bin markkit-eval markkit_qa {{args}}
+
 # ─── Security & Audit ───────────────────────────────────────
 
 # Run cargo-deny checks

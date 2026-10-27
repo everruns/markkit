@@ -23,6 +23,7 @@
 * **Email input**: `email` feature on mail-parser 0.11 (1.0 was two days old and a rewrite, so not adopted yet). Headers folded against line injection; attachments listed, never parsed; shares the call's `Limits` budget. T7/S18 extended. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md).
 * **ODT input**: `odt` feature reusing the DOCX archive/XML guards; style inheritance for bold/italic/strike and outline levels, lists, tables with capped repeats; notes, annotations and tracked changes skipped; shares the call's `Limits` budget; hidden text (`text:display="none"` styles/sections, hidden fields) skipped per S20. T6 and T9 cover ODT. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md).
 * **EPUB input**: `epub` feature (implies `html`); spine chapters through the HTML parser, each once, traversal-safe href resolution, DRM-encrypted spine documents rejected; shares the call's `Limits` budget and hidden-content rules. T6 covers EPUB. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md).
+* **LLM QA eval**: `markkit_qa` asks target models (OpenRouter `meta/muse-spark-1.3-contributor`, Anthropic `claude-sonnet-5-5`; keys from Doppler) 23 questions over the eval pages with an `input` axis (markdown, main_content, raw html). See [Evaluation Harness](operations/eval.md).
 
 ## 2026-10-26
 
