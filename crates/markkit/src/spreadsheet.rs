@@ -503,6 +503,13 @@ fn xls_title<F: Read + Seek>(comp: &mut cfb::CompoundFile<F>) -> Option<String> 
     summary_title(&data)
 }
 
+/// Decode UTF-16LE (lossy; a trailing odd byte is ignored).
+fn utf16le(bytes: &[u8]) -> String {
+    let (pairs, _) = bytes.as_chunks::<2>();
+    let units: Vec<u16> = pairs.iter().map(|b| u16::from_le_bytes(*b)).collect();
+    String::from_utf16_lossy(&units)
+}
+
 fn summary_title(d: &[u8]) -> Option<String> {
     const PID_CODEPAGE: u32 = 1;
     const PID_TITLE: u32 = 2;
@@ -534,23 +541,12 @@ fn summary_title(d: &[u8]) -> Option<String> {
     let start = at + 8;
     let raw = match typ {
         VT_LPWSTR => {
-            let bytes = d.get(start..start.checked_add(n.checked_mul(2)?)?)?;
-            let units: Vec<u16> = bytes
-                .chunks_exact(2)
-                .map(|b| u16::from_le_bytes([b[0], b[1]]))
-                .collect();
-            String::from_utf16_lossy(&units)
+            utf16le(d.get(start..start.checked_add(n.checked_mul(2)?)?)?)
         }
         VT_LPSTR => {
             let bytes = d.get(start..start.checked_add(n)?)?;
             match codepage {
-                Some(1200) => {
-                    let units: Vec<u16> = bytes
-                        .chunks_exact(2)
-                        .map(|b| u16::from_le_bytes([b[0], b[1]]))
-                        .collect();
-                    String::from_utf16_lossy(&units)
-                }
+                Some(1200) => utf16le(bytes),
                 // UTF-8 when valid, otherwise Latin-1 (close to Windows-1252).
                 _ => match std::str::from_utf8(bytes) {
                     Ok(s) => s.to_string(),
