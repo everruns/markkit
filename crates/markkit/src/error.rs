@@ -22,6 +22,9 @@ pub enum Error {
     #[error("Notebook extraction error: {0}")]
     NotebookExtract(String),
 
+    #[error("EPUB extraction error: {0}")]
+    EpubExtract(String),
+
     #[error("Email extraction error: {0}")]
     EmailExtract(String),
 

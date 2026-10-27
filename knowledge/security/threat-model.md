@@ -236,7 +236,7 @@ the proxy, or use `allow_host`.
 - `html_security::very_long_text_node` (100KB text node)
 - `html_proptest::no_panic_on_arbitrary_input`
 
-### T6: Malicious Office Documents (DOCX / ODT / PPTX / XLSX / XLSB / XLS / ODS)
+### T6: Malicious Office Documents and E-books (DOCX / ODT / EPUB / PPTX / XLSX / XLSB / XLS / ODS)
 
 **Description**: Crafted containers aimed at exhausting memory/CPU, crashing the
 process, or smuggling content past a human reviewer.
@@ -253,7 +253,8 @@ process, or smuggling content past a human reviewer.
   clamped to `max_archive_entry_size` and 16 MiB.
 - `max_archive_entries` (10 000), `max_archive_entry_size` (64 MiB),
   `max_archive_total_size` (256 MiB) → `Error::ResourceLimit`.
-- DOCX and ODT read only the parts they need, each through the bounded reader.
+- DOCX, ODT and EPUB read only the parts they need, each through the bounded reader;
+  EPUB reads each spine document once and ignores hrefs that escape the archive root.
 - Spreadsheets: every entry is decompressed into a sink first, because calamine reads
   entries unbounded and may follow arbitrary relationship targets.
 
@@ -313,7 +314,9 @@ process, or smuggling content past a human reviewer.
   instructions are dropped. ODT tracked-change regions, notes and annotations are dropped.
 
 **Test Coverage** (`tests/document_security.rs`, plus `odt_integration::security_*`: zip bomb,
-entities, 10 000-deep nesting, 4-billion repeat counts, style cycles, truncated archives):
+entities, 10 000-deep nesting, 4-billion repeat counts, style cycles, truncated archives;
+`epub_integration::security_*`: scripts, path traversal, DRM, repeated spine, zip bomb,
+malformed packages, truncated archives):
 - `docx_zip_bomb_entry_rejected`, `docx_total_decompressed_size_capped`,
   `archive_entry_count_capped`, `xlsx_zip_bomb_sheet_rejected`,
   `xlsx_bomb_in_unreferenced_entry_rejected`, `max_input_size_honoured_for_office_documents`
@@ -473,6 +476,7 @@ at an LLM that consumes the extracted Markdown.
 - ODT: spans, paragraphs and headings whose style chain sets `text:display="none"`,
   sections with `text:display="none"`, `text:hidden-text` / `text:hidden-paragraph`;
   same warning.
+- EPUB: chapters use the HTML rules above.
 - Spreadsheets: hidden sheets already skipped (T6e).
 
 **Residual**: hiding through stylesheets or classes (`.sr-only`, off-screen
@@ -562,7 +566,7 @@ shared renderer under `max_output_size` (`tests/registry.rs`).
 | S17 | Rendered markdown has no raw HTML, no non-allowlisted link/image scheme, and document text cannot create Markdown structure | `output_safety::*` (pulldown-cmark oracle + proptests) |
 | S18 | Text, Markdown, CSV/TSV, notebook and email output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*`, `csv_integration::security_*`, `notebook_integration::security_*`, `email_integration::security_*` |
 | S19 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
-| S20 | Hidden content is not rendered by default (HTML, DOCX, ODT) | `hidden_content::*`, `odt_integration::security_hidden_content_skipped_by_default` |
+| S20 | Hidden content is not rendered by default (HTML, DOCX, ODT, EPUB) | `hidden_content::*`, `odt_integration::security_hidden_content_skipped_by_default`, `epub_integration::security_hidden_content_skipped_by_default` |
 | S21 | HTML parse time is linear in input whatever the nesting; flattened deep subtrees never emit non-content (script/style/template) text | `html_security::deep_*_is_linear`, `script_and_style_bodies_do_not_leak_past_max_depth` |
 
 ## See also

@@ -28,6 +28,7 @@ spreadsheet = ["markkit/spreadsheet"]
 markdown = ["markkit/markdown"]
 email = ["markkit/email"]
 odt = ["markkit/odt"]
+epub = ["markkit/epub"]
 
 [dependencies]
 markkit = { path = "../markkit", version = "0.1.1", features = ["http_client", "tool"] }

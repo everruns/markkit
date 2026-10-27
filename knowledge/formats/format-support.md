@@ -1,7 +1,7 @@
 ---
 type: Subsystem Design
 title: Format Support
-description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet, PDF, plain text, Markdown, CSV/TSV, Jupyter notebook, email and ODT mapping.
+description: Supported and planned formats, bytes-in API, format detection, DOCX, spreadsheet, PDF, plain text, Markdown, CSV/TSV, Jupyter notebook, email, ODT and EPUB mapping.
 tags:
   - markkit
   - formats
@@ -14,6 +14,7 @@ tags:
   - notebook
   - email
   - odt
+  - epub
 ---
 
 # Format Support
@@ -30,6 +31,7 @@ tags:
 ### Tier 2 (Feature-gated)
 - **DOCX** (`docx`): Word documents via a direct `zip` + `quick-xml` reader (no docx-rs)
 - **PPTX/PPTM/PPSX/POTX** (`pptx`): presentations via the same direct reader
+- **EPUB** (`epub`, implies `html`): EPUB 2/3 chapters through the HTML parser
 - **ODT** (`odt`): OpenDocument text via the same bounded `zip` + `quick-xml` reader as DOCX
 - **XLSX/XLSM, XLS, ODS** (`spreadsheet`): Workbooks to Markdown tables via calamine
 - **XLSB** (`spreadsheet`): Excel binary workbooks via markkit's own bounds-checked BIFF12
@@ -41,7 +43,6 @@ tags:
 - **DOC** (Word 97-2003 binary), **PPT** (PowerPoint 97-2003 binary): explicit `UnsupportedFormat` errors
 
 ### Tier 3 (Planned)
-- **EPUB**: E-book extraction
 - **RTF**: Rich text format
 
 ## Bytes-in API
@@ -89,7 +90,7 @@ only the Markdown. Parsing is CPU-bound; async callers should use the sync varia
 Warning codes (`WarningCode`, serialized `snake_case`): `truncated_sheet`,
 `hidden_sheet_skipped`, `sheet_error`, `hidden_slide_skipped`, `slide_error`, `truncated_pdf`,
 `pdf_unmapped_font`, `pdf_no_text`, `invalid_utf8`, `hidden_content_skipped`, `malformed_csv`,
-`truncated_table`, `encoding_problem`, `truncated` (agent tool only) and `other` (custom parsers). Callers match on
+`truncated_table`, `encoding_problem`, `missing_chapter`, `truncated` (agent tool only) and `other` (custom parsers). Callers match on
 `code`; `detail` is for humans and may change.
 
 `Markkit` is `Clone + Debug + Send + Sync` and holds only its configuration, so embedders can
@@ -105,7 +106,7 @@ Priority order (`Format::detect`):
    `application/octet-stream` map to `Unknown` and fall through.
 2. File extension (`DocumentHint::file_name`; URL query/fragment ignored).
 3. Magic bytes (`Format::sniff`):
-   - `PK\x03\x04` ZIP: ODF `mimetype` entry → ODS or ODT; `word/document*` → DOCX;
+   - `PK\x03\x04` ZIP: ODF/EPUB `mimetype` entry → ODS, ODT or EPUB; `word/document*` → DOCX;
      `xl/workbook.bin` → XLSB; `xl/workbook.*` → XLSX; `ppt/presentation.*` → PPTX (part names are stored
      uncompressed, so no archive parsing is needed for detection).
    - OLE2 (`D0 CF 11 E0`): UTF-16 `WordDocument` stream → DOC; `PowerPoint Document` →
@@ -202,6 +203,22 @@ Styles come from `styles.xml` and both automatic-style containers; parent chains
 `max_sheet_rows`; trailing empty cells and rows (producers pad to 1024 columns and ~1M rows)
 are dropped, and `truncated_table` is emitted only when a non-empty cell was cut. Text is
 kept raw in the IR and escaped by the renderer (S17).
+
+## EPUB Mapping
+
+- Package: `META-INF/container.xml` first rootfile, else the only `.opf` entry; OPF
+  `dc:title` is the title.
+- Spine order, `linear="no"` items (covers, notes) skipped, each document once (a spine
+  repeating one item cannot multiply output); only (X)HTML manifest items are read.
+- Each chapter goes through the HTML parser (same stripping and config as web pages);
+  chapters are separated by `---`. `stats.chapters` counts rendered chapters. Package XML
+  and all chapters share one `Limits` budget (nodes, timeout, depth); hidden-content
+  rules (S20) apply per chapter.
+- hrefs resolve against the OPF directory, percent-decoded; paths escaping the archive
+  root are ignored. Missing manifest items or entries emit `missing_chapter`.
+- A spine document listed in `META-INF/encryption.xml` (DRM) is `Error::EpubExtract`;
+  font obfuscation alone is fine. Images, CSS, fonts, NCX/nav documents outside the spine
+  are not read.
 
 ## Spreadsheet Mapping
 

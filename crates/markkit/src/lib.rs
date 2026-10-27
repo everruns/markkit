@@ -36,6 +36,7 @@
 //! - **PPTX** (`pptx`): Convert PowerPoint presentations, one section per slide
 //! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLSB, XLS and ODS workbooks to tables
 //! - **Plain text** (always on): `text/plain`, `.txt`
+//! - **EPUB** (`epub`, implies `html`): e-books, chapters in reading order
 //! - **ODT** (`odt`): OpenDocument text documents
 //! - **Email** (`email`): `.eml` / `message/rfc822`, headers, body and attachment list
 //! - **Jupyter notebooks** (always on): `.ipynb`, cells and text outputs
@@ -56,7 +57,8 @@
     feature = "docx",
     feature = "pptx",
     feature = "spreadsheet",
-    feature = "odt"
+    feature = "odt",
+    feature = "epub"
 ))]
 mod archive;
 pub mod config;
@@ -65,6 +67,8 @@ mod csv;
 mod docx;
 #[cfg(feature = "email")]
 mod eml;
+#[cfg(feature = "epub")]
+mod epub;
 pub mod error;
 pub mod extract;
 #[cfg(feature = "http_client")]
@@ -98,7 +102,8 @@ pub mod transform;
     feature = "docx",
     feature = "pptx",
     feature = "spreadsheet",
-    feature = "odt"
+    feature = "odt",
+    feature = "epub"
 ))]
 #[cfg_attr(not(feature = "docx"), allow(dead_code))] // DOCX uses every helper
 mod xml;

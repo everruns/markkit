@@ -21,6 +21,7 @@ package for browsers and edge runtimes.
 - **DOCX** – Headings, lists, tables, links, emphasis
 - **PPTX** – One section per slide: titles, bullets, tables, links, speaker notes
 - **ODT** – OpenDocument text: headings, lists, tables, links, emphasis
+- **EPUB** – E-book chapters in reading order, title from the package metadata
 - **Spreadsheets** – XLSX/XLSM, XLSB, XLS and ODS workbooks to markdown tables, one section per sheet
 - **Email (EML)** – Subject, sender, recipients, date, body (plain preferred, HTML converted), attachment list
 - **Jupyter notebooks** – Markdown cells, code cells with language, text outputs and tracebacks
@@ -39,6 +40,7 @@ package for browsers and edge runtimes.
 | DOCX | Supported | `docx` |
 | PPTX, PPTM, PPSX | Supported | `pptx` |
 | ODT | Supported | `odt` |
+| EPUB | Supported | `epub` |
 | XLSX, XLSM, XLSB, XLS, ODS | Supported | `spreadsheet` |
 | Plain text | Supported | always on |
 | CSV, TSV | Supported | always on |
@@ -208,7 +210,8 @@ let markkit = Markkit::builder()
 | `markdown` | No | Markdown normalization (pulldown-cmark) |
 | `email` | No | EML conversion (mail-parser) |
 | `odt` | No | ODT conversion (zip + quick-xml) |
-| `all_formats` | No | `html`, `pdf`, `docx`, `pptx`, `spreadsheet`, `markdown`, `email`, `odt` |
+| `epub` | No | EPUB conversion (implies `html`) |
+| `all_formats` | No | `html`, `pdf`, `docx`, `pptx`, `spreadsheet`, `markdown`, `email`, `odt`, `epub` |
 | `tool` | No | `markkit::tool::MarkkitTool` LLM agent tool (Everruns toolkit contract) |
 | `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
 

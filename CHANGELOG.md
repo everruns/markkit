@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `markkit mcp`: Model Context Protocol server over stdio exposing the `markkit` tool
   (`tools/list`, `tools/call`). URL fetching keeps the SSRF guard; `--no-url` keeps it offline,
   the `extract` limit flags and `--max-output-chars` bound each call.
+- EPUB input (`epub` feature, implies `html`, in `all_formats`; `.epub`, `application/epub+zip`, sniffed
+  from the `mimetype` entry): spine chapters through the HTML parser, OPF title, DRM-encrypted books
+  rejected. New `Format::Epub`, `Error::EpubExtract`, `ExtractionStats::chapters`, `WarningCode::MissingChapter`.
 - ODT input (`odt` feature, in `all_formats`; `.odt`, OpenDocument text content type, sniffed from the
   ODF `mimetype`): headings, Title style, bold/italic/strike, links, lists, tables, with the same
   bounded ZIP/XML reader as DOCX. New `Format::Odt`, `Error::OdtExtract`.

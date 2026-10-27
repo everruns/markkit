@@ -361,6 +361,50 @@ pub fn odt(body: &str) -> Vec<u8> {
     odt_with("", body, None, None)
 }
 
+// ─── EPUB ───────────────────────────────────────────────────────────
+
+pub const EPUB_MIME: &str = "application/epub+zip";
+
+pub const EPUB_CONTAINER: &str = r#"<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>"#;
+
+/// OPF with `title`, manifest `(id, href, media-type)` and spine `(idref, linear)`.
+pub fn epub_opf(title: &str, manifest: &[(&str, &str, &str)], spine: &[(&str, bool)]) -> String {
+    let items: String = manifest
+        .iter()
+        .map(|(id, href, mt)| format!(r#"<item id="{id}" href="{href}" media-type="{mt}"/>"#))
+        .collect();
+    let refs: String = spine
+        .iter()
+        .map(|(id, linear)| {
+            if *linear {
+                format!(r#"<itemref idref="{id}"/>"#)
+            } else {
+                format!(r#"<itemref idref="{id}" linear="no"/>"#)
+            }
+        })
+        .collect();
+    format!(
+        r#"<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>{}</dc:title></metadata><manifest>{items}</manifest><spine>{refs}</spine></package>"#,
+        xml_escape(title)
+    )
+}
+
+pub fn xhtml(body: &str) -> String {
+    format!(
+        r#"<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>t</title></head><body>{body}</body></html>"#
+    )
+}
+
+/// EPUB from extra `(path, bytes)` entries plus mimetype and container.
+pub fn epub(entries: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut all: Vec<(&str, &[u8])> = vec![
+        ("mimetype", EPUB_MIME.as_bytes()),
+        ("META-INF/container.xml", EPUB_CONTAINER.as_bytes()),
+    ];
+    all.extend_from_slice(entries);
+    zip_bytes(&all)
+}
+
 // ─── XLS (BIFF8 in an OLE2 compound file) ───────────────────────────
 
 fn record(out: &mut Vec<u8>, typ: u16, data: &[u8]) {
