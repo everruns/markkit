@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   pulldown-cmark and rendered back, so raw HTML never passes through. Front matter `title:` or the
   first `# ` heading becomes `Extraction::title`. Available in the CLI, Python, Node and WASM packages; `format` serializes as
   `"text"` and `"markdown"`.
+- PPTX support behind the new `pptx` feature (included in `all_formats`, so in the CLI and the
+  Python/Node bindings): one `## Slide N: <title>` section per slide with bullets, text boxes,
+  tables, hyperlinks and speaker notes. Hidden slides are skipped with a `hidden_slide_skipped`
+  warning unless `include_hidden_content(true)`. Legacy `.ppt` is detected as the new `Format::Ppt`
+  and rejected explicitly. `Error::PptxExtract` reports malformed presentations.
 - HTML page metadata: `extract_document` fills `Extraction::title` (Open Graph, JSON-LD or
   `<title>`) and the new `Extraction::metadata` (description, author, published date, language,
   canonical URL, site name, lead image) from `<meta>`, Open Graph, `<link rel=canonical>` and

@@ -96,7 +96,7 @@ Every block variant except `ThematicBreak` has `source: Option<Box<Source>>`
 | `path` | HTML | Absolute XPath in the parsed DOM, every step indexed: `/html[1]/body[1]/div[1]/p[2]`. Indexes count same-name element siblings (excluded elements included). Cached per parent, O(depth) per block. |
 | `index` | DOCX | 0-based index of the body-level `w:p`/`w:tbl` in document order, counting blank paragraphs and those inside `w:sdt`/`w:ins`. Lists take their first item's index. |
 | `sheet`, `range` | Spreadsheets | Sheet name on the heading and table; table gets the A1 bounding box of kept cells (`B2:C3`). |
-| `page` | Paged formats (PDF, later) | 1-based page. |
+| `page` | PPTX; paged formats (PDF, later) | 1-based page; PPTX: slide number on every block of the slide, notes included. |
 
 Blocks synthesized by normalization (inline runs wrapped in `Paragraph`) and
 blocks nested inside inline/table-cell content have no source. Accessors:

@@ -24,6 +24,7 @@ pub(crate) enum XmlError {
 #[derive(Debug, Default)]
 pub(crate) struct Element {
     pub name: String,
+    /// `(qualified name, value)`; looked up by local name.
     pub attrs: Vec<(String, String)>,
     pub children: Vec<XNode>,
 }
@@ -35,11 +36,20 @@ pub(crate) enum XNode {
 }
 
 impl Element {
-    /// Attribute value by local name.
-    pub fn attr(&self, local: &str) -> Option<&str> {
+    /// Attribute value by local name (any or no prefix).
+    pub fn attr(&self, local_name: &str) -> Option<&str> {
         self.attrs
             .iter()
-            .find(|(k, _)| k == local)
+            .find(|(k, _)| local_of(k) == local_name)
+            .map(|(_, v)| v.as_str())
+    }
+
+    /// Attribute value by local name, prefixed attributes only. Tells
+    /// `r:id` (relationship) from a plain `id` on the same element.
+    pub fn attr_prefixed(&self, local_name: &str) -> Option<&str> {
+        self.attrs
+            .iter()
+            .find(|(k, _)| k.contains(':') && local_of(k) == local_name)
             .map(|(_, v)| v.as_str())
     }
 
@@ -93,17 +103,18 @@ impl Element {
     }
 }
 
+fn local_of(name: &str) -> &str {
+    name.rsplit_once(':').map_or(name, |(_, l)| l)
+}
+
 fn local(name: &str) -> String {
-    match name.rsplit_once(':') {
-        Some((_, local)) => local.to_string(),
-        None => name.to_string(),
-    }
+    local_of(name).to_string()
 }
 
 fn element_from(start: &BytesStart<'_>) -> Element {
     let mut attrs = Vec::new();
     for attr in start.attributes().with_checks(false).flatten() {
-        let key = local(attr.key.as_ref());
+        let key = attr.key.as_ref().to_string();
         let value = match attr.normalized_value(XmlVersion::Implicit1_0) {
             Ok(v) => v.into_owned(),
             Err(_) => attr.value.into_owned(),
@@ -235,6 +246,15 @@ mod tests {
         assert!(r.child("c").is_some());
         assert_eq!(r.text(), "1 < 2 A");
         assert_eq!(root.find("c").map(|e| e.name.as_str()), Some("c"));
+    }
+
+    #[test]
+    fn prefixed_attribute_lookup() {
+        let root = parse(br#"<sldId id="256" r:id="rId2"/>"#).unwrap();
+        let e = root.child("sldId").unwrap();
+        assert_eq!(e.attr("id"), Some("256"));
+        assert_eq!(e.attr_prefixed("id"), Some("rId2"));
+        assert_eq!(e.attr_prefixed("missing"), None);
     }
 
     #[test]

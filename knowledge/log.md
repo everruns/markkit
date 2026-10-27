@@ -2,6 +2,7 @@
 
 ## 2026-10-27
 
+* **PPTX support (#11)**: new `pptx` feature (in `all_formats`) converts presentations slide by slide: titles, bulleted body placeholders, text boxes, tables, links, speaker notes; hidden slides skipped. Shared OOXML helpers moved from `docx.rs` to `ooxml.rs`. Legacy `.ppt` is now its own `Format::Ppt` (rejected). See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md) T6.
 * **XLSB support (#11)**: Excel binary workbooks are read by a new bounds-checked BIFF12 reader (`spreadsheet/xlsb.rs`) instead of being rejected; calamine's XLSB reader was not used because it panics on malformed records. Same caps, hidden-sheet and macro rules as XLSX. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md) T6c.
 * **MCP server**: `markkit mcp` serves `MarkkitTool` over MCP stdio (initialize, ping, tools/list, tools/call); line size capped from `--max-size`, tool failures as `isError` results. New [MCP Server](integrations/mcp-server.md) concept; MCP messages row in the [Threat Model](security/threat-model.md).
 * **Spreadsheet follow-ups (#11)**: single-row sheets render as data under column letters; XLSX/ODS/XLS titles come from document properties; XLSB content type no longer maps to XLSX; XLSX without `_rels/.rels` parses; trailing-newline output documented as intended; release profile switched to `panic = "unwind"` so `catch_unwind` is effective in markkit's own binaries. See [Format Support](formats/format-support.md) and [Threat Model](security/threat-model.md) T6c.

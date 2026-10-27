@@ -22,6 +22,7 @@ tags:
 
 ### Tier 2 (Feature-gated)
 - **DOCX** (`docx`): Word documents via a direct `zip` + `quick-xml` reader (no docx-rs)
+- **PPTX/PPTM/PPSX/POTX** (`pptx`): presentations via the same direct reader
 - **XLSX/XLSM, XLS, ODS** (`spreadsheet`): Workbooks to Markdown tables via calamine
 - **XLSB** (`spreadsheet`): Excel binary workbooks via markkit's own bounds-checked BIFF12
   reader (calamine's XLSB reader panics on malformed records)
@@ -29,7 +30,7 @@ tags:
 - **PDF** (`pdf`): Text layer via hayro-syntax (pure Rust); no OCR, encrypted PDFs rejected
 
 ### Detected, not supported
-- **DOC** (Word 97-2003 binary), **PPTX**: explicit `UnsupportedFormat` errors
+- **DOC** (Word 97-2003 binary), **PPT** (PowerPoint 97-2003 binary): explicit `UnsupportedFormat` errors
 
 ### Tier 3 (Planned)
 - **EPUB**: E-book extraction
@@ -67,6 +68,7 @@ concatenate cleanly); an empty document renders `""`. This is intended and stabl
 | DOCX | `docProps/core.xml` `dc:title` (via `_rels/.rels`), else the first `Title`-style paragraph |
 | XLSX, XLSB | `docProps/core.xml` `dc:title` |
 | ODS | `meta.xml` `dc:title` |
+| PPTX | `docProps/core.xml` `dc:title`, else the first slide title |
 | XLS | `\u{5}SummaryInformation` property set, `PIDSI_TITLE` (code page aware: 1200 UTF-16, UTF-8, else Latin-1) |
 | PDF | `/Info /Title` (UTF-16BE with BOM, else PDFDocEncoding) |
 
@@ -78,21 +80,24 @@ only the Markdown. Parsing is CPU-bound; async callers should use the sync varia
 `spawn_blocking`.
 
 Warning codes: `truncated_sheet`, `hidden_sheet_skipped`, `sheet_error`, `truncated_pdf`,
-`pdf_unmapped_font`, `pdf_no_text`, `invalid_utf8`, `hidden_content_skipped`.
+`pdf_unmapped_font`, `pdf_no_text`, `invalid_utf8`, `hidden_content_skipped`,
+`hidden_slide_skipped`, `slide_error`.
 
 ## Format Detection
 
 Priority order (`Format::detect`):
 1. Content type (`DocumentHint::content_type`; parameters ignored). XLSB
    (`application/vnd.ms-excel.sheet.binary.macroEnabled.12`) is matched before the
-   generic `ms-excel.sheet` → XLSX rule. Generic types such as
+   generic `ms-excel.sheet` → XLSX rule. `application/vnd.ms-powerpoint.*.macroEnabled.12`
+   is PPTX; bare `application/vnd.ms-powerpoint` is legacy PPT. Generic types such as
    `application/octet-stream` map to `Unknown` and fall through.
 2. File extension (`DocumentHint::file_name`; URL query/fragment ignored).
 3. Magic bytes (`Format::sniff`):
    - `PK\x03\x04` ZIP: ODF `mimetype` entry → ODS; `word/document*` → DOCX;
      `xl/workbook.bin` → XLSB; `xl/workbook.*` → XLSX; `ppt/presentation.*` → PPTX (part names are stored
      uncompressed, so no archive parsing is needed for detection).
-   - OLE2 (`D0 CF 11 E0`): UTF-16 `WordDocument` stream → DOC; `Workbook`/`Book` → XLS.
+   - OLE2 (`D0 CF 11 E0`): UTF-16 `WordDocument` stream → DOC; `PowerPoint Document` →
+     PPT; `Workbook`/`Book` → XLS.
    - `%PDF-` within the first 1 KiB → PDF.
    - `<!doctype html`, `<html`, `<head`, `<body` (after BOM/whitespace) → HTML.
 
@@ -119,6 +124,27 @@ mislabelled as another Excel type still parses.
 
 The main part is located through `_rels/.rels` (fallback `word/document.xml`); styles and
 numbering through the main part's relationships.
+
+## PPTX Mapping
+
+| PresentationML | Markdown |
+|---|---|
+| `p:sldIdLst` order (via `ppt/_rels/presentation.xml.rels`) | One `## Slide N: <title>` section per slide (`## Slide N` without a title) |
+| Title / centered-title placeholder | Slide heading text (multi-paragraph titles joined with spaces) |
+| Body / content placeholder (`ph` with `type="body"`, `obj` or no type) | Bulleted list, nested by `a:pPr@lvl` (0–8); `a:buNone` paragraphs stay paragraphs |
+| Text box / other placeholders (subtitle, footer, ...) | Paragraphs; paragraphs with `a:buChar`/`a:buBlip` become bullets |
+| `a:buAutoNum` (`startAt`) | Ordered list |
+| `a:rPr` `b`, `i`, `strike` (≠ `noStrike`) | `**`, `*`, `~~` (shared run merging with DOCX) |
+| `a:hlinkClick r:id` → external relationship | `[text](url)`; internal jumps (slide links) stay plain text |
+| `a:br` | Hard line break |
+| `a:tbl` in a graphic frame | GFM table, first row = header, `gridSpan`/`rowSpan` kept, `hMerge`/`vMerge` continuation cells dropped |
+| `p:grpSp`, `mc:AlternateContent` | Walked in document order (first branch) |
+| Notes slide body placeholder | `### Notes` section after the slide |
+| `p:sld@show="0"` | Skipped with `hidden_slide_skipped` unless `include_hidden_content(true)` |
+| Pictures, charts, SmartArt, media, comments, masters/layouts | Skipped |
+
+A slide whose relationship is dangling or whose part is missing emits `slide_error`; the
+other slides still render. `stats.pages` counts rendered slides, `stats.tables` tables.
 
 ## Spreadsheet Mapping
 
@@ -211,7 +237,7 @@ Office formats additionally enforce (see [Threat Model](../security/threat-model
 - `max_archive_entries` (10 000), `max_archive_entry_size` (64 MiB decompressed),
   `max_archive_total_size` (256 MiB decompressed)
 - `max_spreadsheet_cells` (4 000 000) for the dense grid calamine builds for XLS/ODS
-- XML nesting depth 256 for DOCX parts
+- XML nesting depth 256 for DOCX and PPTX parts
 
 PDF additionally enforces (T8): `max_pdf_pages` (10 000; truncate + `truncated_pdf`),
 `max_pdf_stream_size` (64 MiB per decoded stream), `max_pdf_decoded_size` (256 MiB total

@@ -19,6 +19,7 @@ package for browsers and edge runtimes.
 
 - **HTML** – Web pages and HTML documents; nav, header, footer, scripts, styles and forms stripped by default
 - **DOCX** – Headings, lists, tables, links, emphasis
+- **PPTX** – One section per slide: titles, bullets, tables, links, speaker notes
 - **Spreadsheets** – XLSX/XLSM, XLSB, XLS and ODS workbooks to markdown tables, one section per sheet
 - **Plain text / Markdown** – Text to paragraphs; Markdown normalized through the same IR (raw HTML never passed through)
 - **Format detection** – Content type, then file extension, then magic bytes
@@ -32,11 +33,12 @@ package for browsers and edge runtimes.
 |---|---|---|
 | HTML / XHTML | Supported | `html` (default) |
 | DOCX | Supported | `docx` |
+| PPTX, PPTM, PPSX | Supported | `pptx` |
 | XLSX, XLSM, XLSB, XLS, ODS | Supported | `spreadsheet` |
 | Plain text | Supported | always on |
 | Markdown | Supported | `markdown` |
 | PDF (text layer) | Supported | `pdf` |
-| DOC, PPTX | Detected, rejected explicitly | – |
+| DOC, PPT | Detected, rejected explicitly | – |
 
 ## Quick Start
 
@@ -191,10 +193,11 @@ let markkit = Markkit::builder()
 | `html` | Yes | HTML parsing and conversion |
 | `http_client` | No | URL fetching via reqwest (`extract_url`) |
 | `docx` | No | DOCX conversion (zip + quick-xml) |
+| `pptx` | No | PPTX conversion (zip + quick-xml) |
 | `spreadsheet` | No | XLSX/XLSM, XLS, ODS conversion (calamine) |
 | `pdf` | No | PDF text-layer extraction (hayro-syntax, pure Rust) |
 | `markdown` | No | Markdown normalization (pulldown-cmark) |
-| `all_formats` | No | `html`, `pdf`, `docx`, `spreadsheet`, `markdown` |
+| `all_formats` | No | `html`, `pdf`, `docx`, `pptx`, `spreadsheet`, `markdown` |
 | `tool` | No | `markkit::tool::MarkkitTool` LLM agent tool (Everruns toolkit contract) |
 | `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
 
@@ -205,7 +208,7 @@ Enable it to get `extract_url` (the CLI and the Python/Node bindings ship with i
 [dependencies]
 markkit = { version = "0.1", features = ["http_client"] }
 # office formats only, no HTML, no network:
-# markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }
+# markkit = { version = "0.1", default-features = false, features = ["docx", "pptx", "spreadsheet"] }
 ```
 
 ### Resource limits
