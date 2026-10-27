@@ -242,3 +242,28 @@ fn source_tracking_many_siblings_is_linear() {
     let last = doc.nodes.last().unwrap().source().unwrap();
     assert_eq!(last.path.as_deref(), Some("/html[1]/body[1]/p[200000]"));
 }
+
+#[test]
+fn element_rules_respect_depth_limit() {
+    // Unwrap on every level must not recurse past the nesting limit.
+    let html = "<div>".repeat(5_000) + "deep" + &"</div>".repeat(5_000);
+    let m = Markkit::builder()
+        .html_rule("div", markkit::rules::ElementAction::Unwrap)
+        .build();
+    assert!(m.extract_html_sync(&html).unwrap().contains("deep"));
+}
+
+#[test]
+fn element_rules_cannot_resurrect_stripped_elements() {
+    // Stripping runs before rules: a rule matching <script>/<style> sees nothing.
+    let html = "<p>ok</p><script>alert(1)</script><style>p{}</style>";
+    let m = Markkit::builder()
+        .html_rule("script", markkit::rules::ElementAction::Paragraph)
+        .html_rule(
+            "style",
+            markkit::rules::ElementAction::CodeBlock { language: None },
+        )
+        .build();
+    let md = m.extract_html_sync(html).unwrap();
+    assert_eq!(md, "ok\n");
+}

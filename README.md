@@ -92,6 +92,10 @@ markkit extract --file page.html --base-url https://example.com/blog/
 # From stdin
 cat page.html | markkit extract -
 
+# Map site-specific markup with element rules (JSON file)
+# [{"selector": ".note", "action": "block_quote", "title": "Note"}, {"selector": ".ad", "action": "skip"}]
+markkit extract --file page.html --rules rules.json
+
 # MCP server (stdio) exposing the `markkit` tool to agents
 markkit mcp            # add --no-url to keep it offline
 ```

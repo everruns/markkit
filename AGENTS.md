@@ -16,6 +16,7 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 - Small, incremental PR-sized changes
 - Write failing test before fixing bug
 - All input is untrusted: parsing changes need security tests
+- Breaking changes approved (pre-1.0): change public APIs, IR, CLI and bindings freely when it improves the design; no deprecation shims. Mark `**Breaking:**` in CHANGELOG and update knowledge
 
 ### Knowledge
 
