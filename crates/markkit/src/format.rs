@@ -36,6 +36,8 @@ pub enum Format {
     Csv,
     /// Tab separated values (`.tsv`, `.tab`).
     Tsv,
+    /// Email message (`.eml`, `message/rfc822`).
+    Eml,
     /// Jupyter notebook (`.ipynb`, nbformat 4). Serialized as `"ipynb"`.
     #[serde(rename = "ipynb")]
     Notebook,
@@ -98,6 +100,7 @@ impl Format {
             Format::Csv => "csv",
             Format::Tsv => "tsv",
             Format::Notebook => "ipynb",
+            Format::Eml => "eml",
             Format::PlainText => "text",
             Format::Markdown => "markdown",
             Format::Unknown => "unknown",
@@ -127,6 +130,8 @@ impl Format {
         } else if ct.contains("presentationml") || ct.contains("ms-powerpoint.") {
             // `ms-powerpoint.presentation.macroEnabled.12` & co. are OOXML.
             Format::Pptx
+        } else if ct.contains("message/rfc822") {
+            Format::Eml
         } else if ct.contains("x-ipynb") {
             Format::Notebook
         } else if ct.contains("ms-powerpoint") {
@@ -160,6 +165,7 @@ impl Format {
             "csv" => Format::Csv,
             "tsv" | "tab" => Format::Tsv,
             "ipynb" => Format::Notebook,
+            "eml" => Format::Eml,
             "txt" | "text" => Format::PlainText,
             "md" | "markdown" | "mdown" | "mkd" | "mkdn" => Format::Markdown,
             _ => Format::Unknown,
@@ -286,6 +292,7 @@ mod tests {
             Format::Csv,
             Format::Tsv,
             Format::Notebook,
+            Format::Eml,
             Format::PlainText,
             Format::Markdown,
             Format::Unknown,

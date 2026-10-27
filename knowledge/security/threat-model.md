@@ -336,9 +336,9 @@ process, or smuggling content past a human reviewer.
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
   `spreadsheet_integration::xlsm_with_vba_project_extracts_values_only`
 
-### T7: Text, Markdown, CSV and Notebook Input
+### T7: Text, Markdown, CSV, Notebook and Email Input
 
-**Description**: Plain text, Markdown, CSV/TSV or Jupyter notebooks carrying terminal escapes, NULs, invalid encodings,
+**Description**: Plain text, Markdown, CSV/TSV, Jupyter notebooks or email carrying terminal escapes, NULs, invalid encodings,
 raw HTML (`<script>`, event handlers) or pathological nesting.
 
 **Impact**: Medium -- raw HTML passed through re-introduces T1; deep nesting can crash.
@@ -348,7 +348,10 @@ raw HTML (`<script>`, event handlers) or pathological nesting.
   (a 5 MB row of commas allocates two cells)
 - Notebook JSON parsed by serde_json (nesting limit 128 → error); ANSI escapes stripped;
   HTML/image/widget outputs skipped; Markdown cells and outputs use the Markdown path
-- Text, Markdown, CSV and notebooks are never sniffed; a content type or extension must select them
+- Email: mail-parser (fuzzed, iterative MIME walk); header values folded so encoded newlines
+  cannot inject lines; attachments and nested messages listed, never parsed; HTML bodies go
+  through the HTML parser
+- Text, Markdown, CSV, notebooks and email are never sniffed; a content type or extension must select them
 - Decoding is total: invalid UTF-8/UTF-16 is replaced (U+FFFD) with an `invalid_utf8` warning
 - C0 controls (except tab/newline) and DEL are dropped before parsing
 - Markdown is re-parsed (pulldown-cmark) into the IR; raw HTML is never copied. HTML blocks
@@ -371,6 +374,8 @@ in a `.txt`) is emitted as `Node::Text` and escaped by the renderer (S17), like 
   random bytes always yield well-formed table rows
 - `notebook_integration::security_*`: malformed and deeply nested JSON, wrong value types,
   raw HTML in cells/outputs, control characters, timeout and `max_nodes`
+- `email_integration::security_*`: garbage input, header injection via encoded words,
+  5 000-deep multipart nesting, 20 000 attachments, size limit
 
 ### T8: Malicious PDFs
 
@@ -549,7 +554,7 @@ shared renderer under `max_output_size` (`tests/registry.rs`).
 | S15 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
 | S16 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
 | S17 | Rendered markdown has no raw HTML, no non-allowlisted link/image scheme, and document text cannot create Markdown structure | `output_safety::*` (pulldown-cmark oracle + proptests) |
-| S18 | Text, Markdown, CSV/TSV and notebook output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*`, `csv_integration::security_*`, `notebook_integration::security_*` |
+| S18 | Text, Markdown, CSV/TSV, notebook and email output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*`, `csv_integration::security_*`, `notebook_integration::security_*`, `email_integration::security_*` |
 | S19 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
 | S20 | Hidden content is not rendered by default | `hidden_content::*` |
 | S21 | HTML parse time is linear in input whatever the nesting; flattened deep subtrees never emit non-content (script/style/template) text | `html_security::deep_*_is_linear`, `script_and_style_bodies_do_not_leak_past_max_depth` |

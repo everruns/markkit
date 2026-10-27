@@ -20,6 +20,9 @@ pub enum Error {
     #[error("Notebook extraction error: {0}")]
     NotebookExtract(String),
 
+    #[error("Email extraction error: {0}")]
+    EmailExtract(String),
+
     #[error("HTTP error: {0}")]
     Http(String),
 
