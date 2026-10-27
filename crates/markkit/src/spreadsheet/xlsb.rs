@@ -16,6 +16,7 @@
 
 use crate::archive::ZipGuard;
 use crate::error::Error;
+use crate::limits::Budget;
 
 fn err(msg: impl std::fmt::Display) -> Error {
     Error::SpreadsheetExtract(format!("XLSB: {msg}"))
@@ -133,7 +134,11 @@ enum NumKind {
 
 const WORKSHEET_REL: &str = "/relationships/worksheet";
 
-pub(crate) fn open(zip: &mut ZipGuard<'_>) -> Result<Workbook, Error> {
+pub(crate) fn open(
+    zip: &mut ZipGuard<'_>,
+    max_depth: usize,
+    budget: &Budget,
+) -> Result<Workbook, Error> {
     let a = super::archive_err;
     let workbook = zip
         .read("xl/workbook.bin")
@@ -142,7 +147,7 @@ pub(crate) fn open(zip: &mut ZipGuard<'_>) -> Result<Workbook, Error> {
     let rels = zip
         .read("xl/_rels/workbook.bin.rels")
         .map_err(a)?
-        .map(|x| parse_rels(&x))
+        .map(|x| parse_rels(&x, max_depth, budget))
         .unwrap_or_default();
     let mut wb = Workbook::default();
     read_workbook(&workbook, &rels, &mut wb)?;
@@ -156,8 +161,8 @@ pub(crate) fn open(zip: &mut ZipGuard<'_>) -> Result<Workbook, Error> {
 }
 
 /// `(Id, Type, Target)` from `xl/_rels/workbook.bin.rels`; malformed XML → empty.
-fn parse_rels(xml: &[u8]) -> Vec<(String, String, String)> {
-    let Ok(root) = crate::xml::parse(xml) else {
+fn parse_rels(xml: &[u8], max_depth: usize, budget: &Budget) -> Vec<(String, String, String)> {
+    let Ok(root) = crate::xml::parse(xml, max_depth, budget) else {
         return Vec::new();
     };
     let mut out = Vec::new();

@@ -34,4 +34,17 @@ fn main() {
         Ok(_) => println!("Unexpected success"),
         Err(e) => println!("--- max_input_size(10) ---\nError: {e}"),
     }
+
+    // All limits at once: output cap, timeout, nesting depth, node count, ...
+    let bounded = Markkit::builder()
+        .limits(
+            markkit::Limits::default()
+                .max_output_size(20)
+                .timeout(std::time::Duration::from_secs(5)),
+        )
+        .build();
+    match bounded.extract_html_sync(html) {
+        Ok(_) => println!("Unexpected success"),
+        Err(e) => println!("--- max_output_size(20) ---\nError: {e}"),
+    }
 }

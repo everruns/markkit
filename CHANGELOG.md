@@ -47,8 +47,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `extractDocument` / `extractDocumentSync` return Markdown with title, format, warnings, stats and
   page metadata.
 - `Markkit::extract_url_document`: `extract_url` with format, title, warnings and stats.
+- Main-content detection: `MarkkitBuilder::main_content(true)` (CLI `--main-content`) keeps only
+  the article body of a web page, Readability-style, dropping navigation, sidebars, comments, share
+  bars and related-link blocks. Off by default; include selectors take precedence; falls back to the
+  full page when no article-like block is found.
 
 ### Security
+
+- Resource limits on every aspect, in one `markkit::Limits` struct (`MarkkitBuilder::limits(..)` or
+  per-field setters). New: `timeout` (default 60 s) now bounds parsing and rendering, not just URL
+  fetch; `max_output_size` (128 MiB) stops output amplification (e.g. one wide table row padding
+  thousands of rows); `max_nodes` (5 000 000) caps parsed HTML DOM / DOCX XML nodes;
+  `max_nesting_depth` (256) is configurable, with a hard ceiling of 512 that keeps deep input off
+  the host stack. Violations return `Error::ResourceLimit` naming the limit.
 
 - `extract_url` (CLI, Python and Node `extract_url` too) now refuses non-public destinations by default:
   loopback, private, link-local / cloud metadata and other reserved addresses, checked on the URL,
@@ -65,6 +76,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking**: limit fields moved from `MarkkitBuilder` to `MarkkitBuilder::limits`
+  (`config().max_input_size` → `config().limits.max_input_size`); `max_processing_secs` field is
+  now `limits.timeout: Duration`. Builder setters are unchanged, plus new `timeout`,
+  `max_output_size`, `max_nodes`, `max_nesting_depth`, `limits`. HTML nesting now flattens at depth
+  256 (was 200).
+- **Breaking (features):** `http_client` is no longer a default feature; the default build pulls in
+  no HTTP/TLS stack. Library users calling `extract_url` add `features = ["http_client"]`. The CLI and
+  the Python/Node packages still enable it, so their `extract_url` is unchanged.
 - **Breaking:** `Error` is `#[non_exhaustive]` (new `Error::Transform`); matches need a `_` arm.
 - **Breaking (IR API):** `Node`, `Document`, `ListItem` and the new IR structs are `#[non_exhaustive]`;
   matches need a `_` arm and structs are built with constructors. `Node::Table` cells are now
@@ -109,6 +128,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Verify Python wheel metadata and native extraction before upload; the wheel publisher targets Linux x64/CPython 3.12.
 
 ### Changed
+
+- **Breaking**: limit fields moved from `MarkkitBuilder` to `MarkkitBuilder::limits`
+  (`config().max_input_size` → `config().limits.max_input_size`); `max_processing_secs` field is
+  now `limits.timeout: Duration`. Builder setters are unchanged, plus new `timeout`,
+  `max_output_size`, `max_nodes`, `max_nesting_depth`, `limits`. HTML nesting now flattens at depth
+  256 (was 200).
 
 - Release automation: merging `chore(release): prepare vX.Y.Z` to main tags, creates the
   GitHub Release and publishes to crates.io (idempotent); manual dispatch from main also works
@@ -155,6 +180,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   spreadsheet grid pre-scan (`max_spreadsheet_cells`), XML depth cap; fuzz-style tests
 
 ### Changed
+
+- **Breaking**: limit fields moved from `MarkkitBuilder` to `MarkkitBuilder::limits`
+  (`config().max_input_size` → `config().limits.max_input_size`); `max_processing_secs` field is
+  now `limits.timeout: Duration`. Builder setters are unchanged, plus new `timeout`,
+  `max_output_size`, `max_nodes`, `max_nesting_depth`, `limits`. HTML nesting now flattens at depth
+  256 (was 200).
 
 - `docx` feature now uses `zip` + `quick-xml` directly; `docx-rs` dependency removed
 - `calamine` upgraded to 0.36 (pulls quick-xml 0.41, clearing RUSTSEC-2026-0194/0195); `zip` upgraded to 8 (deflate only), shared with calamine

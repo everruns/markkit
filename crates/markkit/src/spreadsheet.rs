@@ -31,6 +31,7 @@ use crate::config::MarkkitBuilder;
 use crate::error::Error;
 use crate::format::Format;
 use crate::ir::{Document, Node, Source, TableCell};
+use crate::limits::Budget;
 use crate::render::escape_table_cell;
 
 mod xlsb;
@@ -68,7 +69,11 @@ enum Container {
     Xls,
 }
 
-pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput, Error> {
+pub(crate) fn parse(
+    bytes: &[u8],
+    config: &MarkkitBuilder,
+    budget: &Budget,
+) -> Result<SheetOutput, Error> {
     let mut patched = None;
     let (container, title) = if bytes.starts_with(b"PK") {
         let mut zip = ZipGuard::open(bytes, config).map_err(archive_err)?;
@@ -85,21 +90,21 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput
         };
         zip.validate_all().map_err(archive_err)?;
         if let Container::Xlsb = container {
-            let title = read_dc_title(&mut zip, "docProps/core.xml")?;
-            return parse_xlsb(&mut zip, config, title);
+            let title = read_dc_title(&mut zip, "docProps/core.xml", config, budget)?;
+            return parse_xlsb(&mut zip, config, budget, title);
         }
         let title = if let Container::Ods = container {
             let content = zip
                 .read("content.xml")
                 .map_err(archive_err)?
                 .ok_or_else(|| err("ODS is missing content.xml"))?;
-            prescan_ods(&content, config.max_spreadsheet_cells)?;
-            read_dc_title(&mut zip, "meta.xml")?
+            prescan_ods(&content, config.limits.max_spreadsheet_cells)?;
+            read_dc_title(&mut zip, "meta.xml", config, budget)?
         } else {
             if !has(&zip, "_rels/.rels") {
                 patched = Some(with_package_rels(&mut zip)?);
             }
-            read_dc_title(&mut zip, "docProps/core.xml")?
+            read_dc_title(&mut zip, "docProps/core.xml", config, budget)?
         };
         (container, title)
     } else if bytes.starts_with(OLE2_MAGIC) {
@@ -110,6 +115,7 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput
     } else {
         return Err(err("not a spreadsheet (expected XLSX, XLSB, XLS or ODS)"));
     };
+    budget.check_time()?;
     let bytes = patched.as_deref().unwrap_or(bytes);
 
     let mut out = Collector::new(config);
@@ -124,11 +130,15 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput
                 let res = (|| -> Result<(), calamine::XlsxError> {
                     let mut reader = wb.worksheet_cells_reader(&name)?;
                     while let Some(cell) = reader.next_cell()? {
+                        if budget.expired() {
+                            break;
+                        }
                         let (r, c) = cell.get_position();
                         grid.add(r, c, fmt_ref(cell.get_value()));
                     }
                     Ok(())
                 })();
+                budget.check_time()?;
                 match res {
                     Ok(()) => out.push_sheet(&name, grid),
                     Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
@@ -139,13 +149,13 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput
         Container::Ods => {
             let mut wb: Ods<_> = Ods::new(Cursor::new(bytes)).map_err(err)?;
             let sel = out.select(wb.sheets_metadata());
-            read_ranges(&mut wb, sel, &mut out, config);
+            read_ranges(&mut wb, sel, &mut out, config, budget)?;
             out.finish(Format::Ods, title)
         }
         Container::Xls => {
             let mut wb: Xls<_> = Xls::new(Cursor::new(bytes)).map_err(err)?;
             let sel = out.select(wb.sheets_metadata());
-            read_ranges(&mut wb, sel, &mut out, config);
+            read_ranges(&mut wb, sel, &mut out, config, budget)?;
             out.finish(Format::Xls, title)
         }
         Container::Xlsb => unreachable!("XLSB returns early"),
@@ -155,9 +165,11 @@ pub(crate) fn parse(bytes: &[u8], config: &MarkkitBuilder) -> Result<SheetOutput
 fn parse_xlsb(
     zip: &mut ZipGuard<'_>,
     config: &MarkkitBuilder,
+    budget: &Budget,
     title: Option<String>,
 ) -> Result<SheetOutput, Error> {
-    let wb = xlsb::open(zip)?;
+    let wb = xlsb::open(zip, config.limits.nesting_depth(), budget)?;
+    budget.check_time()?;
     let meta: Vec<calamine::Sheet> = wb
         .sheets
         .iter()
@@ -187,11 +199,17 @@ fn parse_xlsb(
             continue;
         };
         let mut grid = Grid::new(config);
-        let res = wb.cells(&data).try_for_each(|cell| {
-            let (r, c, v) = cell?;
-            grid.add(r, c, fmt_xlsb(&v, wb.is_1904));
+        let res = (|| {
+            for cell in wb.cells(&data) {
+                if budget.expired() {
+                    break;
+                }
+                let (r, c, v) = cell?;
+                grid.add(r, c, fmt_xlsb(&v, wb.is_1904));
+            }
             Ok::<_, Error>(())
-        });
+        })();
+        budget.check_time()?;
         match res {
             Ok(()) => out.push_sheet(&name, grid),
             Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
@@ -205,7 +223,9 @@ fn read_ranges<RS, R>(
     sel: Vec<(String, bool)>,
     out: &mut Collector,
     config: &MarkkitBuilder,
-) where
+    budget: &Budget,
+) -> Result<(), Error>
+where
     RS: Read + Seek,
     R: Reader<RS>,
     R::Error: std::fmt::Display,
@@ -214,17 +234,25 @@ fn read_ranges<RS, R>(
         if !include {
             continue;
         }
-        match wb.worksheet_range(&name) {
+        let range = wb.worksheet_range(&name);
+        // calamine decodes the whole sheet before returning: check after it.
+        budget.check_time()?;
+        match range {
             Ok(range) => {
                 let mut grid = Grid::new(config);
                 for (r, c, v) in range.used_cells() {
+                    if budget.expired() {
+                        break;
+                    }
                     grid.add(r as u32, c as u32, fmt_data(v));
                 }
+                budget.check_time()?;
                 out.push_sheet(&name, grid);
             }
             Err(e) => out.warn(format!("sheet_error: sheet '{name}': {e}")),
         }
     }
+    Ok(())
 }
 
 // ─── Cell formatting ────────────────────────────────────────────────
@@ -341,8 +369,8 @@ impl Grid {
     fn new(config: &MarkkitBuilder) -> Self {
         Self {
             rows: BTreeMap::new(),
-            max_rows: config.max_sheet_rows,
-            max_cols: config.max_sheet_cols.max(1),
+            max_rows: config.limits.max_sheet_rows,
+            max_cols: config.limits.max_sheet_cols.max(1),
             truncated_rows: false,
             truncated_cols: false,
         }
@@ -572,15 +600,20 @@ fn clean_title(raw: &str) -> Option<String> {
 
 /// `dc:title` from OOXML `docProps/core.xml` or ODF `meta.xml`. Best effort:
 /// a missing or malformed part yields `None`; only archive limits are errors.
-fn read_dc_title(zip: &mut ZipGuard<'_>, part: &str) -> Result<Option<String>, Error> {
+fn read_dc_title(
+    zip: &mut ZipGuard<'_>,
+    part: &str,
+    config: &MarkkitBuilder,
+    budget: &Budget,
+) -> Result<Option<String>, Error> {
     let Some(xml) = zip.read(part).map_err(archive_err)? else {
         return Ok(None);
     };
-    Ok(dc_title(&xml))
+    Ok(dc_title(&xml, config.limits.nesting_depth(), budget))
 }
 
-fn dc_title(xml: &[u8]) -> Option<String> {
-    let root = crate::xml::parse(xml).ok()?;
+fn dc_title(xml: &[u8], max_depth: usize, budget: &Budget) -> Option<String> {
+    let root = crate::xml::parse(xml, max_depth, budget).ok()?;
     clean_title(&root.find("title")?.text())
 }
 
@@ -683,7 +716,7 @@ fn prescan_xls<F: Read + Seek>(
         .find(|n| comp.is_stream(n))
         .ok_or_else(|| err("XLS has no Workbook stream"))?;
     let mut stream = Vec::new();
-    let cap = config.max_archive_entry_size;
+    let cap = config.limits.max_archive_entry_size;
     comp.open_stream(name)
         .map_err(|e| err(format!("cannot open Workbook stream: {e}")))?
         .take(cap.saturating_add(1))
@@ -694,7 +727,7 @@ fn prescan_xls<F: Read + Seek>(
             "XLS Workbook stream exceeds {cap} bytes"
         )));
     }
-    scan_biff(&stream, config.max_spreadsheet_cells)
+    scan_biff(&stream, config.limits.max_spreadsheet_cells)
 }
 
 /// Estimate the cells calamine will allocate and reject inputs that would
@@ -977,12 +1010,16 @@ mod tests {
     fn dc_title_reads_and_normalizes() {
         let core = br#"<cp:coreProperties xmlns:cp="c" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title> Q3
   Budget &amp; Plan </dc:title></cp:coreProperties>"#;
-        assert_eq!(dc_title(core).as_deref(), Some("Q3 Budget & Plan"));
-        assert_eq!(dc_title(b"<a><dc:title>  </dc:title></a>"), None);
-        assert_eq!(dc_title(b"<a></a>"), None);
-        assert_eq!(dc_title(b"\xff\xfe<<"), None);
+        let b = Budget::new(&crate::Limits::default());
+        assert_eq!(dc_title(core, 256, &b).as_deref(), Some("Q3 Budget & Plan"));
+        assert_eq!(dc_title(b"<a><dc:title>  </dc:title></a>", 256, &b), None);
+        assert_eq!(dc_title(b"<a></a>", 256, &b), None);
+        assert_eq!(dc_title(b"\xff\xfe<<", 256, &b), None);
         let long = format!("<title>{}</title>", "x".repeat(5000));
-        assert_eq!(dc_title(long.as_bytes()).unwrap().len(), MAX_TITLE_CHARS);
+        assert_eq!(
+            dc_title(long.as_bytes(), 256, &b).unwrap().len(),
+            MAX_TITLE_CHARS
+        );
     }
 
     fn summary_info(codepage: u16, typ: u32, value: &[u8], count: u32) -> Vec<u8> {
