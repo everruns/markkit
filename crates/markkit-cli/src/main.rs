@@ -1,8 +1,10 @@
 use std::io::Read;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
-use markkit::Markkit;
+use std::time::Duration;
+
+use clap::{Args, Parser, Subcommand};
+use markkit::{Limits, Markkit};
 
 mod mcp;
 
@@ -40,10 +42,6 @@ enum Commands {
         #[arg(long = "exclude", short = 'e')]
         exclude_selectors: Vec<String>,
 
-        /// Maximum input size in bytes
-        #[arg(long, default_value = "52428800")]
-        max_size: usize,
-
         /// Output as JSON with metadata
         #[arg(long)]
         json: bool,
@@ -56,6 +54,9 @@ enum Commands {
         /// Keep only the detected main content (article body) of HTML pages
         #[arg(long)]
         main_content: bool,
+
+        #[command(flatten)]
+        limits: LimitArgs,
     },
     /// Serve the `markkit` tool over MCP (JSON-RPC on stdin/stdout)
     Mcp {
@@ -79,6 +80,76 @@ enum Commands {
         #[arg(long, default_value = "en-US")]
         locale: String,
     },
+}
+
+/// Resource limits; unset flags keep the library defaults (see `markkit::Limits`).
+#[derive(Args, Debug, Default)]
+#[command(next_help_heading = "Limits")]
+struct LimitArgs {
+    /// Maximum input (and fetched body) size in bytes [default: 50 MiB]
+    #[arg(long, alias = "max-size", value_name = "BYTES")]
+    max_input_size: Option<usize>,
+    /// Maximum Markdown output size in bytes [default: 128 MiB]
+    #[arg(long, value_name = "BYTES")]
+    max_output_size: Option<usize>,
+    /// Time budget for fetch + parse + render, in seconds [default: 60]
+    #[arg(long, value_name = "SECS", value_parser = parse_secs)]
+    timeout: Option<Duration>,
+    /// Maximum element nesting, hard-capped at 512 [default: 256]
+    #[arg(long, value_name = "N")]
+    max_nesting_depth: Option<usize>,
+    /// Maximum parsed HTML DOM / DOCX XML nodes [default: 5000000]
+    #[arg(long, value_name = "N")]
+    max_nodes: Option<usize>,
+    /// Maximum entries in a ZIP container [default: 10000]
+    #[arg(long, value_name = "N")]
+    max_archive_entries: Option<usize>,
+    /// Maximum decompressed bytes per ZIP entry [default: 64 MiB]
+    #[arg(long, value_name = "BYTES")]
+    max_archive_entry_size: Option<u64>,
+    /// Maximum decompressed bytes per ZIP container [default: 256 MiB]
+    #[arg(long, value_name = "BYTES")]
+    max_archive_total_size: Option<u64>,
+    /// Maximum data rows rendered per sheet [default: 10000]
+    #[arg(long, value_name = "N")]
+    max_sheet_rows: Option<usize>,
+    /// Maximum columns rendered per sheet [default: 256]
+    #[arg(long, value_name = "N")]
+    max_sheet_cols: Option<usize>,
+    /// Maximum XLS/ODS cell grid [default: 4000000]
+    #[arg(long, value_name = "N")]
+    max_spreadsheet_cells: Option<u64>,
+    /// Maximum redirects followed when fetching a URL [default: 5]
+    #[arg(long, value_name = "N")]
+    max_redirects: Option<usize>,
+}
+
+impl LimitArgs {
+    fn apply(&self, mut l: Limits) -> Limits {
+        macro_rules! set {
+            ($($f:ident),*) => {$( if let Some(v) = self.$f { l.$f = v; } )*};
+        }
+        set!(
+            max_input_size,
+            max_output_size,
+            timeout,
+            max_nesting_depth,
+            max_nodes,
+            max_archive_entries,
+            max_archive_entry_size,
+            max_archive_total_size,
+            max_sheet_rows,
+            max_sheet_cols,
+            max_spreadsheet_cells,
+            max_redirects
+        );
+        l
+    }
+}
+
+fn parse_secs(s: &str) -> Result<Duration, String> {
+    let secs: f64 = s.parse().map_err(|e| format!("{e}"))?;
+    Duration::try_from_secs_f64(secs).map_err(|e| format!("{e}"))
 }
 
 #[tokio::main]
@@ -118,7 +189,7 @@ async fn main() -> Result<()> {
             stdin,
             include_selectors,
             exclude_selectors,
-            max_size,
+            limits,
             json: output_json,
             base_url,
             main_content,
@@ -130,7 +201,7 @@ async fn main() -> Result<()> {
             }
 
             let mut builder = Markkit::builder()
-                .max_input_size(max_size)
+                .limits(limits.apply(Limits::default()))
                 .main_content(main_content);
 
             for sel in &include_selectors {
@@ -190,5 +261,61 @@ mod tests {
     #[test]
     fn verify_cli() {
         Cli::command().debug_assert();
+    }
+
+    fn limits_from(args: &[&str]) -> Limits {
+        let cli = Cli::try_parse_from(["markkit", "extract", "x"].iter().chain(args)).unwrap();
+        let Commands::Extract { limits, .. } = cli.command;
+        limits.apply(Limits::default())
+    }
+
+    #[test]
+    fn unset_limit_flags_keep_defaults() {
+        assert_eq!(limits_from(&[]), Limits::default());
+    }
+
+    #[test]
+    fn every_limit_flag_maps() {
+        let l = limits_from(&[
+            "--max-input-size=1",
+            "--max-output-size=2",
+            "--timeout=0.5",
+            "--max-nesting-depth=3",
+            "--max-nodes=4",
+            "--max-archive-entries=5",
+            "--max-archive-entry-size=6",
+            "--max-archive-total-size=7",
+            "--max-sheet-rows=8",
+            "--max-sheet-cols=9",
+            "--max-spreadsheet-cells=10",
+            "--max-redirects=11",
+        ]);
+        let want = Limits::default()
+            .max_input_size(1)
+            .max_output_size(2)
+            .timeout(Duration::from_millis(500))
+            .max_nesting_depth(3)
+            .max_nodes(4)
+            .max_archive_entries(5)
+            .max_archive_entry_size(6)
+            .max_archive_total_size(7)
+            .max_sheet_rows(8)
+            .max_sheet_cols(9)
+            .max_spreadsheet_cells(10)
+            .max_redirects(11);
+        assert_eq!(l, want);
+    }
+
+    #[test]
+    fn legacy_max_size_alias() {
+        assert_eq!(limits_from(&["--max-size=9"]).max_input_size, 9);
+    }
+
+    #[test]
+    fn bad_timeout_rejected() {
+        for bad in ["-1", "nan", "abc"] {
+            let arg = format!("--timeout={bad}");
+            assert!(Cli::try_parse_from(["markkit", "extract", "x", &arg]).is_err());
+        }
     }
 }

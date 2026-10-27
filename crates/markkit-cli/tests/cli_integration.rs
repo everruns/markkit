@@ -199,3 +199,24 @@ fn missing_source_errors() {
 
     assert!(!output.status.success());
 }
+
+#[test]
+fn limit_flags_enforced() {
+    let mut child = markkit_bin()
+        .args(["extract", "--stdin", "--max-output-size", "5"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("failed to spawn markkit");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"<p>hello world, this is long</p>")
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("max_output_size"), "stderr: {stderr}");
+}

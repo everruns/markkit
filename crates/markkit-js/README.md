@@ -33,7 +33,9 @@ const doc = extractDocumentSync(fs.readFileSync('report.docx'), { fileName: 'rep
 console.log(doc.title, doc.format, doc.warnings, doc.markdown);
 ```
 
-Fields: `maxInputSize`, `maxProcessingSecs`, `preserveLinks`, `preserveImages`,
+Fields: `maxInputSize`, `maxOutputSize`, `timeout` (seconds, covers fetch, parsing and
+rendering; `maxProcessingSecs` is the whole-second form), `maxNodes`, `maxNestingDepth`,
+`baseUrl`, `mainContent`, `preserveLinks`, `preserveImages`,
 `includeSelectors`, `excludeSelectors` (added to the defaults), `maxArchiveEntries`,
 `maxArchiveEntrySize`, `maxArchiveTotalSize`, `maxSheetRows`, `maxSheetCols`,
 `maxSpreadsheetCells`, `includeHiddenSheets`, `allowPrivateNetworks` (trusted URLs only),
