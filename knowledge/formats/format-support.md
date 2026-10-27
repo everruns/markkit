@@ -45,10 +45,11 @@ impl Markkit {
 
 pub struct Extraction {           // #[non_exhaustive]
     pub markdown: String,
-    pub title: Option<String>,    // DOCX core.xml dc:title, else first Title-style paragraph
+    pub title: Option<String>,    // HTML og:title / JSON-LD / <title>; DOCX core.xml dc:title, else Title style
     pub format: Format,
     pub warnings: Vec<String>,    // "<code>: <message>"
     pub stats: ExtractionStats,   // pages / sheets / rows / paragraphs / tables (Option each)
+    pub metadata: Metadata,       // HTML page metadata, see HTML Extraction; empty otherwise
 }
 ```
 
@@ -125,12 +126,13 @@ Markdown is parsed, not passed through:
 | Markdown | Output |
 |---|---|
 | CommonMark blocks and inlines | Same construct via the IR (`*` bullets become `-`, setext headings become ATX) |
-| GFM tables, `~~strike~~`, task lists `[x]` | Kept (task markers as literal text) |
+| GFM tables (with `:---:` alignment), `~~strike~~`, task lists `[x]` | IR v2 `Table.alignments`, `Strikethrough`, `ListItem::checked` |
+| Footnotes `[^n]`, definition lists (`Term` / `: def`) | IR v2 `FootnoteReference` / `FootnoteDefinition`, `DefinitionList` |
 | Soft line break | Space (paragraphs reflow); hard breaks kept |
 | YAML front matter | Not rendered; `title:` becomes `Extraction::title` (else first `# ` heading) |
 | HTML block | Through the HTML parser when `html` is on (scripts, styles, handlers stripped), else dropped |
 | Inline HTML tag | Dropped; text between tags kept |
-| Footnote reference, other extensions | Literal text (extensions not enabled) |
+| Math, wikilinks, other extensions | Not enabled (literal text) |
 
 Containers nested deeper than 200 are flattened into the deepest kept container
 (explicit-stack builder, so neither the builder nor the recursive renderer can overflow).

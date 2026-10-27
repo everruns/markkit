@@ -204,3 +204,44 @@ fn depth_limit_exceeded() {
         md
     );
 }
+
+// ─── Table spans (T2: span amplification) ────────────────────────────
+
+#[test]
+fn hostile_colspan_rowspan_bounded() {
+    // Huge spans on many rows must not blow up the layout grid.
+    let mut html = String::from("<table>");
+    for _ in 0..5_000 {
+        html.push_str(r#"<tr><td colspan="999999999" rowspan="0">a</td><td>b</td></tr>"#);
+    }
+    html.push_str("</table>");
+    let start = std::time::Instant::now();
+    let md = convert(&html);
+    assert!(start.elapsed().as_secs() < 10);
+    // Output stays proportional to input (spans dropped past the grid budget).
+    assert!(md.len() < html.len() * 4, "output {} bytes", md.len());
+}
+
+#[test]
+fn non_numeric_spans_ignored() {
+    let md = convert(r#"<table><tr><td colspan="-5" rowspan="x">a</td><td>b</td></tr></table>"#);
+    assert!(md.contains("| a | b |"), "{md}");
+}
+
+#[test]
+fn deep_definition_lists_bounded() {
+    let html = "<dl><dd>".repeat(500) + "x" + &"</dd></dl>".repeat(500);
+    let _ = convert(&html);
+}
+
+#[test]
+fn source_tracking_many_siblings_is_linear() {
+    // 200k siblings: per-block XPath must not rescan siblings (O(n^2)).
+    let html = "<p>x</p>".repeat(200_000);
+    let m = Markkit::builder().track_sources(true).build();
+    let start = std::time::Instant::now();
+    let doc = m.parse_html(&html).unwrap();
+    assert!(start.elapsed().as_secs() < 20);
+    let last = doc.nodes.last().unwrap().source().unwrap();
+    assert_eq!(last.path.as_deref(), Some("/html[1]/body[1]/p[200000]"));
+}

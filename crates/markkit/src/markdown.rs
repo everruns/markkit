@@ -6,18 +6,22 @@
 //!   never copied: HTML blocks go through the HTML parser when the `html`
 //!   feature is on (scripts/styles stripped), otherwise they are dropped;
 //!   inline HTML tags are dropped and the text between them kept.
-//! - Extensions: GFM tables, strikethrough, task lists, YAML front matter.
-//!   Front matter is not rendered; its `title:` becomes the title, otherwise
-//!   the first level-1 heading.
+//! - Extensions map onto IR v2: GFM tables (with column alignment),
+//!   strikethrough, task lists (`ListItem::checked`), footnotes, definition
+//!   lists, YAML front matter. Front matter is not rendered; its `title:`
+//!   becomes the title, otherwise the first level-1 heading.
 //! - Soft line breaks become spaces (paragraphs reflow); hard breaks stay.
 //! - pulldown-cmark is iterative; the IR is built with an explicit stack and
 //!   capped at `MAX_DEPTH` open containers. Deeper content is flattened into
 //!   the deepest container so the recursive renderer cannot overflow.
 
-use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, MetadataBlockKind, Options, Parser, Tag};
+use pulldown_cmark::{
+    Alignment as MdAlignment, CodeBlockKind, Event, HeadingLevel, MetadataBlockKind, Options,
+    Parser, Tag,
+};
 
 use crate::config::MarkkitBuilder;
-use crate::ir::{Document, ListItem, Node};
+use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, TableCell};
 
 /// Max nested containers (block quotes, lists, emphasis, …) kept as structure.
 const MAX_DEPTH: usize = 200;
@@ -43,7 +47,9 @@ enum Kind {
     Code {
         language: Option<String>,
     },
-    Table,
+    Table {
+        alignments: Vec<Alignment>,
+    },
     Head,
     Row,
     Cell,
@@ -57,6 +63,12 @@ enum Kind {
     Image {
         src: String,
     },
+    Footnote {
+        label: String,
+    },
+    DefList,
+    DefTerm,
+    DefDesc,
     Html,
     Meta,
     /// Beyond `MAX_DEPTH` or an unsupported container: children go to the parent.
@@ -69,6 +81,9 @@ struct Frame {
     items: Vec<ListItem>,
     cells: Vec<Vec<Node>>,
     rows: Vec<Vec<Vec<Node>>>,
+    defs: Vec<DefinitionItem>,
+    /// Task list marker seen in this item.
+    checked: Option<bool>,
     /// Code, image alt, raw HTML or front matter text.
     text: String,
 }
@@ -81,6 +96,8 @@ impl Frame {
             items: Vec::new(),
             cells: Vec::new(),
             rows: Vec::new(),
+            defs: Vec::new(),
+            checked: None,
             text: String::new(),
         }
     }
@@ -93,6 +110,8 @@ enum Out {
     Cell(Vec<Node>),
     Row(Vec<Vec<Node>>),
     Head(Vec<Vec<Node>>),
+    Term(Vec<Node>),
+    Desc(Vec<Node>),
 }
 
 struct Builder<'c> {
@@ -109,6 +128,8 @@ pub(crate) fn parse(text: &str, config: &MarkkitBuilder) -> ParsedMarkdown {
     let opts = Options::ENABLE_TABLES
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_DEFINITION_LIST
         | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS;
     let mut b = Builder {
         config,
@@ -152,8 +173,22 @@ impl Builder<'_> {
             Event::SoftBreak => self.text(" "),
             Event::HardBreak => self.push(Node::LineBreak),
             Event::Rule => self.push(Node::ThematicBreak),
-            Event::TaskListMarker(done) => self.text(if done { "[x] " } else { "[ ] " }),
-            Event::FootnoteReference(r) => self.text(&format!("[^{r}]")),
+            Event::TaskListMarker(done) => {
+                // Marker belongs to the innermost open item; text fallback when
+                // the item was flattened past `MAX_DEPTH`.
+                match self
+                    .stack
+                    .iter_mut()
+                    .rev()
+                    .find(|f| matches!(f.kind, Kind::Item))
+                {
+                    Some(item) => item.checked = Some(done),
+                    None => self.text(if done { "[x] " } else { "[ ] " }),
+                }
+            }
+            Event::FootnoteReference(r) => self.push(Node::FootnoteReference {
+                label: r.into_string(),
+            }),
             Event::InlineMath(m) | Event::DisplayMath(m) => {
                 self.push(Node::InlineCode(m.into_string()))
             }
@@ -184,7 +219,17 @@ impl Builder<'_> {
                     start,
                 },
                 Tag::Item => Kind::Item,
-                Tag::Table(_) => Kind::Table,
+                Tag::Table(aligns) => Kind::Table {
+                    alignments: aligns
+                        .into_iter()
+                        .map(|a| match a {
+                            MdAlignment::None => Alignment::None,
+                            MdAlignment::Left => Alignment::Left,
+                            MdAlignment::Center => Alignment::Center,
+                            MdAlignment::Right => Alignment::Right,
+                        })
+                        .collect(),
+                },
                 Tag::TableHead => Kind::Head,
                 Tag::TableRow => Kind::Row,
                 Tag::TableCell => Kind::Cell,
@@ -200,6 +245,12 @@ impl Builder<'_> {
                 Tag::Image { dest_url, .. } => Kind::Image {
                     src: dest_url.into_string(),
                 },
+                Tag::FootnoteDefinition(label) => Kind::Footnote {
+                    label: label.into_string(),
+                },
+                Tag::DefinitionList => Kind::DefList,
+                Tag::DefinitionListTitle => Kind::DefTerm,
+                Tag::DefinitionListDefinition => Kind::DefDesc,
                 Tag::MetadataBlock(MetadataBlockKind::YamlStyle) => Kind::Meta,
                 _ => Kind::Flat,
             }
@@ -216,42 +267,48 @@ impl Builder<'_> {
             Kind::Root | Kind::Flat => Out::Nodes(f.nodes),
             Kind::Para => {
                 self.paragraphs += 1;
-                Out::Nodes(vec![Node::Paragraph { children: f.nodes }])
+                Out::Nodes(vec![Node::paragraph(f.nodes)])
             }
             Kind::Heading(level) => {
                 self.paragraphs += 1;
-                Out::Nodes(vec![Node::Heading {
-                    level,
-                    children: f.nodes,
-                }])
+                Out::Nodes(vec![Node::heading(level, f.nodes)])
             }
             Kind::Quote => Out::Nodes(vec![Node::BlockQuote {
                 children: wrap_inline(f.nodes),
+                source: None,
             }]),
             Kind::List { ordered, start } => Out::Nodes(vec![Node::List {
                 ordered,
                 start,
                 items: f.items,
+                source: None,
             }]),
             Kind::Item => {
                 self.paragraphs += 1;
-                let has_block = f.nodes.iter().any(is_block);
+                let has_block = f.nodes.iter().any(Node::is_block);
                 let children = if has_block {
                     wrap_inline(f.nodes)
                 } else {
                     f.nodes
                 };
-                Out::Item(ListItem::new(children))
+                Out::Item(match f.checked {
+                    Some(done) => ListItem::task(children, done),
+                    None => ListItem::new(children),
+                })
             }
             Kind::Code { language } => Out::Nodes(vec![Node::CodeBlock {
                 language,
                 code: f.text,
+                source: None,
             }]),
-            Kind::Table => {
+            Kind::Table { alignments } => {
                 self.tables += 1;
+                let cells = |row: Vec<Vec<Node>>| row.into_iter().map(TableCell::new).collect();
                 let mut nodes = vec![Node::Table {
-                    headers: f.cells,
-                    rows: f.rows,
+                    alignments,
+                    headers: cells(f.cells),
+                    rows: f.rows.into_iter().map(cells).collect(),
+                    source: None,
                 }];
                 nodes.extend(f.nodes);
                 Out::Nodes(nodes)
@@ -268,6 +325,24 @@ impl Builder<'_> {
                 children: f.nodes,
             }]),
             Kind::Image { src } => Out::Nodes(vec![Node::Image { src, alt: f.text }]),
+            Kind::Footnote { label } => Out::Nodes(vec![Node::FootnoteDefinition {
+                label,
+                children: wrap_inline(f.nodes),
+                source: None,
+            }]),
+            Kind::DefList => {
+                let mut nodes = Vec::new();
+                if !f.defs.is_empty() {
+                    nodes.push(Node::DefinitionList {
+                        items: f.defs,
+                        source: None,
+                    });
+                }
+                nodes.extend(f.nodes);
+                Out::Nodes(nodes)
+            }
+            Kind::DefTerm => Out::Term(f.nodes),
+            Kind::DefDesc => Out::Desc(wrap_inline(f.nodes)),
             Kind::Html => Out::Nodes(self.html_block(&f.text)),
             Kind::Meta => {
                 if self.meta_title.is_none() {
@@ -288,9 +363,16 @@ impl Builder<'_> {
                 parent.items.push(ListItem::new(nodes))
             }
             (Kind::Head | Kind::Row, Out::Cell(cell)) => parent.cells.push(cell),
-            (Kind::Table, Out::Head(cells)) => parent.cells = cells,
-            (Kind::Table, Out::Row(cells)) => parent.rows.push(cells),
-            (_, Out::Nodes(nodes) | Out::Cell(nodes)) => self.push_all(nodes),
+            (Kind::Table { .. }, Out::Head(cells)) => parent.cells = cells,
+            (Kind::Table { .. }, Out::Row(cells)) => parent.rows.push(cells),
+            (Kind::DefList, Out::Term(term)) => parent.defs.push(DefinitionItem::new(term, vec![])),
+            (Kind::DefList, Out::Desc(desc)) => match parent.defs.last_mut() {
+                Some(item) => item.definitions.push(desc),
+                None => parent.defs.push(DefinitionItem::new(vec![], vec![desc])),
+            },
+            (_, Out::Nodes(nodes) | Out::Cell(nodes) | Out::Term(nodes) | Out::Desc(nodes)) => {
+                self.push_all(nodes)
+            }
             (_, Out::Item(item)) => self.push_all(item.children),
             (_, Out::Row(cells) | Out::Head(cells)) => {
                 for cell in cells {
@@ -359,29 +441,14 @@ fn heading_level(level: HeadingLevel) -> u8 {
     }
 }
 
-fn is_block(node: &Node) -> bool {
-    matches!(
-        node,
-        Node::Heading { .. }
-            | Node::Paragraph { .. }
-            | Node::List { .. }
-            | Node::BlockQuote { .. }
-            | Node::CodeBlock { .. }
-            | Node::Table { .. }
-            | Node::ThematicBreak
-    )
-}
-
 /// Group runs of inline nodes into paragraphs (for containers mixing both).
 fn wrap_inline(nodes: Vec<Node>) -> Vec<Node> {
     let mut out = Vec::with_capacity(nodes.len());
     let mut run = Vec::new();
     for n in nodes {
-        if is_block(&n) {
+        if n.is_block() {
             if !run.is_empty() {
-                out.push(Node::Paragraph {
-                    children: std::mem::take(&mut run),
-                });
+                out.push(Node::paragraph(std::mem::take(&mut run)));
             }
             out.push(n);
         } else {
@@ -389,7 +456,7 @@ fn wrap_inline(nodes: Vec<Node>) -> Vec<Node> {
         }
     }
     if !run.is_empty() {
-        out.push(Node::Paragraph { children: run });
+        out.push(Node::paragraph(run));
     }
     out
 }
@@ -404,8 +471,10 @@ fn plain_text(node: &Node, out: &mut String) {
             Node::Image { alt, .. } => out.push_str(alt),
             Node::LineBreak => out.push(' '),
             Node::Heading { children, .. }
-            | Node::Paragraph { children }
-            | Node::BlockQuote { children }
+            | Node::Paragraph { children, .. }
+            | Node::BlockQuote { children, .. }
+            | Node::FootnoteDefinition { children, .. }
+            | Node::Figure { children, .. }
             | Node::Bold { children }
             | Node::Italic { children }
             | Node::Strikethrough { children }
@@ -413,10 +482,20 @@ fn plain_text(node: &Node, out: &mut String) {
             Node::List { items, .. } => {
                 stack.extend(items.iter().rev().flat_map(|i| i.children.iter().rev()))
             }
-            Node::Table { headers, rows } => {
-                stack.extend(headers.iter().chain(rows.iter().flatten()).flatten().rev())
-            }
-            Node::ThematicBreak => {}
+            Node::Table { headers, rows, .. } => stack.extend(
+                headers
+                    .iter()
+                    .chain(rows.iter().flatten())
+                    .flat_map(|c| c.children.iter())
+                    .rev(),
+            ),
+            Node::DefinitionList { items, .. } => stack.extend(
+                items
+                    .iter()
+                    .flat_map(|i| i.term.iter().chain(i.definitions.iter().flatten()))
+                    .rev(),
+            ),
+            _ => {}
         }
     }
 }
@@ -471,6 +550,42 @@ mod tests {
             md("| a | b |\n|---|---|\n| 1 | 2 |\n\n- [x] done\n- [ ] todo\n"),
             "| a | b |\n| --- | --- |\n| 1 | 2 |\n\n- [x] done\n- [ ] todo\n"
         );
+    }
+
+    #[test]
+    fn ir_v2_extensions() {
+        let p = parse(
+            "| l | c | r |\n|:--|:-:|--:|\n| 1 | 2 | 3 |\n\n- [x] done\n\nNote[^n].\n\n[^n]: The note.\n\nTerm\n: Definition\n",
+            &MarkkitBuilder::default(),
+        );
+        let Node::Table { alignments, .. } = &p.doc.nodes[0] else {
+            panic!("{:?}", p.doc.nodes[0])
+        };
+        assert_eq!(
+            alignments,
+            &[Alignment::Left, Alignment::Center, Alignment::Right]
+        );
+        let Node::List { items, .. } = &p.doc.nodes[1] else {
+            panic!("{:?}", p.doc.nodes[1])
+        };
+        assert_eq!(items[0].checked, Some(true));
+        assert!(
+            p.doc
+                .nodes
+                .iter()
+                .any(|n| matches!(n, Node::FootnoteDefinition { label, .. } if label == "n"))
+        );
+        assert!(
+            p.doc
+                .nodes
+                .iter()
+                .any(|n| matches!(n, Node::DefinitionList { .. }))
+        );
+        let out = crate::render::MarkdownRenderer::new().render(&p.doc);
+        assert!(out.contains("| :--- | :---: | ---: |"), "{out}");
+        assert!(out.contains("- [x] done"), "{out}");
+        assert!(out.contains("Note[^n]."), "{out}");
+        assert!(out.contains("[^n]: The note."), "{out}");
     }
 
     #[test]

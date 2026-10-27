@@ -92,9 +92,7 @@ pub(crate) fn plain_to_ir(text: &str) -> (Document, usize) {
     let mut para: Vec<Node> = Vec::new();
     let flush = |para: &mut Vec<Node>, nodes: &mut Vec<Node>| {
         if !para.is_empty() {
-            nodes.push(Node::Paragraph {
-                children: std::mem::take(para),
-            });
+            nodes.push(Node::paragraph(std::mem::take(para)));
         }
     };
     for line in text.split('\n') {
@@ -151,13 +149,11 @@ mod tests {
         assert_eq!(n, 2);
         assert_eq!(
             doc.nodes[0],
-            Node::Paragraph {
-                children: vec![
-                    Node::Text("a".into()),
-                    Node::LineBreak,
-                    Node::Text("b".into())
-                ]
-            }
+            Node::paragraph(vec![
+                Node::Text("a".into()),
+                Node::LineBreak,
+                Node::Text("b".into())
+            ])
         );
         assert_eq!(plain_to_ir("\n \n").1, 0);
     }

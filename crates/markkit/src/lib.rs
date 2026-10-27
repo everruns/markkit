@@ -38,6 +38,8 @@
 //! - **Markdown** (`markdown`): `text/markdown`, `.md`, normalized through the IR
 //! - **PDF** (`pdf`): Planned; currently returns [`Error::UnsupportedFormat`]
 //! - **URL fetching** (`http_client`, default): Fetch and extract from URLs via reqwest
+//! - **Agent tool** (`tool`): `markkit::tool::MarkkitTool`, an LLM tool following the
+//!   Everruns toolkit-library contract (schemas, OpenAI definition, `tower::Service`)
 //!
 //! Embedders that do their own fetching can drop reqwest entirely:
 //! `markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }`.
@@ -61,12 +63,14 @@ pub mod render;
 #[cfg(feature = "spreadsheet")]
 mod spreadsheet;
 mod text;
+#[cfg(feature = "tool")]
+pub mod tool;
 #[cfg(feature = "docx")]
 mod xml;
 
 pub use config::MarkkitBuilder;
 pub use error::Error;
-pub use extract::{Extraction, ExtractionStats, Markkit};
+pub use extract::{Extraction, ExtractionStats, Markkit, Metadata, ParsedDocument};
 pub use format::{DocumentHint, Format};
 pub use ir::Document;
 pub use render::MarkdownRenderer;

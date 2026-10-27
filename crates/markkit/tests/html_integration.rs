@@ -739,3 +739,184 @@ fn loose_text_between_blocks_becomes_paragraph() {
 fn inline_only_document_unchanged() {
     assert_eq!(convert("Hello <b>world</b>"), "Hello **world**\n");
 }
+
+// ─── IR v2: tasks, definition lists, figures, footnotes, tables ─────
+
+#[test]
+fn task_list_github_markup() {
+    let html = r#"<ul class="contains-task-list">
+      <li class="task-list-item"><input type="checkbox" disabled checked> Done</li>
+      <li class="task-list-item"><input type="checkbox" disabled> Todo</li>
+      <li>Plain</li>
+    </ul>"#;
+    assert_eq!(convert(html), "- [x] Done\n- [ ] Todo\n- Plain\n");
+}
+
+#[test]
+fn task_list_checkbox_inside_paragraph() {
+    let html = r#"<ol><li><p><input type="checkbox" checked> Ship it</p></li></ol>"#;
+    assert_eq!(convert(html), "1. [x] Ship it\n");
+}
+
+#[test]
+fn checkbox_after_text_is_not_task() {
+    let html = r#"<ul><li>Agree <input type="checkbox" checked></li></ul>"#;
+    assert_eq!(convert(html), "- Agree\n");
+}
+
+#[test]
+fn non_checkbox_input_is_not_task() {
+    let html = r#"<ul><li><input type="text"> Name</li></ul>"#;
+    assert!(!convert(html).contains('['));
+}
+
+#[test]
+fn definition_list() {
+    let html = "<dl><dt>Rust</dt><dd>A language.</dd><dd>Also a fungus.</dd>\
+                <dt>Go</dt><dd><p>Another.</p><p>Second para.</p></dd></dl>";
+    assert_eq!(
+        convert(html),
+        "Rust\n:   A language.\n:   Also a fungus.\n\nGo\n:   Another.\n\n    Second para.\n"
+    );
+}
+
+#[test]
+fn definition_list_div_wrappers_and_shared_terms() {
+    let html = "<dl><div><dt>A</dt><dt>B</dt><dd>Both</dd></div></dl>";
+    assert_eq!(convert(html), "A  \nB\n:   Both\n");
+}
+
+#[test]
+fn empty_definition_list_elided() {
+    assert_eq!(convert("<p>x</p><dl><dt> </dt><dd></dd></dl>"), "x\n");
+}
+
+#[test]
+fn figure_with_caption() {
+    let html =
+        r#"<figure><img src="cat.png" alt="Cat"><figcaption>A <b>cat</b>.</figcaption></figure>"#;
+    assert_eq!(convert(html), "![Cat](cat.png)\n\n*A **cat**.*\n");
+}
+
+#[test]
+fn figure_without_caption_is_transparent() {
+    let html = r#"<figure><img src="cat.png" alt="Cat"></figure>"#;
+    assert_eq!(convert(html), "![Cat](cat.png)\n");
+}
+
+#[test]
+fn footnotes_github_markup() {
+    let html = r##"<p>Claim<sup><a href="#user-content-fn-1" id="user-content-fnref-1" data-footnote-ref>1</a></sup>.</p>
+    <section data-footnotes class="footnotes"><h2 class="sr-only">Footnotes</h2>
+    <ol><li id="user-content-fn-1"><p>Source. <a href="#user-content-fnref-1" data-footnote-backref class="data-footnote-backref">↩</a></p></li></ol>
+    </section>"##;
+    assert_eq!(convert(html), "Claim[^1].\n\n[^1]: Source.\n");
+}
+
+#[test]
+fn footnotes_pandoc_markup() {
+    let html = r##"<p>Text<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>a</sup></a></p>
+    <section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><hr />
+    <ol><li id="fn1"><p>First.</p><p>Second.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li></ol>
+    </section>"##;
+    assert_eq!(convert(html), "Text[^a]\n\n[^a]: First.\n\n    Second.\n");
+}
+
+#[test]
+fn footnote_label_cannot_break_out() {
+    let html = r##"<p>x<a href="#n" data-footnote-ref>]](javascript:alert(1))</a></p>"##;
+    let md = convert(html);
+    assert!(!md.contains("]("), "{md}");
+    assert!(md.starts_with("x[^"), "{md}");
+}
+
+#[test]
+fn table_alignment() {
+    let html = r#"<table><thead><tr><th align="left">L</th><th style="text-align: center">C</th><th align="right">R</th><th>N</th></tr></thead>
+    <tbody><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr></tbody></table>"#;
+    assert_eq!(
+        convert(html),
+        "| L | C | R | N |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n"
+    );
+}
+
+#[test]
+fn table_colspan_and_rowspan() {
+    let html = r#"<table>
+      <tr><th colspan="2">AB</th><th>C</th></tr>
+      <tr><td rowspan="2">x</td><td>1</td><td>2</td></tr>
+      <tr><td>3</td><td>4</td></tr>
+    </table>"#;
+    assert_eq!(
+        convert(html),
+        "| AB |  | C |\n| --- | --- | --- |\n| x | 1 | 2 |\n|  | 3 | 4 |\n"
+    );
+}
+
+#[test]
+fn table_row_header_cells_kept() {
+    let html = "<table><tr><th>K</th><th>V</th></tr><tr><th>a</th><td>1</td></tr></table>";
+    assert_eq!(convert(html), "| K | V |\n| --- | --- |\n| a | 1 |\n");
+}
+
+#[test]
+fn ir_v2_json_has_version() {
+    let m = Markkit::builder().build();
+    let doc = m
+        .parse_html("<ul><li><input type=checkbox checked>x</li></ul>")
+        .unwrap();
+    let json = serde_json::to_value(&doc).unwrap();
+    assert_eq!(json["ir_version"], markkit::ir::IR_VERSION);
+    assert_eq!(json["nodes"][0]["List"]["items"][0]["checked"], true);
+}
+
+// ─── Provenance ──────────────────────────────────────────────────────
+
+#[test]
+fn sources_are_xpaths() {
+    let m = Markkit::builder().track_sources(true).build();
+    let doc = m
+        .parse_html(
+            "<body><h1>T</h1><div><p>a</p><p>b</p></div>\
+             <ul><li><p>x</p><blockquote><p>q</p></blockquote></li></ul></body>",
+        )
+        .unwrap();
+    let paths: Vec<&str> = doc
+        .nodes
+        .iter()
+        .map(|n| n.source().and_then(|s| s.path.as_deref()).unwrap())
+        .collect();
+    assert_eq!(
+        paths,
+        vec![
+            "/html[1]/body[1]/h1[1]",
+            "/html[1]/body[1]/div[1]/p[1]",
+            "/html[1]/body[1]/div[1]/p[2]",
+            "/html[1]/body[1]/ul[1]",
+        ]
+    );
+    let markkit::ir::Node::List { items, .. } = &doc.nodes[3] else {
+        panic!("list expected");
+    };
+    let quote = items[0].children[1].source().unwrap();
+    assert_eq!(
+        quote.path.as_deref(),
+        Some("/html[1]/body[1]/ul[1]/li[1]/blockquote[1]")
+    );
+}
+
+#[test]
+fn sources_off_by_default_and_not_in_json() {
+    let m = Markkit::builder().build();
+    let doc = m.parse_html("<p>a</p>").unwrap();
+    assert!(doc.nodes[0].source().is_none());
+    assert!(!serde_json::to_string(&doc).unwrap().contains("source"));
+}
+
+#[test]
+fn sources_do_not_change_markdown() {
+    let html = "<h1>A</h1><p>b <b>c</b></p><table><tr><th>x</th></tr><tr><td>1</td></tr></table>";
+    let a = convert(html);
+    let b = convert_with(html, |b| b.track_sources(true));
+    assert_eq!(a, b);
+}

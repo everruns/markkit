@@ -34,7 +34,11 @@ HTML from the web: malformed markup, complex layouts, embedded scripts, etc.
 | `<ul>/<ol>` | `- item` / `1. item` |
 | `<blockquote>` | `> text` |
 | `<pre><code>` | Fenced code block |
-| `<table>` | GFM table |
+| `<table>` | GFM table (alignment, spans laid out) |
+| `<dl>` | `Term` / `:   definition` |
+| `<li><input type=checkbox>` | `- [x] item` |
+| `<figure>` + `<figcaption>` | content + `*caption*` |
+| footnote refs / sections | `[^1]` / `[^1]: body` |
 | `<em>/<i>` | `*text*` |
 | `<strong>/<b>` | `**text**` |
 | `<del>/<s>` | `~~text~~` |
@@ -49,12 +53,15 @@ HTML from the web: malformed markup, complex layouts, embedded scripts, etc.
 | `<p>` | `Paragraph { children }` | Empty paragraph -> elided. Whitespace-only -> elided. |
 | `<ul>` | `List { ordered: false }` | Only `<li>` direct children collected. Empty list -> elided. |
 | `<ol>` | `List { ordered: true, start }` | `start` attr parsed as `u64`. Missing/invalid -> `None` (defaults to 1 in renderer). |
-| `<li>` | `ListItem { children }` | Can contain mixed block+inline. Empty items skipped. |
+| `<li>` | `ListItem { children, checked }` | Can contain mixed block+inline. Empty items skipped. A leading `<input type=checkbox>` (directly or in the first `<p>`/`<label>`) sets `checked` from the `checked` attribute. |
 | `<blockquote>` | `BlockQuote { children }` | Nested blockquotes supported. Empty -> elided. |
 | `<pre>` | `CodeBlock { language, code }` | If contains `<code>`, language extracted from `class`. Otherwise raw text. |
 | `<pre><code>` | `CodeBlock { language, code }` | Language from `language-*` or `lang-*` class prefix. |
 | `<code>` (not in pre) | `InlineCode(String)` | Inline context only. |
-| `<table>` | `Table { headers, rows }` | `<thead>` or first `<th>` row becomes headers. Empty table -> elided. |
+| `<table>` | `Table { alignments, headers, rows }` | First `<thead>` row, or a leading all-`<th>` row, becomes headers. Cells are direct `<th>`/`<td>` children of a row (row-header `<th>` kept). `colspan` clamped 1-1000, `rowspan` 1-65534 (`0` = 65534). Alignment per grid column from header `style="text-align:…"` or `align`. Empty table -> elided. |
+| `<dl>` | `DefinitionList { items }` | `<dt>` starts an item (consecutive `<dt>`s join with a line break); each `<dd>` adds a definition. `<div>` wrappers walked. Empty -> elided. |
+| `<figure>` | `Figure { children, caption }` | Only when a direct non-empty `<figcaption>` exists; otherwise transparent. Inline-only content wrapped in `Paragraph`. |
+| footnote section | `FootnoteDefinition { label, children }` per `<li>` | `section`/`div`/`aside`/`ol` with `data-footnotes`, `role=doc-endnotes|doc-footnotes`, or class `footnotes` (GitHub, Pandoc). Label from the matching reference (by `<li id>`), else 1-based position. Headings/`<hr>` in the section dropped. |
 | `<hr>` | `ThematicBreak` | Always rendered as `---`. |
 | `<br>` | `LineBreak` | Renders as two trailing spaces + newline. |
 
@@ -67,6 +74,7 @@ HTML from the web: malformed markup, complex layouts, embedded scripts, etc.
 | `<del>`, `<s>`, `<strike>` | `Strikethrough { children }` | Empty -> elided. |
 | `<a href>` | `Link { url, title, children }` | When `preserve_links=false`, unwrapped to children. Empty -> elided. Missing href -> empty string. |
 | `<img>` | `Image { src, alt }` | When `preserve_images=false`, elided entirely. Missing attrs -> empty strings. |
+| footnote `<a>` | `FootnoteReference { label }` | `<a href="#id">` with `data-footnote-ref`, `role=doc-noteref`, or class `footnote-ref`. Label = link text without `[]` (else target id). Back-links (`data-footnote-backref`, `role=doc-backlink`, `.footnote-back[ref]`) dropped. |
 
 ### Transparent Container Elements
 
@@ -80,7 +88,7 @@ as if the container were not present.
 | `<article>` | Same as div. |
 | `<main>` | Same as div. |
 | `<span>` | Same as div. |
-| `<figure>` | Same as div. |
+| `<figure>` | Same as div when it has no `<figcaption>` (see `Figure` above). |
 | `<figcaption>` | Same as div. |
 
 ### Non-Content Elements (Always Stripped)
@@ -150,6 +158,32 @@ providing defense-in-depth.
 - **CSS selectors** (implemented): include/exclude selectors, with the defaults below
 - **Full page** (implemented): no include selector converts the whole body minus excludes
 - **Readability** (planned): article-content detection heuristic, not implemented
+
+## Page Metadata
+
+`extract_document` on HTML fills `Extraction::title` and `Extraction::metadata`
+(`html/metadata.rs`) from the same parsed DOM; `extract_html*` return Markdown only.
+Metadata never changes the Markdown. First present source wins:
+
+| Field | Sources, in priority order |
+|-------|----------------------------|
+| `title` | `og:title`, `twitter:title`, JSON-LD `headline`, `<title>`, `dc.title`, JSON-LD `name` |
+| `description` | `og:description`, `<meta name=description>`, `twitter:description`, JSON-LD `description`, `dc.description` |
+| `author` | `<meta name=author>`, `dc.creator`, JSON-LD `author` (string, `{name}`, array joined `, `), `article:author` unless a URL |
+| `published` | `article:published_time`, JSON-LD `datePublished`, `date` / `dc.date` / `dcterms.created` / `pubdate` (raw string) |
+| `language` | `<html lang>`, `http-equiv=content-language`, `og:locale`, JSON-LD `inLanguage` |
+| `canonical_url` | `<link rel=canonical>`, `og:url`, JSON-LD `url` |
+| `site_name` | `og:site_name`, `application-name`, JSON-LD `publisher` name |
+| `image` | `og:image` (`:url`, `:secure_url`), `twitter:image`, JSON-LD `image` (string, `{url}`, array) |
+
+`<meta>` keys come from `property`, `name` or `itemprop`, matched case-insensitively.
+JSON-LD nodes are the top-level value, array members and `@graph` members; article-like
+`@type`s (`Article`, `NewsArticle`, `BlogPosting`, ...) are consulted first.
+
+Untrusted-input rules: values are whitespace-collapsed, control characters dropped,
+capped at 2048 chars. URL fields keep only `http(s)` or scheme-less (relative, not yet
+resolved) values. JSON-LD: first 16 scripts, each at most 1 MiB, at most 256 nodes;
+serde_json's 128-level recursion limit bounds nesting; invalid JSON is ignored.
 
 ## Edge Cases
 

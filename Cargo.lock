@@ -1183,9 +1183,12 @@ name = "markkit"
 version = "0.1.1"
 dependencies = [
  "anyhow",
+ "base64",
  "calamine",
  "cfb",
  "criterion",
+ "ego-tree",
+ "futures-core",
  "html5ever",
  "proptest",
  "pulldown-cmark",
@@ -1197,6 +1200,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tower",
  "tracing",
  "zip",
 ]

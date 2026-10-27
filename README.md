@@ -62,9 +62,10 @@ println!("{:?} {:?} {:?}", doc.format, doc.title, doc.warnings);
 println!("{}", doc.markdown);
 ```
 
-`Extraction` carries `markdown`, `title`, `format`, `warnings` (e.g. `truncated_sheet: …`)
-and `stats` (sheets/rows/paragraphs/tables). `extract_bytes` remains as a Markdown-only
-shortcut.
+`Extraction` carries `markdown`, `title`, `format`, `warnings` (e.g. `truncated_sheet: …`),
+`stats` (sheets/rows/paragraphs/tables) and, for HTML, `metadata` (description, author,
+published date, language, canonical URL, site name, lead image from `<meta>`, Open Graph
+and JSON-LD). `extract_bytes` remains as a Markdown-only shortcut.
 
 ### CLI
 
@@ -78,8 +79,8 @@ markkit extract --file document.html
 # With CSS selector filtering
 markkit extract https://example.com --include "article" --exclude "nav,footer"
 
-# JSON output with metadata
-markkit extract https://example.com --json
+# JSON output; files and stdin also carry format, title and page metadata
+markkit extract --file page.html --json
 
 # From stdin
 cat page.html | markkit extract -
@@ -159,6 +160,7 @@ let markkit = Markkit::builder()
 | `pdf` | No | Placeholder; PDF currently returns `UnsupportedFormat` |
 | `markdown` | No | Markdown normalization (pulldown-cmark) |
 | `all_formats` | No | `html`, `pdf`, `docx`, `spreadsheet`, `markdown` |
+| `tool` | No | `markkit::tool::MarkkitTool` LLM agent tool (Everruns toolkit contract) |
 | `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
 
 `http_client` is optional. Embedders that fetch content themselves can build without
