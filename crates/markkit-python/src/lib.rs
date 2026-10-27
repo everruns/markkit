@@ -10,7 +10,8 @@ use pyo3::prelude::*;
 /// Keyword arguments: max_input_size, max_output_size, timeout (seconds,
 /// float), max_nesting_depth, max_nodes, max_archive_entries,
 /// max_archive_entry_size, max_archive_total_size, max_sheet_rows,
-/// max_sheet_cols, max_spreadsheet_cells, max_redirects.
+/// max_sheet_cols, max_spreadsheet_cells, max_redirects, max_pdf_pages,
+/// max_pdf_stream_size, max_pdf_decoded_size.
 #[pyclass(name = "Limits", module = "markkit", frozen, get_all)]
 #[derive(Clone)]
 struct Limits {
@@ -26,6 +27,9 @@ struct Limits {
     max_sheet_cols: usize,
     max_spreadsheet_cells: u64,
     max_redirects: usize,
+    max_pdf_pages: usize,
+    max_pdf_stream_size: usize,
+    max_pdf_decoded_size: usize,
 }
 
 #[pymethods]
@@ -45,6 +49,9 @@ impl Limits {
         max_sheet_cols=None,
         max_spreadsheet_cells=None,
         max_redirects=None,
+        max_pdf_pages=None,
+        max_pdf_stream_size=None,
+        max_pdf_decoded_size=None,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -60,6 +67,9 @@ impl Limits {
         max_sheet_cols: Option<usize>,
         max_spreadsheet_cells: Option<u64>,
         max_redirects: Option<usize>,
+        max_pdf_pages: Option<usize>,
+        max_pdf_stream_size: Option<usize>,
+        max_pdf_decoded_size: Option<usize>,
     ) -> PyResult<Self> {
         let d = markkit::Limits::default();
         if let Some(t) = timeout {
@@ -79,6 +89,9 @@ impl Limits {
             max_sheet_cols: max_sheet_cols.unwrap_or(d.max_sheet_cols),
             max_spreadsheet_cells: max_spreadsheet_cells.unwrap_or(d.max_spreadsheet_cells),
             max_redirects: max_redirects.unwrap_or(d.max_redirects),
+            max_pdf_pages: max_pdf_pages.unwrap_or(d.max_pdf_pages),
+            max_pdf_stream_size: max_pdf_stream_size.unwrap_or(d.max_pdf_stream_size),
+            max_pdf_decoded_size: max_pdf_decoded_size.unwrap_or(d.max_pdf_decoded_size),
         })
     }
 
@@ -87,7 +100,8 @@ impl Limits {
             "Limits(max_input_size={}, max_output_size={}, timeout={}, max_nesting_depth={}, \
              max_nodes={}, max_archive_entries={}, max_archive_entry_size={}, \
              max_archive_total_size={}, max_sheet_rows={}, max_sheet_cols={}, \
-             max_spreadsheet_cells={}, max_redirects={})",
+             max_spreadsheet_cells={}, max_redirects={}, max_pdf_pages={}, \
+             max_pdf_stream_size={}, max_pdf_decoded_size={})",
             self.max_input_size,
             self.max_output_size,
             self.timeout,
@@ -99,7 +113,10 @@ impl Limits {
             self.max_sheet_rows,
             self.max_sheet_cols,
             self.max_spreadsheet_cells,
-            self.max_redirects
+            self.max_redirects,
+            self.max_pdf_pages,
+            self.max_pdf_stream_size,
+            self.max_pdf_decoded_size
         )
     }
 }
@@ -120,6 +137,9 @@ impl Limits {
             .max_sheet_cols(self.max_sheet_cols)
             .max_spreadsheet_cells(self.max_spreadsheet_cells)
             .max_redirects(self.max_redirects)
+            .max_pdf_pages(self.max_pdf_pages)
+            .max_pdf_stream_size(self.max_pdf_stream_size)
+            .max_pdf_decoded_size(self.max_pdf_decoded_size)
     }
 }
 

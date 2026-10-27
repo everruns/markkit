@@ -43,3 +43,6 @@ crates/markkit-js/index.js
 crates/markkit-js/index.d.ts
 crates/markkit-js/package-lock.json
 crates/markkit-js/*.tgz
+
+# mira saved eval runs (see mira.toml)
+crates/markkit-eval/results/*/

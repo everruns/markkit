@@ -158,6 +158,28 @@ fn script_and_style_bodies_do_not_leak_past_max_depth() {
 }
 
 #[test]
+fn hidden_content_does_not_leak_past_max_depth() {
+    // Flattened deep subtrees honour the hidden-content default (S20).
+    let html = format!(
+        "{}<p>ok</p><span hidden>SECRET_A</span><div aria-hidden=\"true\">SECRET_B</div><p style=\"display:none\">SECRET_C</p>{}",
+        "<div>".repeat(300),
+        "</div>".repeat(300)
+    );
+    let md = convert(&html);
+    assert!(md.contains("ok"), "{md}");
+    assert!(!md.contains("SECRET"), "{md}");
+    let shown = markkit::Markkit::builder()
+        .include_hidden_content(true)
+        .build()
+        .extract_html_sync(&html)
+        .unwrap();
+    assert!(
+        shown.contains("SECRET_A") && shown.contains("SECRET_C"),
+        "{shown}"
+    );
+}
+
+#[test]
 fn very_long_text_node() {
     let text = "a".repeat(100_000);
     let html = format!("<p>{}</p>", text);
@@ -318,4 +340,29 @@ fn source_tracking_many_siblings_is_linear() {
     assert!(start.elapsed().as_secs() < 20);
     let last = doc.nodes.last().unwrap().source().unwrap();
     assert_eq!(last.path.as_deref(), Some("/html[1]/body[1]/p[200000]"));
+}
+
+#[test]
+fn element_rules_respect_depth_limit() {
+    // Unwrap on every level must not recurse past the nesting limit.
+    let html = "<div>".repeat(5_000) + "deep" + &"</div>".repeat(5_000);
+    let m = Markkit::builder()
+        .html_rule("div", markkit::rules::ElementAction::Unwrap)
+        .build();
+    assert!(m.extract_html_sync(&html).unwrap().contains("deep"));
+}
+
+#[test]
+fn element_rules_cannot_resurrect_stripped_elements() {
+    // Stripping runs before rules: a rule matching <script>/<style> sees nothing.
+    let html = "<p>ok</p><script>alert(1)</script><style>p{}</style>";
+    let m = Markkit::builder()
+        .html_rule("script", markkit::rules::ElementAction::Paragraph)
+        .html_rule(
+            "style",
+            markkit::rules::ElementAction::CodeBlock { language: None },
+        )
+        .build();
+    let md = m.extract_html_sync(html).unwrap();
+    assert_eq!(md, "ok\n");
 }

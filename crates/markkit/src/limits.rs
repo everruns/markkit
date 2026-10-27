@@ -69,6 +69,13 @@ pub struct Limits {
     pub max_spreadsheet_cells: u64,
     /// Maximum redirects `extract_url` follows. Default: 5.
     pub max_redirects: usize,
+    /// Maximum PDF pages rendered (rest skipped with a warning). Default: 10 000.
+    pub max_pdf_pages: usize,
+    /// Maximum decoded size of a single PDF stream in bytes. Default: 64 MiB.
+    pub max_pdf_stream_size: usize,
+    /// Maximum total decoded size of all PDF streams, and of content
+    /// interpreted (form XObjects count once per use), in bytes. Default: 256 MiB.
+    pub max_pdf_decoded_size: usize,
 }
 
 impl Default for Limits {
@@ -86,6 +93,9 @@ impl Default for Limits {
             max_sheet_cols: 256,
             max_spreadsheet_cells: 4_000_000,
             max_redirects: 5,
+            max_pdf_pages: 10_000,
+            max_pdf_stream_size: 64 * 1024 * 1024,
+            max_pdf_decoded_size: 256 * 1024 * 1024,
         }
     }
 }
@@ -161,6 +171,21 @@ impl Limits {
         self
     }
 
+    pub fn max_pdf_pages(mut self, n: usize) -> Self {
+        self.max_pdf_pages = n;
+        self
+    }
+
+    pub fn max_pdf_stream_size(mut self, bytes: usize) -> Self {
+        self.max_pdf_stream_size = bytes;
+        self
+    }
+
+    pub fn max_pdf_decoded_size(mut self, bytes: usize) -> Self {
+        self.max_pdf_decoded_size = bytes;
+        self
+    }
+
     /// Reject inputs larger than `max_input_size`.
     pub(crate) fn check_input(&self, len: usize) -> crate::Result<()> {
         if len > self.max_input_size {
@@ -176,7 +201,12 @@ impl Limits {
 // Budget is only driven by the feature-gated parsers.
 /// How many [`Budget::expired`] calls share one clock read.
 #[cfg_attr(
-    not(any(feature = "html", feature = "docx", feature = "spreadsheet")),
+    not(any(
+        feature = "html",
+        feature = "docx",
+        feature = "spreadsheet",
+        feature = "pdf"
+    )),
     allow(dead_code)
 )]
 const CLOCK_EVERY: u32 = 256;
@@ -185,7 +215,12 @@ const CLOCK_EVERY: u32 = 256;
 /// the renderer (interior mutability so `&self` walkers can charge it).
 #[derive(Debug)]
 #[cfg_attr(
-    not(any(feature = "html", feature = "docx", feature = "spreadsheet")),
+    not(any(
+        feature = "html",
+        feature = "docx",
+        feature = "spreadsheet",
+        feature = "pdf"
+    )),
     allow(dead_code)
 )]
 pub(crate) struct Budget {
@@ -200,7 +235,12 @@ pub(crate) struct Budget {
 }
 
 #[cfg_attr(
-    not(any(feature = "html", feature = "docx", feature = "spreadsheet")),
+    not(any(
+        feature = "html",
+        feature = "docx",
+        feature = "spreadsheet",
+        feature = "pdf"
+    )),
     allow(dead_code)
 )]
 impl Budget {

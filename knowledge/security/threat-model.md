@@ -1,7 +1,7 @@
 ---
 type: Threat Model
 title: Threat Model
-description: Attack surface, threats T1-T6 with mitigations and test coverage, resource limits, and security invariants.
+description: Attack surface, threats T1-T9 with mitigations and test coverage, resource limits, and security invariants.
 tags:
   - markkit
   - security
@@ -19,6 +19,7 @@ tags:
 | Byte input | `extract_bytes()` with content-type | Untrusted |
 | Document input | `extract_document()`, `extract_document_sync()` | Untrusted (bytes and `DocumentHint`) |
 | LLM tool arguments | `MarkkitTool::execution()` (tool feature) | Untrusted (model output); validated before execution, see [Tool Contract](../integrations/tool-contract.md) |
+| MCP messages | `markkit mcp` stdin (JSON-RPC lines) | Untrusted; line size capped, malformed input answered with errors, tool args go through `MarkkitTool`, see [MCP Server](../integrations/mcp-server.md) |
 | Configuration | `MarkkitBuilder` methods | Trusted (caller-controlled) |
 | CSS selectors | `include_selector()`, `exclude_selector()` | Semi-trusted (caller-provided) |
 
@@ -40,7 +41,8 @@ that renders as headings, links, code fences or tables).
 - Output is markdown text with no HTML pass-through, enforced at render time by
   `render/escape.rs` for every format (the IR keeps raw text):
   - Text escapes `` ` * [ ] < ~ | ``, `_` at word boundaries, entity-like `&`, a
-    trailing `\` or `!`, and block markers (`# > - + =`, `1.`/`1)`) at line start.
+    trailing `\` or `!`, and block markers at line start: `> - =` always, `#` runs,
+    `+` and `1.`/`1)` only before whitespace or the end of the text run.
     Newlines inside text become spaces.
   - Link schemes allowlisted (`http`, `https`, `mailto`, `tel`, `ftp`, relative);
     image schemes `http`, `https`, relative and raster `data:image/*`. Others are
@@ -232,7 +234,7 @@ the proxy, or use `allow_host`.
 - `html_security::very_long_text_node` (100KB text node)
 - `html_proptest::no_panic_on_arbitrary_input`
 
-### T6: Malicious Office Documents (DOCX / XLSX / XLS / ODS)
+### T6: Malicious Office Documents (DOCX / XLSX / XLSB / XLS / ODS)
 
 **Description**: Crafted containers aimed at exhausting memory/CPU, crashing the
 process, or smuggling content past a human reviewer.
@@ -271,6 +273,12 @@ process, or smuggling content past a human reviewer.
   `panic = "unwind"`, which the workspace release profile uses so the CLI and the
   Python/Node bindings survive a parser panic; embedders building with `abort` lose
   this layer).
+- XLSB is parsed by markkit's own BIFF12 reader, not calamine's (which indexes record
+  buffers and the shared-string table unchecked). Every field read is bounds-checked:
+  record sizes against the part, wide-string lengths with checked arithmetic, shared-string
+  and XF indexes by lookup. Malformed cell records are skipped; a truncated part fails that
+  sheet with `sheet_error`. Cells stream into the capped grid, so `BrtWsDim` claims never
+  allocate. Proptests drive the reader directly, outside `catch_unwind`.
 - XLS `SummaryInformation` title parsing is bounds-checked (1 MiB stream cap, checked
   offsets, 1024-property cap); failures yield no title, never an error.
 
@@ -298,12 +306,103 @@ process, or smuggling content past a human reviewer.
   `spreadsheet_integration::xlsx_sparse_far_cell_does_not_allocate_grid`
 - `docx_billion_laughs_not_expanded`, `docx_external_entity_not_resolved`,
   `docx_deep_nesting_does_not_overflow_stack`
+- `xlsb_zip_bomb_sheet_rejected`, `xlsb_huge_declared_dimensions_do_not_allocate`,
+  `spreadsheet::xlsb::tests::arbitrary_parts_never_panic`,
+  `spreadsheet::xlsb::tests::arbitrary_cell_payloads_never_panic`,
+  `spreadsheet_integration::xlsb_hidden_sheet_skipped_by_default`
 - `spreadsheet::tests::summary_title_rejects_malformed`,
   `spreadsheet_integration::xlsx_malformed_core_properties_do_not_fail_extraction`
 - `truncated_fixtures_never_panic`, `random_bytes_never_panic`,
   `random_container_bytes_never_panic`, `mutated_fixtures_never_panic`
 - `spreadsheet_integration::xlsx_hidden_sheet_skipped_by_default`,
   `spreadsheet_integration::xlsm_with_vba_project_extracts_values_only`
+
+### T7: Text and Markdown Input
+
+**Description**: Plain text or Markdown carrying terminal escapes, NULs, invalid encodings,
+raw HTML (`<script>`, event handlers) or pathological nesting.
+
+**Impact**: Medium -- raw HTML passed through re-introduces T1; deep nesting can crash.
+
+**Mitigations**:
+- Text and Markdown are never sniffed; a content type or extension must select them
+- Decoding is total: invalid UTF-8/UTF-16 is replaced (U+FFFD) with an `invalid_utf8` warning
+- C0 controls (except tab/newline) and DEL are dropped before parsing
+- Markdown is re-parsed (pulldown-cmark) into the IR; raw HTML is never copied. HTML blocks
+  go through the HTML parser (T1 stripping) or are dropped; inline tags are dropped
+- Explicit-stack IR builder, nesting capped at `max_nesting_depth` (deeper content flattened);
+  the call's `timeout` and `max_nodes` budget covers decoding, parsing and HTML blocks
+
+**Residual**: none specific to text. Literal text that looks like markup (a `<script>` line
+in a `.txt`) is emitted as `Node::Text` and escaped by the renderer (S17), like every format.
+
+**Test Coverage** (`text_integration`):
+- `security_control_chars_stripped`, `security_arbitrary_bytes_never_panic`
+- `security_invalid_utf8_lossy_with_warning`, `security_utf16_malformed_no_panic`
+- `security_markdown_raw_html_never_passes_through`
+- `security_markdown_deep_nesting_no_stack_overflow`, `security_long_line`
+- `security_input_size_limit`, `security_output_bounded_by_input`
+- `security_text_and_markdown_share_limits` (timeout, `max_nodes`)
+- `security_plain_text_markup_is_escaped`
+
+### T8: Malicious PDFs
+
+**Description**: Crafted PDFs aimed at exhausting memory/CPU through stream
+decompression or content amplification, crashing the parser, or hiding text.
+
+**Impact**: High -- OOM abort, CPU exhaustion.
+
+**Likelihood**: Medium -- PDFs are the most common document type fetched by agents.
+
+**Sub-threats and mitigations** (`crates/markkit/src/pdf/`):
+
+#### T8a: Decompression bombs
+- hayro-syntax decodes object and xref streams itself, without limits, while resolving
+  objects. So before hayro sees the file, `guard::prescan` finds every `stream` keyword
+  in the raw bytes (streams cannot be nested in object streams), reads `/Filter` from the
+  preceding dictionary text (`#xx` name escapes resolved, abbreviations accepted) and
+  decodes the chain with markkit's own bounded Flate (miniz_oxide), LZW, RunLength,
+  ASCIIHex and ASCII85 decoders, measuring every stage. Over `max_pdf_stream_size`
+  (64 MiB) for one stream or `max_pdf_decoded_size` (256 MiB) in total →
+  `Error::ResourceLimit`.
+- Streams markkit interprets (page content, form XObjects, ToUnicode CMaps) are decoded
+  with the same bounded decoders, never hayro's `decoded()`.
+- Refused instead of trusted: an indirect or repeated `/Filter` (`Error::PdfExtract`),
+  and encrypted files (`/Encrypt` key; the scan would only see ciphertext) →
+  `UnsupportedFormat`. Image filters end a chain; hayro is built without image decoders.
+
+#### T8b: Interpretation amplification
+- Every decoded content stream is charged to an interpretation budget equal to
+  `max_pdf_decoded_size`, per use: a form XObject drawn 10 000 times, or one stream listed
+  10 000 times in `/Contents`, exhausts it → `ResourceLimit`. Operators are charged too.
+- Form XObjects: depth 8, recursion into a form already on the stack is skipped.
+- `q` nesting capped at 256 saved states; non-finite matrices are ignored.
+- CMap `bfrange`s are never expanded (binary-searched ranges); `/W` arrays capped at 65 536 entries.
+- `max_pdf_pages` (10 000) truncates with a `truncated_pdf` warning.
+
+#### T8c: Parser crashes on malformed input
+- hayro-syntax repairs broken xref tables and returns `None` on bad objects; markkit
+  maps load failures to `Error::PdfExtract`. Parsing runs under `catch_unwind` like the
+  office parsers (defence in depth).
+
+#### T8d: Hidden text
+- Residual: text render mode 3 (invisible) is extracted, because that is how OCR layers
+  of scanned PDFs are stored; white-on-white or off-page text is also extracted. Treat
+  PDF text as untrusted content (prompt-injection vector), as with any source.
+
+**Test Coverage** (`tests/pdf_security.rs`):
+- `flate_bomb_content_stream_rejected`, `bomb_in_unreferenced_object_stream_rejected_before_parsing`,
+  `chained_filters_are_measured_after_every_stage`, `escaped_filter_name_cannot_evade_scan`,
+  `total_decoded_size_capped_across_streams`, `run_length_bomb_rejected`
+- `form_xobject_reuse_hits_interpretation_budget`, `repeated_contents_reference_is_charged_each_time`,
+  `self_referencing_form_does_not_recurse_forever`, `deep_save_state_nesting_and_degenerate_matrices`,
+  `huge_cmap_range_and_width_arrays_are_cheap`
+- `encrypted_pdf_is_explicitly_unsupported`, `indirect_filter_is_refused_not_trusted`,
+  `not_a_pdf_is_an_error_not_a_panic`, `max_input_size_honoured_for_pdf`,
+  `zero_timeout_rejects`, `output_cap_rejects`, `pdf_limits_settable_via_limits_struct`
+- `truncated_pdfs_never_panic`, `random_bytes_after_header_never_panic`,
+  `mutated_pdfs_never_panic`, `arbitrary_content_stream_never_panics`
+- Unit: `pdf::guard::tests::*` (decoders, caps, filter parsing), `pdf::font::tests::*`
 
 ### T5: Information Disclosure
 
@@ -318,6 +417,34 @@ process, or smuggling content past a human reviewer.
 - No file system paths in errors
 - No internal state exposed
 
+### T9: Hidden-Content Prompt Injection
+
+**Description**: Text a human reviewer never sees (CSS-hidden HTML, `aria-hidden`
+blocks, zero-size or transparent text, Word hidden runs) carries instructions aimed
+at an LLM that consumes the extracted Markdown.
+
+**Impact**: Medium-High -- downstream agents act on attacker instructions.
+
+**Likelihood**: High for web content fed to agents.
+
+**Mitigations** (skipped unless `include_hidden_content(true)`):
+- HTML: elements with `hidden` (not `until-found`), `aria-hidden="true"`, or an
+  inline `style` declaring `display:none`, `visibility:hidden|collapse`,
+  `opacity:0` or `font-size:0`; `<template>` always. Applies to list items, table
+  rows and cells too (a hidden cell stays empty to keep column alignment), and to
+  subtrees flattened past `max_nesting_depth` (the nesting pre-scan checks raw
+  attributes of tags it drops; entity-encoded values there are not decoded).
+- DOCX: runs with direct `w:vanish`; `hidden_content_skipped` warning with a count.
+- Spreadsheets: hidden sheets already skipped (T6e).
+
+**Residual**: hiding through stylesheets or classes (`.sr-only`, off-screen
+positioning, white-on-white via CSS), and `w:vanish` inherited from a character
+style, is not detected.
+
+**Test Coverage**: `hidden_content::*`,
+`html_security::hidden_content_does_not_leak_past_max_depth`,
+`html_integration::exclude_selector_applies_to_list_items_and_table_parts`
+
 ## Resource Limits
 
 | Resource | Default | Configurable | Enforcement Point |
@@ -326,7 +453,7 @@ process, or smuggling content past a human reviewer.
 | Output size | 128 MiB | `max_output_size(usize)` | Renderer, per block / list item / table row |
 | Processing time | 60 s | `timeout(Duration)`, `max_processing_secs(u64)` | One budget per call: fetch, parse, render (cooperative) |
 | Parsed nodes | 5 000 000 | `max_nodes(usize)` | After html5ever (DOM count); while building DOCX XML trees |
-| Nesting depth | 256 (hard max 512) | `max_nesting_depth(usize)` | HTML walk (flatten); DOCX XML build (reject) |
+| Nesting depth | 256 (hard max 512) | `max_nesting_depth(usize)` | HTML walk and Markdown IR build (flatten); DOCX XML build (reject) |
 | Redirects (`extract_url`) | 5 | `max_redirects(usize)` | Every redirect hop |
 | Fetched body (`extract_url`) | = input size | `max_input_size(usize)` | `Content-Length` and while streaming |
 | Table span grid | 1 000 000 slots | Hardcoded `MAX_TABLE_GRID_CELLS` | Renderer table layout (spans dropped past it) |
@@ -334,6 +461,10 @@ process, or smuggling content past a human reviewer.
 | ZIP entry size (decompressed) | 64 MiB | `max_archive_entry_size(u64)` | While decompressing |
 | ZIP total size (decompressed) | 256 MiB | `max_archive_total_size(u64)` | While decompressing |
 | Spreadsheet grid (XLS/ODS) | 4 000 000 cells | `max_spreadsheet_cells(u64)` | Pre-scan before calamine |
+| PDF stream (decoded) | 64 MiB | `max_pdf_stream_size(usize)` | Pre-scan + every interpreted stream |
+| PDF decoded total / interpreted content | 256 MiB | `max_pdf_decoded_size(usize)` | Pre-scan; interpretation budget |
+| PDF pages | 10 000 | `max_pdf_pages(usize)` | Page loop (truncate + warn) |
+| PDF form XObject depth | 8 | Hardcoded `MAX_FORM_DEPTH` | `Do` operator |
 | Rows / columns per sheet | 10 000 / 256 | `max_sheet_rows`, `max_sheet_cols` | While collecting cells (truncate + warn) |
 
 ## Malicious Input Categories
@@ -372,19 +503,22 @@ process, or smuggling content past a human reviewer.
 | S6 | Deep nesting does not cause stack overflow | `html_security::deeply_nested_elements` |
 | S7 | Non-content elements produce no output | `html_integration::script_stripped`, `style_stripped`, `form_elements_stripped` |
 | S8 | Archive decompression is bounded by measured output, not headers | `document_security::*zip_bomb*`, `archive_entry_count_capped` |
-| S9 | Malformed office documents produce errors, never panics | `document_security::truncated_fixtures_never_panic`, `*_never_panic` proptests |
+| S9 | Malformed office documents and PDFs produce errors, never panics | `document_security::truncated_fixtures_never_panic`, `pdf_security::*_never_panic`, `*_never_panic` proptests |
 | S10 | Spreadsheet parsing never allocates a grid beyond `max_spreadsheet_cells` | `document_security::xls_*_rejected`, `ods_repeated_rows_and_columns_rejected` |
-| S11 | Unsupported formats fail explicitly (no empty success) | `document_detection::pdf_is_explicitly_unsupported_not_empty` |
+| S11 | Unsupported formats fail explicitly (no empty success) | `document_detection::*unsupported*`, `pdf_security::encrypted_pdf_is_explicitly_unsupported` |
 | S12 | Default `extract_url` never connects to a non-public address | `url_security::*_blocked*`, `fetch::tests::non_public_addresses_forbidden` |
 | S13 | Table spans never grow the render grid past `MAX_TABLE_GRID_CELLS`; footnote labels cannot leave `[^...]` | `html_security::hostile_colspan_rowspan_bounded`, `html_integration::footnote_label_cannot_break_out` |
 | S14 | Returned Markdown never exceeds `max_output_size` | `limits::*output_cap*` |
 | S15 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
 | S16 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
 | S17 | Rendered markdown has no raw HTML, no non-allowlisted link/image scheme, and document text cannot create Markdown structure | `output_safety::*` (pulldown-cmark oracle + proptests) |
-| S18 | HTML parse time is linear in input whatever the nesting; flattened deep subtrees never emit non-content (script/style/template) text | `html_security::deep_*_is_linear`, `script_and_style_bodies_do_not_leak_past_max_depth` |
+| S18 | Text and Markdown output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*` |
+| S19 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
+| S20 | Hidden content is not rendered by default | `hidden_content::*` |
+| S21 | HTML parse time is linear in input whatever the nesting; flattened deep subtrees never emit non-content (script/style/template) text | `html_security::deep_*_is_linear`, `script_and_style_bodies_do_not_leak_past_max_depth` |
 
 ## See also
 
 - [Security Model](security-model.md), the one-page summary of these threats
-- [Format Support](../formats/format-support.md), office-format limits referenced by T6
+- [Format Support](../formats/format-support.md), office-format and PDF limits referenced by T6 and T8
 - [Testing Strategy](../operations/testing.md), where the security suites live

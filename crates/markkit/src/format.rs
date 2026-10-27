@@ -31,7 +31,11 @@ pub enum Format {
     /// Office Open XML presentation (`.pptx`). Detected but not supported.
     Pptx,
     Csv,
+    /// Plain text (`text/plain`, `.txt`). Never sniffed from bytes.
+    /// Serialized as `"text"`, same as `as_str`.
+    #[serde(rename = "text")]
     PlainText,
+    /// Markdown (`text/markdown`, `.md`), passed through normalized.
     Markdown,
     Unknown,
 }
@@ -115,7 +119,7 @@ impl Format {
             Format::Csv
         } else if ct.contains("text/plain") {
             Format::PlainText
-        } else if ct.contains("text/markdown") {
+        } else if ct.contains("text/markdown") || ct.contains("text/x-markdown") {
             Format::Markdown
         } else {
             Format::Unknown
@@ -135,8 +139,8 @@ impl Format {
             "ods" => Format::Ods,
             "pptx" | "pptm" | "ppt" => Format::Pptx,
             "csv" | "tsv" => Format::Csv,
-            "txt" => Format::PlainText,
-            "md" | "markdown" => Format::Markdown,
+            "txt" | "text" => Format::PlainText,
+            "md" | "markdown" | "mdown" | "mkd" | "mkdn" => Format::Markdown,
             _ => Format::Unknown,
         }
     }
@@ -244,6 +248,28 @@ fn looks_like_html(bytes: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn serde_name_matches_as_str() {
+        for f in [
+            Format::Html,
+            Format::Pdf,
+            Format::Docx,
+            Format::Doc,
+            Format::Xlsx,
+            Format::Xls,
+            Format::Ods,
+            Format::Pptx,
+            Format::Csv,
+            Format::PlainText,
+            Format::Markdown,
+            Format::Unknown,
+        ] {
+            let json = serde_json::to_string(&f).unwrap();
+            assert_eq!(json, format!("\"{}\"", f.as_str()));
+            assert_eq!(serde_json::from_str::<Format>(&json).unwrap(), f);
+        }
+    }
 
     #[test]
     fn test_content_type_detection() {

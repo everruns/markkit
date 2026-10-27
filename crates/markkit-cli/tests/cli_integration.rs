@@ -104,6 +104,37 @@ fn extract_from_file() {
 }
 
 #[test]
+fn extract_text_and_markdown_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let cases = [
+        (
+            "notes.txt",
+            "line one\nline two\n",
+            "line one  \nline two\n",
+        ),
+        (
+            "doc.md",
+            "Title\n=====\n\n* a\n\n<script>x()</script>\n",
+            "# Title\n\n- a\n",
+        ),
+    ];
+    for (name, input, expected) in cases {
+        let file_path = dir.path().join(name);
+        std::fs::write(&file_path, input).unwrap();
+        let output = markkit_bin()
+            .args(["extract", "--file", file_path.to_str().unwrap()])
+            .output()
+            .expect("failed to run markkit");
+        assert!(
+            output.status.success(),
+            "{name} stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), expected, "{name}");
+    }
+}
+
+#[test]
 fn extract_json_output() {
     let mut child = markkit_bin()
         .args(["extract", "--stdin", "--json"])
@@ -219,4 +250,50 @@ fn limit_flags_enforced() {
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("max_output_size"), "stderr: {stderr}");
+}
+
+#[test]
+fn extract_with_rules_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let page = dir.path().join("page.html");
+    std::fs::write(
+        &page,
+        r#"<div class="note">Careful</div><div class="ad">Buy</div>"#,
+    )
+    .unwrap();
+    let rules = dir.path().join("rules.json");
+    std::fs::write(
+        &rules,
+        r#"[{"selector": ".note", "action": "block_quote", "title": "Note"},
+            {"selector": ".ad", "action": "skip"}]"#,
+    )
+    .unwrap();
+
+    let output = markkit_bin()
+        .args(["extract", "--file", page.to_str().unwrap()])
+        .args(["--rules", rules.to_str().unwrap()])
+        .output()
+        .expect("failed to run markkit");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim_end(),
+        "> **Note**\n>\n> Careful"
+    );
+}
+
+#[test]
+fn extract_with_bad_rules_file_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let rules = dir.path().join("rules.json");
+    std::fs::write(&rules, r#"[{"selector": "p", "action": "exec"}]"#).unwrap();
+    let output = markkit_bin()
+        .args(["extract", "--stdin", "--rules", rules.to_str().unwrap()])
+        .output()
+        .expect("failed to run markkit");
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("invalid rules file"));
 }
