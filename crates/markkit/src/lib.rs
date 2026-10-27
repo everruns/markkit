@@ -36,6 +36,7 @@
 //! - **PPTX** (`pptx`): Convert PowerPoint presentations, one section per slide
 //! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLSB, XLS and ODS workbooks to tables
 //! - **Plain text** (always on): `text/plain`, `.txt`
+//! - **Jupyter notebooks** (always on): `.ipynb`, cells and text outputs
 //! - **CSV / TSV** (always on): `text/csv`, `text/tab-separated-values`, `.csv`, `.tsv`, one table
 //! - **Markdown** (`markdown`): `text/markdown`, `.md`, normalized through the IR
 //! - **PDF** (`pdf`): Text layer of PDF documents (no OCR); encrypted PDFs are
@@ -66,6 +67,7 @@ pub mod ir;
 pub mod limits;
 #[cfg(feature = "markdown")]
 mod markdown;
+mod notebook;
 #[cfg(any(feature = "docx", feature = "pptx"))]
 mod ooxml;
 #[cfg(feature = "pdf")]

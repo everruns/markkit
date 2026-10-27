@@ -198,54 +198,21 @@ impl Limits {
     }
 }
 
-// Budget is only driven by the feature-gated parsers.
 /// How many [`Budget::expired`] calls share one clock read.
-#[cfg_attr(
-    not(any(
-        feature = "html",
-        feature = "docx",
-        feature = "pptx",
-        feature = "spreadsheet",
-        feature = "pdf"
-    )),
-    allow(dead_code)
-)]
 const CLOCK_EVERY: u32 = 256;
 
 /// Per-call deadline and node counter, shared by reference through parsers and
 /// the renderer (interior mutability so `&self` walkers can charge it).
 #[derive(Debug)]
-#[cfg_attr(
-    not(any(
-        feature = "html",
-        feature = "docx",
-        feature = "pptx",
-        feature = "spreadsheet",
-        feature = "pdf"
-    )),
-    allow(dead_code)
-)]
 pub(crate) struct Budget {
     deadline: Option<Instant>,
     timeout: Duration,
     ticks: Cell<u32>,
     expired: Cell<bool>,
-    #[cfg_attr(not(any(feature = "html", feature = "docx")), allow(dead_code))]
     nodes: Cell<usize>,
-    #[cfg_attr(not(any(feature = "html", feature = "docx")), allow(dead_code))]
     max_nodes: usize,
 }
 
-#[cfg_attr(
-    not(any(
-        feature = "html",
-        feature = "docx",
-        feature = "pptx",
-        feature = "spreadsheet",
-        feature = "pdf"
-    )),
-    allow(dead_code)
-)]
 impl Budget {
     /// Budget starting now.
     pub fn new(limits: &Limits) -> Self {
@@ -322,7 +289,6 @@ impl Budget {
     }
 
     /// Charge `n` parsed nodes against `max_nodes`.
-    #[cfg_attr(not(any(feature = "html", feature = "docx")), allow(dead_code))]
     pub fn add_nodes(&self, n: usize) -> crate::Result<()> {
         let total = self.nodes.get().saturating_add(n);
         self.nodes.set(total);

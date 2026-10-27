@@ -77,14 +77,6 @@ impl MarkdownRenderer {
     }
 
     /// Render with `max_output` bytes and the budget's deadline enforced.
-    #[cfg(any(
-        feature = "html",
-        feature = "docx",
-        feature = "pptx",
-        feature = "spreadsheet",
-        feature = "pdf",
-        feature = "markdown"
-    ))]
     pub(crate) fn render_bounded(
         &mut self,
         doc: &Document,
@@ -726,14 +718,6 @@ impl Default for MarkdownRenderer {
     }
 }
 
-#[cfg(any(
-    feature = "html",
-    feature = "docx",
-    feature = "pptx",
-    feature = "spreadsheet",
-    feature = "pdf",
-    feature = "markdown"
-))]
 fn output_error(max: usize) -> crate::Error {
     crate::Error::ResourceLimit(format!("output exceeds max_output_size {max}"))
 }

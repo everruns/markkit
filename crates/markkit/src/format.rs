@@ -36,6 +36,9 @@ pub enum Format {
     Csv,
     /// Tab separated values (`.tsv`, `.tab`).
     Tsv,
+    /// Jupyter notebook (`.ipynb`, nbformat 4). Serialized as `"ipynb"`.
+    #[serde(rename = "ipynb")]
+    Notebook,
     /// Plain text (`text/plain`, `.txt`). Never sniffed from bytes (nor CSV/TSV/Markdown).
     /// Serialized as `"text"`, same as `as_str`.
     #[serde(rename = "text")]
@@ -94,6 +97,7 @@ impl Format {
             Format::Ppt => "ppt",
             Format::Csv => "csv",
             Format::Tsv => "tsv",
+            Format::Notebook => "ipynb",
             Format::PlainText => "text",
             Format::Markdown => "markdown",
             Format::Unknown => "unknown",
@@ -123,6 +127,8 @@ impl Format {
         } else if ct.contains("presentationml") || ct.contains("ms-powerpoint.") {
             // `ms-powerpoint.presentation.macroEnabled.12` & co. are OOXML.
             Format::Pptx
+        } else if ct.contains("x-ipynb") {
+            Format::Notebook
         } else if ct.contains("ms-powerpoint") {
             Format::Ppt
         } else if ct.contains("tab-separated-values") {
@@ -153,6 +159,7 @@ impl Format {
             "ppt" | "pps" | "pot" => Format::Ppt,
             "csv" => Format::Csv,
             "tsv" | "tab" => Format::Tsv,
+            "ipynb" => Format::Notebook,
             "txt" | "text" => Format::PlainText,
             "md" | "markdown" | "mdown" | "mkd" | "mkdn" => Format::Markdown,
             _ => Format::Unknown,
@@ -277,6 +284,8 @@ mod tests {
             Format::Ods,
             Format::Pptx,
             Format::Csv,
+            Format::Tsv,
+            Format::Notebook,
             Format::PlainText,
             Format::Markdown,
             Format::Unknown,

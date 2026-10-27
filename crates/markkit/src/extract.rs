@@ -72,6 +72,8 @@ pub struct ExtractionStats {
     pub paragraphs: Option<usize>,
     /// Tables (DOCX, Markdown, CSV/TSV).
     pub tables: Option<usize>,
+    /// Non-empty cells rendered (Jupyter notebooks).
+    pub cells: Option<usize>,
 }
 
 /// Result of [`Markkit::parse_document`]: the IR plus metadata, not rendered.
@@ -114,14 +116,6 @@ impl ParsedDocument {
     }
 
     /// [`ParsedDocument::render`] with `max_output_size` and the deadline enforced.
-    #[cfg(any(
-        feature = "html",
-        feature = "docx",
-        feature = "pptx",
-        feature = "spreadsheet",
-        feature = "pdf",
-        feature = "markdown"
-    ))]
     fn render_bounded(self, max_output: usize, budget: &Budget) -> crate::Result<Extraction> {
         let markdown = crate::render::MarkdownRenderer::new().render_bounded(
             &self.document,
@@ -233,8 +227,8 @@ impl Markkit {
         .map(|e| e.markdown)
     }
 
-    /// Convert a document (HTML, PDF, DOCX, PPTX, XLSX/XLSB/XLS/ODS, plain text, Markdown, CSV/TSV)
-    /// to Markdown with metadata.
+    /// Convert a document (HTML, PDF, DOCX, PPTX, XLSX/XLSB/XLS/ODS, plain text, Markdown,
+    /// CSV/TSV, Jupyter notebooks) to Markdown with metadata.
     ///
     /// The format is detected from `hint.content_type`, then the extension of
     /// `hint.file_name`, then magic bytes. Parsing is CPU-bound and runs inline;
@@ -267,26 +261,7 @@ impl Markkit {
         budget: &Budget,
     ) -> crate::Result<Extraction> {
         let parsed = self.parse_document_with(bytes, hint, budget)?;
-        #[cfg(any(
-            feature = "html",
-            feature = "docx",
-            feature = "pptx",
-            feature = "spreadsheet",
-            feature = "pdf",
-            feature = "markdown"
-        ))]
-        {
-            parsed.render_bounded(self.config.limits.max_output_size, budget)
-        }
-        #[cfg(not(any(
-            feature = "html",
-            feature = "docx",
-            feature = "pptx",
-            feature = "spreadsheet",
-            feature = "pdf",
-            feature = "markdown"
-        )))]
-        Ok(parsed.render())
+        parsed.render_bounded(self.config.limits.max_output_size, budget)
     }
 
     /// Parse a document (HTML, PDF, DOCX, PPTX, XLSX/XLSB/XLS/ODS, plain text, Markdown) into the IR without
@@ -331,6 +306,7 @@ impl Markkit {
             Format::PlainText => self.parse_plain_text(bytes, budget),
             Format::Markdown => self.parse_markdown(bytes, budget),
             Format::Csv | Format::Tsv => self.parse_csv(bytes, format, budget),
+            Format::Notebook => self.parse_notebook(bytes, budget),
             Format::Doc => Err(Error::UnsupportedFormat(
                 "legacy Word 97-2003 (.doc) documents are not supported".into(),
             )),
@@ -379,6 +355,7 @@ impl Markkit {
 
     fn parse_plain_text(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let decoded = crate::text::decode(bytes);
+        budget.check_time()?;
         let (mut doc, paragraphs) = crate::text::plain_to_ir(&decoded.text, budget)?;
         self.config.transforms.apply(&mut doc)?;
         let mut p = ParsedDocument::new(doc, Format::PlainText);
@@ -394,6 +371,7 @@ impl Markkit {
         budget: &Budget,
     ) -> crate::Result<ParsedDocument> {
         let decoded = crate::text::decode(bytes);
+        budget.check_time()?;
         let out = crate::csv::parse(&decoded.text, format == Format::Tsv, &self.config, budget)?;
         let mut doc = out.doc;
         self.config.transforms.apply(&mut doc)?;
@@ -405,9 +383,23 @@ impl Markkit {
         Ok(p)
     }
 
+    fn parse_notebook(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
+        let decoded = crate::text::decode(bytes);
+        budget.check_time()?;
+        let out = crate::notebook::parse(&decoded.text, &self.config, budget)?;
+        let mut doc = out.doc;
+        self.config.transforms.apply(&mut doc)?;
+        let mut p = ParsedDocument::new(doc, Format::Notebook);
+        p.title = out.title;
+        p.warnings = decoded.warnings;
+        p.stats.cells = Some(out.cells);
+        Ok(p)
+    }
+
     #[cfg(feature = "markdown")]
     fn parse_markdown(&self, bytes: &[u8], budget: &Budget) -> crate::Result<ParsedDocument> {
         let decoded = crate::text::decode(bytes);
+        budget.check_time()?;
         let out = crate::markdown::parse(&decoded.text, &self.config, budget)?;
         let mut doc = out.doc;
         self.config.transforms.apply(&mut doc)?;

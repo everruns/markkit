@@ -21,6 +21,7 @@ package for browsers and edge runtimes.
 - **DOCX** – Headings, lists, tables, links, emphasis
 - **PPTX** – One section per slide: titles, bullets, tables, links, speaker notes
 - **Spreadsheets** – XLSX/XLSM, XLSB, XLS and ODS workbooks to markdown tables, one section per sheet
+- **Jupyter notebooks** – Markdown cells, code cells with language, text outputs and tracebacks
 - **CSV / TSV** – One markdown table; `;` and `|` delimiters detected, RFC 4180 quoting
 - **Plain text / Markdown** – Text to paragraphs; Markdown normalized through the same IR (raw HTML never passed through)
 - **Format detection** – Content type, then file extension, then magic bytes
@@ -38,6 +39,7 @@ package for browsers and edge runtimes.
 | XLSX, XLSM, XLSB, XLS, ODS | Supported | `spreadsheet` |
 | Plain text | Supported | always on |
 | CSV, TSV | Supported | always on |
+| Jupyter notebooks (ipynb) | Supported | always on |
 | Markdown | Supported | `markdown` |
 | PDF (text layer) | Supported | `pdf` |
 | DOC, PPT | Detected, rejected explicitly | – |
