@@ -198,7 +198,7 @@ the first matching rule wins.
 | `bold`, `italic` | Inline emphasis |
 | `text` | Collapsed text only |
 
-Empty results are elided like built-ins. At `MAX_DEPTH` rules are ignored and
+Empty results are elided like built-ins. At the nesting limit (`limits.max_nesting_depth`) rules are ignored and
 the subtree is flattened as usual. Rule files are embedder configuration,
 trusted like code; untrusted HTML cannot add rules.
 

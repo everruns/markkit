@@ -245,7 +245,7 @@ fn source_tracking_many_siblings_is_linear() {
 
 #[test]
 fn element_rules_respect_depth_limit() {
-    // Unwrap on every level must not recurse past MAX_DEPTH.
+    // Unwrap on every level must not recurse past the nesting limit.
     let html = "<div>".repeat(5_000) + "deep" + &"</div>".repeat(5_000);
     let m = Markkit::builder()
         .html_rule("div", markkit::rules::ElementAction::Unwrap)
