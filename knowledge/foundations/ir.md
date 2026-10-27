@@ -53,10 +53,12 @@ Tagged enum. Variants are block-level or inline.
 
 #### Block Variants
 
+All block variants except `ThematicBreak` also carry `source` (see Provenance).
+
 | Variant | Fields | Semantics |
 |---------|--------|-----------|
-| `Heading` | `level: u8`, `children: Vec<Node>` | ATX heading. Level 1-6. Children are inline nodes. |
-| `Paragraph` | `children: Vec<Node>` | Block of inline content. Separated by blank lines in output. |
+| `Heading` | `level: u8`, `children: Vec<Node>`, `source` | ATX heading. Level 1-6. Children are inline nodes. |
+| `Paragraph` | `children: Vec<Node>`, `source` | Block of inline content. Separated by blank lines in output. |
 | `List` | `ordered: bool`, `start: Option<u64>`, `items: Vec<ListItem>` | Ordered or unordered list. `start` only meaningful when `ordered=true`. |
 | `BlockQuote` | `children: Vec<Node>` | Nested block content. Children can be any node type. |
 | `CodeBlock` | `language: Option<String>`, `code: String` | Fenced code block. Language extracted from `language-*` or `lang-*` CSS class. |
@@ -80,6 +82,24 @@ Tagged enum. Variants are block-level or inline.
 | `LineBreak` | (unit) | Hard line break. Renders as two trailing spaces + newline. |
 | `FootnoteReference` | `label: String` | Marker pointing at the `FootnoteDefinition` with the same label. |
 
+### Provenance (`Source`)
+
+Every block variant except `ThematicBreak` has `source: Option<Box<Source>>`
+(omitted from JSON when `None`). Parsers fill it only when
+`MarkkitBuilder::track_sources(true)`; Markdown output is identical either way.
+
+| Field | Set by | Meaning |
+|-------|--------|---------|
+| `path` | HTML | Absolute XPath in the parsed DOM, every step indexed: `/html[1]/body[1]/div[1]/p[2]`. Indexes count same-name element siblings (excluded elements included). Cached per parent, O(depth) per block. |
+| `index` | DOCX | 0-based index of the body-level `w:p`/`w:tbl` in document order, counting blank paragraphs and those inside `w:sdt`/`w:ins`. Lists take their first item's index. |
+| `sheet`, `range` | Spreadsheets | Sheet name on the heading and table; table gets the A1 bounding box of kept cells (`B2:C3`). |
+| `page` | Paged formats (PDF, later) | 1-based page. |
+
+Blocks synthesized by normalization (inline runs wrapped in `Paragraph`) and
+blocks nested inside inline/table-cell content have no source. Accessors:
+`Node::source()`, `set_source()`, `with_source()`; constructors
+`Source::path/index/sheet`, `with_page`.
+
 ### Helper structs
 
 | Type | Fields | Notes |
@@ -96,6 +116,7 @@ Tagged enum. Variants are block-level or inline.
 Input format -> `Document`. Each parser (HTML, future PDF/DOCX) produces the same IR.
 
 - HTML: `HtmlParser::parse(&str) -> Result<Document>`
+- Any format: `Markkit::parse_document_sync(bytes, hint) -> Result<ParsedDocument>`
 - Input size checked before parsing (configurable via `max_input_size`)
 
 ### 2. Normalize
