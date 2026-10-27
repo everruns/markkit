@@ -174,7 +174,7 @@ let markkit = Markkit::builder()
 | Feature | Default | Description |
 |---------|---------|-------------|
 | `html` | Yes | HTML parsing and conversion |
-| `http_client` | Yes | URL fetching via reqwest (`extract_url`) |
+| `http_client` | No | URL fetching via reqwest (`extract_url`) |
 | `docx` | No | DOCX conversion (zip + quick-xml) |
 | `spreadsheet` | No | XLSX/XLSM, XLS, ODS conversion (calamine) |
 | `pdf` | No | Placeholder; PDF currently returns `UnsupportedFormat` |
@@ -182,13 +182,14 @@ let markkit = Markkit::builder()
 | `tool` | No | `markkit::tool::MarkkitTool` LLM agent tool (Everruns toolkit contract) |
 | `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
 
-`http_client` is optional. Embedders that fetch content themselves can build without
-reqwest (no HTTP/TLS stack in the dependency tree):
+`http_client` is opt-in: the default build has no HTTP/TLS stack in the dependency tree.
+Enable it to get `extract_url` (the CLI and the Python/Node bindings ship with it on):
 
 ```toml
 [dependencies]
-markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }
-# add "html" if you also convert HTML
+markkit = { version = "0.1", features = ["http_client"] }
+# office formats only, no HTML, no network:
+# markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }
 ```
 
 Office-document limits are configurable on the builder: `max_archive_entries`,

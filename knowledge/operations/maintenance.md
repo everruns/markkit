@@ -39,7 +39,8 @@ Preserve security contracts; never weaken limits, tests, or audit policy to ship
   needed and still justified
 - `cargo tree --duplicates` reviewed; no unused dependencies
 - Format dependencies stay behind their feature (`docx`, `spreadsheet`, `http_client`);
-  CI asserts the `docx,spreadsheet` build links no reqwest/hyper
+  and `http_client` is never default; CI asserts the default and `docx,spreadsheet`
+  builds link no reqwest/hyper
 - Dependabot (`.github/dependabot.yml`) covers cargo and github-actions weekly;
   review and merge its open PRs
 
