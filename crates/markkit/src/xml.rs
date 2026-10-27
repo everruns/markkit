@@ -5,13 +5,15 @@
 //! matching on local names keeps us robust to unusual prefix choices without a
 //! full namespace resolver. quick-xml never expands DTD-declared entities, so
 //! billion-laughs / XXE payloads surface as unresolved references, which we drop.
-//! Tree depth is capped and the tree is built iteratively (no recursion on input).
+//! Tree depth (`limits.max_nesting_depth`), node count (`limits.max_nodes`,
+//! shared across parts) and the deadline are enforced while building; the tree
+//! is built iteratively (no recursion on input).
 
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::{Reader, XmlVersion};
 
-/// Maximum element nesting accepted in a single XML part.
-pub(crate) const MAX_XML_DEPTH: usize = 256;
+use crate::error::Error;
+use crate::limits::Budget;
 
 #[derive(Debug)]
 pub(crate) enum XmlError {
@@ -126,9 +128,16 @@ fn push_text(parent: &mut Element, text: &str) {
     }
 }
 
+fn limit(e: Error) -> XmlError {
+    match e {
+        Error::ResourceLimit(m) => XmlError::Limit(m),
+        other => XmlError::Invalid(other.to_string()),
+    }
+}
+
 /// Parse an XML document into a tree. Returns a synthetic root whose children
 /// are the document's top-level nodes.
-pub(crate) fn parse(bytes: &[u8]) -> Result<Element, XmlError> {
+pub(crate) fn parse(bytes: &[u8], max_depth: usize, budget: &Budget) -> Result<Element, XmlError> {
     let mut reader = Reader::from_reader(bytes);
     reader.config_mut().check_end_names = false;
     let mut stack: Vec<Element> = vec![Element::default()];
@@ -137,11 +146,20 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Element, XmlError> {
         let event = reader
             .read_event_into(&mut buf)
             .map_err(|e| XmlError::Invalid(format!("malformed XML: {e}")))?;
+        if matches!(
+            event,
+            Event::Start(_) | Event::Empty(_) | Event::Text(_) | Event::CData(_)
+        ) {
+            budget.add_nodes(1).map_err(limit)?;
+            if budget.expired() {
+                return Err(limit(budget.timeout_error()));
+            }
+        }
         match event {
             Event::Start(s) => {
-                if stack.len() > MAX_XML_DEPTH {
+                if stack.len() > max_depth {
                     return Err(XmlError::Limit(format!(
-                        "XML nesting deeper than {MAX_XML_DEPTH}"
+                        "XML nesting deeper than max_nesting_depth {max_depth}"
                     )));
                 }
                 stack.push(element_from(&s));
@@ -202,6 +220,11 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Element, XmlError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::limits::Limits;
+
+    fn parse(bytes: &[u8]) -> Result<Element, XmlError> {
+        super::parse(bytes, 256, &Budget::new(&Limits::default()))
+    }
 
     #[test]
     fn parses_local_names_text_and_refs() {
@@ -216,8 +239,35 @@ mod tests {
 
     #[test]
     fn depth_limited() {
-        let deep = "<a>".repeat(MAX_XML_DEPTH + 10);
+        let deep = "<a>".repeat(256 + 10);
         assert!(matches!(parse(deep.as_bytes()), Err(XmlError::Limit(_))));
+        let ok = format!("{}{}", "<a>".repeat(100), "</a>".repeat(100));
+        assert!(parse(ok.as_bytes()).is_ok());
+        let budget = Budget::new(&Limits::default());
+        assert!(matches!(
+            super::parse(ok.as_bytes(), 50, &budget),
+            Err(XmlError::Limit(_))
+        ));
+    }
+
+    #[test]
+    fn node_count_limited() {
+        let many = format!("<r>{}</r>", "<x/>".repeat(100));
+        let budget = Budget::new(&Limits::default().max_nodes(50));
+        assert!(matches!(
+            super::parse(many.as_bytes(), 256, &budget),
+            Err(XmlError::Limit(m)) if m.contains("max_nodes")
+        ));
+    }
+
+    #[test]
+    fn deadline_enforced() {
+        let many = format!("<r>{}</r>", "<x/>".repeat(1000));
+        let budget = Budget::new(&Limits::default().timeout(std::time::Duration::ZERO));
+        assert!(matches!(
+            super::parse(many.as_bytes(), 256, &budget),
+            Err(XmlError::Limit(m)) if m.contains("timeout")
+        ));
     }
 
     #[test]

@@ -61,8 +61,10 @@ are trusted embedder code; the first error aborts and is returned as is
 ## Configuration
 
 Via `MarkkitBuilder`:
-- Input size limits
-- Processing time limits
+- Resource limits: one `Limits` struct (`limits.rs`, set whole via `.limits(..)` or per
+  field via builder setters): input/output size, timeout, nesting depth (hard max 512),
+  node count, archive, spreadsheet and redirect caps. Violations are
+  `Error::ResourceLimit`; see [Threat Model](../security/threat-model.md) Resource Limits
 - CSS selectors for include/exclude
 - Link and image preservation
 - Office-document limits (archive entries/sizes, sheet rows/cols, grid cells, hidden sheets)

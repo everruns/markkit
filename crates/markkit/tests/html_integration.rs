@@ -593,7 +593,10 @@ fn code_block_with_backticks() {
 #[test]
 fn config_max_processing_secs() {
     let m = Markkit::builder().max_processing_secs(30).build();
-    assert_eq!(m.config().max_processing_secs, 30);
+    assert_eq!(
+        m.config().limits.timeout,
+        std::time::Duration::from_secs(30)
+    );
 }
 
 #[test]
