@@ -12,6 +12,7 @@
 
 use scraper::{ElementRef, Html, Selector};
 use serde_json::Value;
+use url::Url;
 
 use crate::extract::Metadata;
 
@@ -32,7 +33,7 @@ pub(crate) struct PageInfo {
 }
 
 /// Read title and metadata from a parsed document.
-pub(crate) fn extract(dom: &Html) -> PageInfo {
+pub(crate) fn extract(dom: &Html, base: Option<&Url>) -> PageInfo {
     let meta = MetaTags::collect(dom);
     let ld = JsonLd::collect(dom);
 
@@ -85,6 +86,11 @@ pub(crate) fn extract(dom: &Html) -> PageInfo {
             .and_then(url_value)
             .or_else(|| ld.image()),
     };
+
+    let mut metadata = metadata;
+    let resolve = |u: Option<String>| u.map(|u| super::urls::resolve(base, &u));
+    metadata.canonical_url = resolve(metadata.canonical_url);
+    metadata.image = resolve(metadata.image);
 
     PageInfo { title, metadata }
 }
@@ -355,7 +361,7 @@ mod tests {
     use super::*;
 
     fn info(html: &str) -> PageInfo {
-        extract(&Html::parse_document(html))
+        extract(&Html::parse_document(html), None)
     }
 
     #[test]
