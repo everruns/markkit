@@ -20,6 +20,7 @@
 //!   layouts (template text), and macros (`vbaProject.bin` is never read).
 
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use crate::archive::{ArchiveError, ZipGuard};
 use crate::config::MarkkitBuilder;
@@ -171,7 +172,7 @@ impl SlideCtx<'_> {
                         segs.push(Seg::Text {
                             text: t.text(),
                             fmt: run_fmt(rpr),
-                            link: self.link(rpr),
+                            link: self.link(rpr).map(Rc::from),
                         });
                     }
                 }
