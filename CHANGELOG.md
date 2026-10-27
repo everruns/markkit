@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `@everruns/markkit-wasm`: browser / edge WebAssembly package (`crates/markkit-wasm`), single-threaded,
   no special headers. `Markkit` class (HTML, DOCX, XLSX/XLS/ODS with validated camelCase options) and
   `MarkkitTool`. Built by `crates/markkit-wasm/scripts/build.sh`, published by `publish-wasm.yml`.
+- Node (`@everruns/markkit`): every function takes an optional trailing `options` object with all
+  builder settings (selectors, links/images, input, archive and sheet limits) and the URL policy
+  (`allowPrivateNetworks`, `allowedHosts`, `maxRedirects`, `maxProcessingSecs`). New
+  `extractDocument` / `extractDocumentSync` return Markdown with title, format, warnings, stats and
+  page metadata.
 - `Markkit::extract_url_document`: `extract_url` with format, title, warnings and stats.
 
 ### Security

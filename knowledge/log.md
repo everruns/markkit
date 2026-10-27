@@ -2,7 +2,8 @@
 
 ## 2026-10-26
 
-* **Benchmarks**: `markkit-bench` is no longer a stub. It measures latency, ops/s, throughput and per-op heap allocations (count, bytes, peak) plus process peak RSS over a generated corpus, and `just bench` saves JSON + Markdown runs to `crates/markkit-bench/results/`, like bashkit. Criterion moves to `just bench-criterion`. See [Performance Results](operations/performance-results.md).
+* **Node options parity**: [Node.js Package](runtimes/node-package.md) functions take a trailing options object (all builder fields plus URL policy) and gain `extractDocument`/`extractDocumentSync`; the parity table now covers Python, Node and WASM.
+
 * **WASM package**: new [WASM Package](runtimes/wasm-package.md) concept for `@everruns/markkit-wasm` (wasm-bindgen, single-threaded, no URL fetching), CI job `wasm` gating `Check`, and `publish-wasm.yml`. [Release Process](operations/release-process.md) bumps both npm `package.json` versions.
 * **Ship contract**: "ship" now ends with the merge commit's `main` CI green, not at merge; the `ship` skill gains existing-PR, auto-merge, and post-merge verification steps aligned with bashkit. See [Maintenance](operations/maintenance.md).
 * **IR provenance**: optional per-block `Source` (HTML XPath, DOCX body index, sheet + A1 range, page) behind `track_sources`; `parse_document` / `ParsedDocument` expose the IR for every format. XPath sibling indexes are cached per parent (`html_security::source_tracking_many_siblings_is_linear`). See [IR Specification](foundations/ir.md) and [Markkit Architecture](foundations/architecture.md).
@@ -15,3 +16,4 @@
 * **OKF migration**: `specs/` became this OKF v0.2 bundle, grouped into `foundations/`, `formats/`, `security/`, `runtimes/`, `operations/`. Every concept gained frontmatter and a See also section; `just check-okf` and CI enforce conformance. See [Knowledge Maintenance Contract](knowledge-contract.md).
 * **Accuracy pass**: [Python Package](runtimes/python-package.md) now names the shipped `markkit` module; [Examples](operations/examples.md) lists the four real examples; [Evaluation Harness](operations/eval.md) is marked as a stub; [Threat Model](security/threat-model.md) T3 records that `http_client` is a default feature and SSRF mitigations are still open.
 * **Maintenance contract**: [Maintenance](operations/maintenance.md) adopts the analyze, fix, ship invocation contract and a workflow credential audit.
+* **Benchmarks**: `markkit-bench` is no longer a stub. It measures latency, ops/s, throughput and per-op heap allocations (count, bytes, peak) plus process peak RSS over a generated corpus, and `just bench` saves JSON + Markdown runs to `crates/markkit-bench/results/`, like bashkit. Criterion moves to `just bench-criterion`. See [Performance Results](operations/performance-results.md).
