@@ -15,6 +15,7 @@
 
 ## 2026-10-26
 
+* **Parser registry**: `registry::FormatParser` + `MarkkitBuilder::parser`; claims, then detected-format match, then built-ins; panics become `Error::Parser`. See [Format Support](formats/format-support.md).
 * **Hidden content**: new threat T9 (prompt injection via text a reader never sees). HTML hidden elements and DOCX `w:vanish` runs are skipped unless `include_hidden_content(true)`; exclude selectors now also apply to list items and table rows/cells, which previously bypassed them. Invariant S20. See [Threat Model](security/threat-model.md) and [HTML Extraction](formats/html-extraction.md).
 * **Element rules**: declarative `HtmlRule { selector, action }` (`MarkkitBuilder::html_rule`, CLI `--rules`) tried before built-in HTML mapping; invalid selectors error. See [HTML Extraction](formats/html-extraction.md).
 * **Output safety**: the renderer escaped nothing, so document text could emit raw HTML, links, headings and fence breakouts, and `javascript:` links passed through. Escaping and a URL scheme allowlist now live in `render/escape.rs`; DOCX and spreadsheet parsers stop pre-escaping table pipes, so the IR holds raw text. New invariant S17 with a pulldown-cmark oracle. A first fuzzing pass against that oracle found eight more container breakouts (list indentation by marker width, blocks in inline context, adjacent code spans, nested links, ...), all fixed. Math now renders as code (`` $`tex`$ ``, ` ```math `) because TeX from page markup reached plain-GFM output unescaped. See [Threat Model](security/threat-model.md) T1.

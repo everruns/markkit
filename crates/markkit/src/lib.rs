@@ -69,6 +69,7 @@ mod markdown;
 mod notebook;
 #[cfg(feature = "pdf")]
 mod pdf;
+pub mod registry;
 pub mod render;
 pub mod rules;
 #[cfg(feature = "spreadsheet")]

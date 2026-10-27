@@ -106,6 +106,26 @@ unlabelled bytes stay `UnsupportedFormat` rather than rendering binary as text.
 Spreadsheet parsing re-sniffs the container (XLSX vs XLS vs ODS), so a workbook
 mislabelled as another Excel type still parses.
 
+## Custom Parsers
+
+`MarkkitBuilder::parser(p)` registers a `registry::FormatParser`
+(`name`, `formats() -> &[Format]`, `claims(bytes, hint) -> bool`,
+`parse(bytes, &MarkkitBuilder) -> Result<ParsedDocument>`). In
+`parse_document` / `extract_document`, after the `max_input_size` check:
+
+1. first registered parser whose `claims` is true (new formats without a
+   `Format` variant), else
+2. first registered parser listing the detected `Format` (fill PDF/CSV/... or
+   replace a built-in), else
+3. the built-in parser for the detected format.
+
+A panic in a custom parser becomes `Error::Parser`; its errors pass through.
+The deadline is checked when it returns and `max_output_size` bounds the render.
+Transforms run on its IR and the shared renderer produces the Markdown.
+Custom parsers see untrusted bytes and own their resource limits (they get
+the builder, so they can honour the configured ones). `ParsedDocument::new`
+is public for them.
+
 ## DOCX Mapping
 
 | WordprocessingML | Markdown |
