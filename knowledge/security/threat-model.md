@@ -455,8 +455,9 @@ Transforms, element rules and custom `FormatParser`s are embedder code or
 configuration, trusted like the host program; untrusted documents cannot
 register them. Untrusted bytes still reach a custom parser, so it owns its own
 limits. markkit keeps its guarantees around it: `max_input_size` is checked
-first, a panic becomes `Error::Parser` (with `panic = "unwind"`), and output
-goes through the shared renderer.
+first, a panic becomes `Error::Parser` (with `panic = "unwind"`), the deadline
+(`limits.timeout`) is checked when it returns, and output goes through the
+shared renderer under `max_output_size` (`tests/registry.rs`).
 
 ## Resource Limits
 

@@ -162,3 +162,39 @@ fn custom_parser_replaces_builtin() {
         .unwrap();
     assert_eq!(e.markdown, "```html\n<p>x</p>\n```\n");
 }
+
+/// Sleeps past any small deadline.
+struct Slow;
+
+impl FormatParser for Slow {
+    fn name(&self) -> &str {
+        "slow"
+    }
+    fn formats(&self) -> &[Format] {
+        &[Format::Csv]
+    }
+    fn parse(&self, _: &[u8], _: &MarkkitBuilder) -> markkit::Result<ParsedDocument> {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        Ok(ParsedDocument::new(Document::new(vec![]), Format::Csv))
+    }
+}
+
+#[test]
+fn deadline_checked_after_custom_parser() {
+    let limits = markkit::Limits::default().timeout(std::time::Duration::from_millis(1));
+    let m = Markkit::builder().limits(limits).parser(Slow).build();
+    let err = m
+        .extract_document_sync(b"a", DocumentHint::file_name("x.csv"))
+        .unwrap_err();
+    assert!(matches!(err, Error::ResourceLimit(_)), "{err}");
+}
+
+#[test]
+fn output_limit_applies_to_custom_parser() {
+    let limits = markkit::Limits::default().max_output_size(8);
+    let m = Markkit::builder().limits(limits).parser(Csv).build();
+    let err = m
+        .extract_document_sync(b"aaaa,bbbb\ncccc,dddd", DocumentHint::file_name("x.csv"))
+        .unwrap_err();
+    assert!(matches!(err, Error::ResourceLimit(_)), "{err}");
+}

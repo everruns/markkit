@@ -118,6 +118,7 @@ mislabelled as another Excel type still parses.
 3. the built-in parser for the detected format.
 
 A panic in a custom parser becomes `Error::Parser`; its errors pass through.
+The deadline is checked when it returns and `max_output_size` bounds the render.
 Transforms run on its IR and the shared renderer produces the Markdown.
 Custom parsers see untrusted bytes and own their resource limits (they get
 the builder, so they can honour the configured ones). `ParsedDocument::new`
