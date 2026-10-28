@@ -1,0 +1,143 @@
+"""Mira eval SDK for Python.
+
+Author an eval *study* in Python and run it with the `mira` host CLI — no Rust
+dependency, just the protocol (newline-delimited JSON over stdio). The wire
+types in `mira._wire` are generated from the canonical JSON Schema under
+`schema/v1/`, so they never drift from the Rust host.
+
+    import mira
+
+    study = mira.Study("my-evals", version="0.1.0")
+
+    @study.eval(
+        samples=[mira.Sample("hi", prompt="Say hi and the answer to life.")],
+        targets=[mira.target("sim")],
+        scorers=[mira.succeeded(), mira.contains("42")],
+    )
+    def greet(sample, cx):
+        return mira.transcript(f"Hi! The answer is 42. ({sample.text})")
+
+    if __name__ == "__main__":
+        study.serve()
+"""
+from __future__ import annotations
+
+from typing import Any, Dict, Optional
+
+from . import _wire
+from ._serve import (
+    PROTOCOL_VERSION,
+    Eval,
+    Target,
+    RunCx,
+    Sample,
+    Study,
+    log,
+    target,
+    serve,
+)
+from ._wire import AxisInfo, Score, Timing, Trajectory, Transcript, Usage
+from .trajectory import ATIF_VERSION, from_trajectory, parse_trajectory
+from .scorers import (
+    Scorer,
+    all_of,
+    any_of,
+    contains,
+    cost_within,
+    equals,
+    file_contains,
+    file_exists,
+    json_field_equals,
+    json_valid,
+    latency_within,
+    make_score,
+    matches_expected,
+    metric_at_least,
+    metric_within,
+    non_empty,
+    not_,
+    not_contains,
+    observation_contains,
+    output_tokens_within,
+    produced_modality,
+    regex,
+    scorer,
+    steps_within,
+    succeeded,
+    tokens_within,
+    tool_arg_matches,
+    tool_called,
+    tool_called_before,
+    tool_called_with,
+    tool_calls_within,
+    tool_not_called,
+    tools_used_exactly,
+    ttft_within,
+    turns_within,
+)
+
+
+def transcript(final_response: str = "", **kwargs: Any) -> Transcript:
+    """Convenience builder for a `Transcript` (subjects' return value)."""
+    return Transcript(final_response=final_response, **kwargs)
+
+
+def axis(name: str, values) -> AxisInfo:
+    """Declare an extra matrix axis (crossed with the target matrix)."""
+    return AxisInfo(name=name, values=list(values))
+
+
+__all__ = [
+    "ATIF_VERSION",
+    "PROTOCOL_VERSION",
+    "AxisInfo",
+    "Eval",
+    "Target",
+    "RunCx",
+    "Sample",
+    "Score",
+    "Scorer",
+    "Study",
+    "Timing",
+    "Trajectory",
+    "Transcript",
+    "Usage",
+    "axis",
+    "all_of",
+    "any_of",
+    "contains",
+    "cost_within",
+    "equals",
+    "file_contains",
+    "file_exists",
+    "from_trajectory",
+    "json_field_equals",
+    "json_valid",
+    "latency_within",
+    "log",
+    "make_score",
+    "matches_expected",
+    "metric_at_least",
+    "metric_within",
+    "non_empty",
+    "not_",
+    "not_contains",
+    "output_tokens_within",
+    "parse_trajectory",
+    "produced_modality",
+    "target",
+    "regex",
+    "scorer",
+    "serve",
+    "succeeded",
+    "tokens_within",
+    "tool_called",
+    "tool_called_before",
+    "tool_calls_within",
+    "tool_not_called",
+    "tools_used_exactly",
+    "ttft_within",
+    "turns_within",
+    "transcript",
+    "_wire",
+]

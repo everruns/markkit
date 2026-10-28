@@ -1,0 +1,74 @@
+name: Public benchmarks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "30 5 * * *"
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Dataset selection (test quality is report-only)"
+        type: choice
+        options: [pr, dev, test]
+        default: pr
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-benchmarks-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    name: Public benchmark regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # Input is data, never shell code; prepare/run additionally validate choices.
+      BENCHMARK_SCOPE: ${{ github.event_name == 'schedule' && 'dev' || inputs.scope || 'pr' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Cache verified corpora
+        uses: actions/cache@v4
+        with:
+          path: |
+            target/public-benchmarks/wcxb
+            target/public-benchmarks/agentdocbench
+          key: public-corpora-${{ hashFiles('scripts/public_benchmarks/pins.json', 'scripts/public_benchmarks/*corpus.json', 'scripts/public_benchmarks/agentdocbench-assets.json') }}-${{ env.BENCHMARK_SCOPE }}
+          restore-keys: public-corpora-${{ hashFiles('scripts/public_benchmarks/pins.json', 'scripts/public_benchmarks/*corpus.json', 'scripts/public_benchmarks/agentdocbench-assets.json') }}-
+      - name: Install scorer dependencies
+        run: python3 -m pip install --require-hashes -r scripts/public_benchmarks/requirements.txt
+      - name: Test benchmark contracts
+        run: python3 -m unittest discover -s scripts/tests -p 'test_public_benchmarks.py'
+      - name: Build release CLI
+        run: cargo build --locked --release -p markkit-cli
+      - name: Install verified Mira host
+        run: python3 scripts/public_benchmarks/install_mira.py
+      - name: Prepare pinned input selection
+        run: python3 scripts/public_benchmarks/prepare.py --scope "$BENCHMARK_SCOPE"
+      - name: Run and gate through Mira
+        run: python3 scripts/public_benchmarks/run.py --scope "$BENCHMARK_SCOPE" --mira target/public-benchmarks/bin/mira
+      - name: Job summary
+        if: always()
+        run: |
+          report="target/public-benchmarks/report-$BENCHMARK_SCOPE/summary.md"
+          if [ -f "$report" ]; then cat "$report" >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Upload reports and provenance
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: public-benchmarks-${{ env.BENCHMARK_SCOPE }}
+          path: target/public-benchmarks/report-${{ env.BENCHMARK_SCOPE }}/
+          if-no-files-found: warn
+          retention-days: 14
