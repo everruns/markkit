@@ -1,0 +1,5121 @@
+{
+  "cases": [
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How long did a clean CI build take before the migration?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "blog_post_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"47 minutes\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "47 minutes",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1878.0,
+          "input_tokens": 911.0
+        },
+        "timing": {
+          "duration_ms": 1364
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 911,
+          "output_tokens": 7
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How long did a clean CI build take before the migration?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "blog_post_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"47 minutes\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "47 minutes",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 802.0,
+          "input_tokens": 388.0
+        },
+        "timing": {
+          "duration_ms": 870
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 388,
+          "output_tokens": 7
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How long did a clean CI build take before the migration?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "blog_post_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"47 minutes\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "47 minutes",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1175.0,
+          "input_tokens": 551.0
+        },
+        "timing": {
+          "duration_ms": 881
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 551,
+          "output_tokens": 7
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How long did a clean CI build take before the migration?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "blog_post_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How long did a clean CI build take before the migration?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "blog_post_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How long did a clean CI build take before the migration?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "blog_post_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What percentage of builds hit the remote cache after the migration?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "blog_post_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"92%\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "92%",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1878.0,
+          "input_tokens": 915.0
+        },
+        "timing": {
+          "duration_ms": 1233
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 915,
+          "output_tokens": 4
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What percentage of builds hit the remote cache after the migration?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "blog_post_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"92%\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "92%",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 802.0,
+          "input_tokens": 392.0
+        },
+        "timing": {
+          "duration_ms": 803
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 392,
+          "output_tokens": 4
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What percentage of builds hit the remote cache after the migration?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "blog_post_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"92%\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "92%",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1175.0,
+          "input_tokens": 555.0
+        },
+        "timing": {
+          "duration_ms": 1428
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 555,
+          "output_tokens": 4
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What percentage of builds hit the remote cache after the migration?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "blog_post_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What percentage of builds hit the remote cache after the migration?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "blog_post_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What percentage of builds hit the remote cache after the migration?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "blog_post_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Which issue number tracked the crash when pasting large images?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "changelog_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"#1182\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "#1182",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1317.0,
+          "input_tokens": 717.0
+        },
+        "timing": {
+          "duration_ms": 1068
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 717,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Which issue number tracked the crash when pasting large images?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "changelog_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"#1182\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "#1182",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 570.0,
+          "input_tokens": 335.0
+        },
+        "timing": {
+          "duration_ms": 842
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 335,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Which issue number tracked the crash when pasting large images?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "changelog_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"#1182\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "#1182",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 570.0,
+          "input_tokens": 335.0
+        },
+        "timing": {
+          "duration_ms": 865
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 335,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Which issue number tracked the crash when pasting large images?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "changelog_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Which issue number tracked the crash when pasting large images?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "changelog_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Which issue number tracked the crash when pasting large images?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "changelog_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What did the v2.3.1 security fix sanitize?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "changelog_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"SVG uploads\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "SVG uploads",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1317.0,
+          "input_tokens": 717.0
+        },
+        "timing": {
+          "duration_ms": 1332
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 717,
+          "output_tokens": 8
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What did the v2.3.1 security fix sanitize?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "changelog_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"SVG uploads\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "SVG uploads",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 570.0,
+          "input_tokens": 335.0
+        },
+        "timing": {
+          "duration_ms": 1194
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 335,
+          "output_tokens": 8
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What did the v2.3.1 security fix sanitize?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "changelog_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"SVG uploads\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "SVG uploads",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 570.0,
+          "input_tokens": 335.0
+        },
+        "timing": {
+          "duration_ms": 1144
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 335,
+          "output_tokens": 8
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What did the v2.3.1 security fix sanitize?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "changelog_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What did the v2.3.1 security fix sanitize?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "changelog_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What did the v2.3.1 security fix sanitize?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "changelog_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How many TWh did wind generate in Q4?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "data_table_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"24.9\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "24.9",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1397.0,
+          "input_tokens": 798.0
+        },
+        "timing": {
+          "duration_ms": 968
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 798,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How many TWh did wind generate in Q4?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "data_table_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"24.9\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "24.9",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 495.0,
+          "input_tokens": 364.0
+        },
+        "timing": {
+          "duration_ms": 1395
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 364,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How many TWh did wind generate in Q4?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "data_table_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"24.9\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "24.9",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 560.0,
+          "input_tokens": 394.0
+        },
+        "timing": {
+          "duration_ms": 908
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 394,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How many TWh did wind generate in Q4?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "data_table_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How many TWh did wind generate in Q4?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "data_table_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How many TWh did wind generate in Q4?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "data_table_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What was total generation in Q4, in TWh?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "data_table_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"72.4\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "72.4",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1397.0,
+          "input_tokens": 798.0
+        },
+        "timing": {
+          "duration_ms": 1584
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 798,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What was total generation in Q4, in TWh?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "data_table_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"Q4: 24.9 + 3.6 + 31.8 + 12.1 = 72.4\\n\\n**72.4 TWh**\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "Q4: 24.9 + 3.6 + 31.8 + 12.1 = 72.4\n\n**72.4 TWh**",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 495.0,
+          "input_tokens": 364.0
+        },
+        "timing": {
+          "duration_ms": 1446
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 364,
+          "output_tokens": 44
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What was total generation in Q4, in TWh?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "data_table_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"72.4 TWh\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "72.4 TWh",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 560.0,
+          "input_tokens": 394.0
+        },
+        "timing": {
+          "duration_ms": 1979
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 394,
+          "output_tokens": 122
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What was total generation in Q4, in TWh?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "data_table_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What was total generation in Q4, in TWh?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "data_table_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What was total generation in Q4, in TWh?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "data_table_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the default request timeout?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "docs_page_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"30s\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "30s",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 2223.0,
+          "input_tokens": 1055.0
+        },
+        "timing": {
+          "duration_ms": 1509
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 1055,
+          "output_tokens": 4
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the default request timeout?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "docs_page_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"30s\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "30s",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 913.0,
+          "input_tokens": 446.0
+        },
+        "timing": {
+          "duration_ms": 716
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 446,
+          "output_tokens": 4
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the default request timeout?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "docs_page_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"30s\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "30s",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 994.0,
+          "input_tokens": 483.0
+        },
+        "timing": {
+          "duration_ms": 736
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 483,
+          "output_tokens": 4
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the default request timeout?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "docs_page_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the default request timeout?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "docs_page_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the default request timeout?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "docs_page_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Which file does Tideline read its settings from?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "docs_page_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"tideline.toml\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "tideline.toml",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 2223.0,
+          "input_tokens": 1060.0
+        },
+        "timing": {
+          "duration_ms": 938
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 1060,
+          "output_tokens": 8
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Which file does Tideline read its settings from?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "docs_page_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"`tideline.toml`\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "`tideline.toml`",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 913.0,
+          "input_tokens": 451.0
+        },
+        "timing": {
+          "duration_ms": 840
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 451,
+          "output_tokens": 10
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Which file does Tideline read its settings from?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "docs_page_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"`tideline.toml`\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "`tideline.toml`",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 994.0,
+          "input_tokens": 488.0
+        },
+        "timing": {
+          "duration_ms": 1877
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 488,
+          "output_tokens": 10
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Which file does Tideline read its settings from?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "docs_page_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Which file does Tideline read its settings from?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "docs_page_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Which file does Tideline read its settings from?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "docs_page_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What happens to unknown configuration keys?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "docs_page_q3",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"They are rejected at startup.\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "They are rejected at startup.",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 2223.0,
+          "input_tokens": 1059.0
+        },
+        "timing": {
+          "duration_ms": 916
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 1059,
+          "output_tokens": 11
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What happens to unknown configuration keys?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "docs_page_q3",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"They are rejected at startup.\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "They are rejected at startup.",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 913.0,
+          "input_tokens": 450.0
+        },
+        "timing": {
+          "duration_ms": 845
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 450,
+          "output_tokens": 11
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What happens to unknown configuration keys?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "docs_page_q3",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"They are rejected at startup.\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "They are rejected at startup.",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 994.0,
+          "input_tokens": 487.0
+        },
+        "timing": {
+          "duration_ms": 1393
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 487,
+          "output_tokens": 11
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What happens to unknown configuration keys?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "docs_page_q3",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What happens to unknown configuration keys?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "docs_page_q3",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What happens to unknown configuration keys?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "docs_page_q3",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much extra space does the accepted solution use?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "forum_thread_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"O(1)\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "O(1)",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 2048.0,
+          "input_tokens": 922.0
+        },
+        "timing": {
+          "duration_ms": 1529
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 922,
+          "output_tokens": 6
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much extra space does the accepted solution use?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "forum_thread_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"O(1)\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "O(1)",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 317.0,
+          "input_tokens": 194.0
+        },
+        "timing": {
+          "duration_ms": 872
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 194,
+          "output_tokens": 6
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much extra space does the accepted solution use?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "forum_thread_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"O(1)\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "O(1)",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 928.0,
+          "input_tokens": 426.0
+        },
+        "timing": {
+          "duration_ms": 1361
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 426,
+          "output_tokens": 6
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much extra space does the accepted solution use?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "forum_thread_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much extra space does the accepted solution use?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "forum_thread_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much extra space does the accepted solution use?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "forum_thread_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the drawback of the recursive version?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "forum_thread_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"It uses O(n) stack space and can hit the recursion limit on long lists.\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "It uses O(n) stack space and can hit the recursion limit on long lists.",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 2048.0,
+          "input_tokens": 921.0
+        },
+        "timing": {
+          "duration_ms": 1332
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 921,
+          "output_tokens": 27
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the drawback of the recursive version?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "forum_thread_q2",
+      "scores": [
+        {
+          "pass": false,
+          "reason": "answered \"UNKNOWN\"; expected one of [\"stack\", \"recursion limit\"]",
+          "scorer": "answer_correct",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "UNKNOWN",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 317.0,
+          "input_tokens": 193.0
+        },
+        "timing": {
+          "duration_ms": 865
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 193,
+          "output_tokens": 9
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the drawback of the recursive version?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "forum_thread_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"O(n) stack space and can hit the recursion limit on long lists.\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "O(n) stack space and can hit the recursion limit on long lists.",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 928.0,
+          "input_tokens": 425.0
+        },
+        "timing": {
+          "duration_ms": 1397
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 425,
+          "output_tokens": 24
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the drawback of the recursive version?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "forum_thread_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the drawback of the recursive version?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "forum_thread_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the drawback of the recursive version?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "forum_thread_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "On which day does the club meet?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "legacy_layout_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"Tuesday\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "Tuesday",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1283.0,
+          "input_tokens": 665.0
+        },
+        "timing": {
+          "duration_ms": 1382
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 665,
+          "output_tokens": 7
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "On which day does the club meet?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "legacy_layout_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"Tuesday\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "Tuesday",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 544.0,
+          "input_tokens": 315.0
+        },
+        "timing": {
+          "duration_ms": 1755
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 315,
+          "output_tokens": 7
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "On which day does the club meet?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "legacy_layout_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"Tuesday\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "Tuesday",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 661.0,
+          "input_tokens": 379.0
+        },
+        "timing": {
+          "duration_ms": 1613
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 379,
+          "output_tokens": 7
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "On which day does the club meet?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "legacy_layout_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "On which day does the club meet?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "legacy_layout_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "On which day does the club meet?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "legacy_layout_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much are the annual dues?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "legacy_layout_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"$40\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "$40",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1283.0,
+          "input_tokens": 665.0
+        },
+        "timing": {
+          "duration_ms": 892
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 665,
+          "output_tokens": 4
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much are the annual dues?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "legacy_layout_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"$40\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "$40",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 544.0,
+          "input_tokens": 315.0
+        },
+        "timing": {
+          "duration_ms": 1306
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 315,
+          "output_tokens": 4
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much are the annual dues?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "legacy_layout_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"$40\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "$40",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 661.0,
+          "input_tokens": 379.0
+        },
+        "timing": {
+          "duration_ms": 1151
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 379,
+          "output_tokens": 4
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much are the annual dues?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "legacy_layout_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much are the annual dues?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "legacy_layout_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much are the annual dues?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "legacy_layout_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "By how many acres will Riverside Park be expanded?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "news_article_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"18 acres\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "18 acres",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 2918.0,
+          "input_tokens": 1270.0
+        },
+        "timing": {
+          "duration_ms": 2051
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 1270,
+          "output_tokens": 6
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "By how many acres will Riverside Park be expanded?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "news_article_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"18\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "18",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 943.0,
+          "input_tokens": 410.0
+        },
+        "timing": {
+          "duration_ms": 1649
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 410,
+          "output_tokens": 3
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "By how many acres will Riverside Park be expanded?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "news_article_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"18 acres\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "18 acres",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1239.0,
+          "input_tokens": 527.0
+        },
+        "timing": {
+          "duration_ms": 1148
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 527,
+          "output_tokens": 6
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "By how many acres will Riverside Park be expanded?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "news_article_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "By how many acres will Riverside Park be expanded?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "news_article_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "By how many acres will Riverside Park be expanded?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "news_article_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What was the council vote count?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "news_article_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"7–2\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "7–2",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 2918.0,
+          "input_tokens": 1261.0
+        },
+        "timing": {
+          "duration_ms": 936
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 1261,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What was the council vote count?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "news_article_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"7–2\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "7–2",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 943.0,
+          "input_tokens": 401.0
+        },
+        "timing": {
+          "duration_ms": 1288
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 401,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What was the council vote count?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "news_article_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"7–2\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "7–2",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1239.0,
+          "input_tokens": 518.0
+        },
+        "timing": {
+          "duration_ms": 902
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 518,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What was the council vote count?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "news_article_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What was the council vote count?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "news_article_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What was the council vote count?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "news_article_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much is the project expected to cost?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "news_article_q3",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"$14.2 million\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "$14.2 million",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 2918.0,
+          "input_tokens": 1264.0
+        },
+        "timing": {
+          "duration_ms": 869
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 1264,
+          "output_tokens": 8
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much is the project expected to cost?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "news_article_q3",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"$14.2 million\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "$14.2 million",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 943.0,
+          "input_tokens": 404.0
+        },
+        "timing": {
+          "duration_ms": 1550
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 404,
+          "output_tokens": 8
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much is the project expected to cost?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "news_article_q3",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"$14.2 million\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "$14.2 million",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1239.0,
+          "input_tokens": 521.0
+        },
+        "timing": {
+          "duration_ms": 826
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 521,
+          "output_tokens": 8
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much is the project expected to cost?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "news_article_q3",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much is the project expected to cost?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "news_article_q3",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much is the project expected to cost?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "news_article_q3",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much does the backpack weigh?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "product_page_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"1.2 kg\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "1.2 kg",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1718.0,
+          "input_tokens": 937.0
+        },
+        "timing": {
+          "duration_ms": 1410
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 937,
+          "output_tokens": 8
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much does the backpack weigh?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "product_page_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"1.2 kg\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "1.2 kg",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 516.0,
+          "input_tokens": 323.0
+        },
+        "timing": {
+          "duration_ms": 1193
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 323,
+          "output_tokens": 8
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much does the backpack weigh?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "product_page_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"1.2 kg\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "1.2 kg",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 727.0,
+          "input_tokens": 432.0
+        },
+        "timing": {
+          "duration_ms": 839
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 432,
+          "output_tokens": 8
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much does the backpack weigh?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "product_page_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much does the backpack weigh?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "product_page_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much does the backpack weigh?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "product_page_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What are the backpack's dimensions?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "product_page_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"64 × 32 × 24 cm\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "64 × 32 × 24 cm",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1718.0,
+          "input_tokens": 938.0
+        },
+        "timing": {
+          "duration_ms": 919
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 938,
+          "output_tokens": 14
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What are the backpack's dimensions?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "product_page_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"64 × 32 × 24 cm\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "64 × 32 × 24 cm",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 516.0,
+          "input_tokens": 324.0
+        },
+        "timing": {
+          "duration_ms": 855
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 324,
+          "output_tokens": 14
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What are the backpack's dimensions?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "product_page_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"64 × 32 × 24 cm\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "64 × 32 × 24 cm",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 727.0,
+          "input_tokens": 433.0
+        },
+        "timing": {
+          "duration_ms": 903
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 433,
+          "output_tokens": 14
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What are the backpack's dimensions?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "product_page_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What are the backpack's dimensions?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "product_page_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What are the backpack's dimensions?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "product_page_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the price?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "product_page_q3",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"$189.00\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "$189.00",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1718.0,
+          "input_tokens": 931.0
+        },
+        "timing": {
+          "duration_ms": 1492
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 931,
+          "output_tokens": 6
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the price?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "product_page_q3",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"$189.00\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "$189.00",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 516.0,
+          "input_tokens": 317.0
+        },
+        "timing": {
+          "duration_ms": 980
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 317,
+          "output_tokens": 6
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the price?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "product_page_q3",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"$189.00\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "$189.00",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 727.0,
+          "input_tokens": 426.0
+        },
+        "timing": {
+          "duration_ms": 1318
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 426,
+          "output_tokens": 6
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the price?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "product_page_q3",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the price?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "product_page_q3",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What is the price?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "product_page_q3",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much spaghetti does the recipe use?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "recipe_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"350 g\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "350 g",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1608.0,
+          "input_tokens": 874.0
+        },
+        "timing": {
+          "duration_ms": 899
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 874,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much spaghetti does the recipe use?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "recipe_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"350 g\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "350 g",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 697.0,
+          "input_tokens": 401.0
+        },
+        "timing": {
+          "duration_ms": 898
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 401,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much spaghetti does the recipe use?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "recipe_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"350 g\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "350 g",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 777.0,
+          "input_tokens": 442.0
+        },
+        "timing": {
+          "duration_ms": 933
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 442,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much spaghetti does the recipe use?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "recipe_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much spaghetti does the recipe use?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "recipe_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "How much spaghetti does the recipe use?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "recipe_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What replaces the parmesan in the dairy-free version?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "recipe_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"Toasted breadcrumbs\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "Toasted breadcrumbs",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1608.0,
+          "input_tokens": 878.0
+        },
+        "timing": {
+          "duration_ms": 946
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 878,
+          "output_tokens": 13
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What replaces the parmesan in the dairy-free version?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "recipe_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"Toasted breadcrumbs\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "Toasted breadcrumbs",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 697.0,
+          "input_tokens": 405.0
+        },
+        "timing": {
+          "duration_ms": 1207
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 405,
+          "output_tokens": 13
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What replaces the parmesan in the dairy-free version?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "recipe_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"Toasted breadcrumbs\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "Toasted breadcrumbs",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 777.0,
+          "input_tokens": 446.0
+        },
+        "timing": {
+          "duration_ms": 1295
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 446,
+          "output_tokens": 13
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What replaces the parmesan in the dairy-free version?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "recipe_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What replaces the parmesan in the dairy-free version?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "recipe_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "What replaces the parmesan in the dairy-free version?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "recipe_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Who was the architect of the lighthouse?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "wiki_article_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"Sostratus of Cnidus\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "Sostratus of Cnidus",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 2171.0,
+          "input_tokens": 1087.0
+        },
+        "timing": {
+          "duration_ms": 1847
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 1087,
+          "output_tokens": 13
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Who was the architect of the lighthouse?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "wiki_article_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"Sostratus of Cnidus\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "Sostratus of Cnidus",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1114.0,
+          "input_tokens": 571.0
+        },
+        "timing": {
+          "duration_ms": 877
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 571,
+          "output_tokens": 13
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Who was the architect of the lighthouse?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "wiki_article_q1",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"Sostratus of Cnidus\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "Sostratus of Cnidus",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1307.0,
+          "input_tokens": 648.0
+        },
+        "timing": {
+          "duration_ms": 858
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 648,
+          "output_tokens": 13
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Who was the architect of the lighthouse?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "wiki_article_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Who was the architect of the lighthouse?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "wiki_article_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "Who was the architect of the lighthouse?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "wiki_article_q1",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "About how tall was the lighthouse?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": true,
+      "sample": "wiki_article_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"About 100 m\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "About 100 m",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 2171.0,
+          "input_tokens": 1085.0
+        },
+        "timing": {
+          "duration_ms": 1319
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 1085,
+          "output_tokens": 7
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "About how tall was the lighthouse?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": true,
+      "sample": "wiki_article_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"About 100 m\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "About 100 m",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1114.0,
+          "input_tokens": 569.0
+        },
+        "timing": {
+          "duration_ms": 1461
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 569,
+          "output_tokens": 7
+        }
+      }
+    },
+    {
+      "aggregate": 1.0,
+      "eval": "markkit_qa",
+      "input": [
+        "About how tall was the lighthouse?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": true,
+      "sample": "wiki_article_q2",
+      "scores": [
+        {
+          "pass": true,
+          "reason": "answered \"About 100 m\"",
+          "scorer": "answer_correct",
+          "value": 1.0
+        }
+      ],
+      "skipped": false,
+      "target": "anthropic/claude-sonnet-5-5",
+      "transcript": {
+        "final_response": "About 100 m",
+        "iterations": 1,
+        "metrics": {
+          "doc_bytes": 1307.0,
+          "input_tokens": 646.0
+        },
+        "timing": {
+          "duration_ms": 1120
+        },
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 646,
+          "output_tokens": 7
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "About how tall was the lighthouse?"
+      ],
+      "params": {
+        "input": "html"
+      },
+      "passed": false,
+      "sample": "wiki_article_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "About how tall was the lighthouse?"
+      ],
+      "params": {
+        "input": "main_content"
+      },
+      "passed": false,
+      "sample": "wiki_article_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "aggregate": 0.0,
+      "eval": "markkit_qa",
+      "input": [
+        "About how tall was the lighthouse?"
+      ],
+      "params": {
+        "input": "markdown"
+      },
+      "passed": false,
+      "sample": "wiki_article_q2",
+      "scores": [
+        {
+          "na": true,
+          "pass": false,
+          "reason": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+          "scorer": "infra",
+          "value": 0.0
+        }
+      ],
+      "skipped": false,
+      "target": "openrouter/meta/muse-spark-1.3-contributor",
+      "transcript": {
+        "error": "model call failed: HTTP 402 Payment Required: This request requires more credits, or fewer max_tokens. You requested up to 1024 tokens, but can only afford 283. To increase, visit https://openrouter.ai/workspaces/default/keys/<redacted> and adjust the key's daily limit",
+        "error_kind": "infra",
+        "final_response": "",
+        "iterations": 0,
+        "tool_calls_count": 0,
+        "usage": {
+          "cost_usd": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    }
+  ],
+  "summary": {
+    "failed": 1,
+    "na": 69,
+    "passed": 68,
+    "scored": 69,
+    "skipped": 0,
+    "total_cost_usd": 0.0,
+    "total_duration_ms": 81317,
+    "total_tokens": 41759,
+    "total_tool_calls": 0
+  }
+}

@@ -4,6 +4,7 @@
 
 * **Footnote safety**: a blank line separates footnote markers from their indented bodies, preventing Markdown readers without footnotes from treating body text as a reference-link destination. Fixes the nightly renderer fuzz failure; regression checks both reader modes. See [Threat Model](security/threat-model.md) S17.
 * **Public benchmarks**: WCXB and AgentDocBench run through the Mira Python SDK with exact upstream scorers, pinned corpus blobs, release CLI timing and a canonical score regression gate. PRs use 178 cases; scheduled dev uses 2,754 after excluding 139 HTML duplicates shared with WCXB test. Test evaluation is manual/report-only for quality. See [Evaluation Harness](operations/eval.md) and [Performance Results](operations/performance-results.md).
+* **First keyed eval run**: `markkit_qa` with Claude Sonnet 5.5: markdown 23/23 at 464 input tokens vs raw HTML 23/23 at 945; `main_content` 22/23 at 377 (miss = known forum-question gap). OpenRouter Muse Spark returned HTTP 402 (key daily limit), so no numbers yet. `markkit_extract` re-run: main_content 3/10 pages (product_page fixed by the escaping change). Doppler keys live in `everruns-dev/dev`. See [Evaluation Harness](operations/eval.md).
 
 ## 2026-10-27
 
