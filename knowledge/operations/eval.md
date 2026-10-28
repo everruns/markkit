@@ -144,6 +144,10 @@ dated pair when scores move.
 | `default` | 0/10 | 73.0% | 92.3% | 100% | 95.6% | 34.3% |
 | `main_content` | 2/10 | 86.8% | 88.3% | 90.0% | 88.1% | 82.1% |
 
+Re-run 2026-10-28 (`results/markkit_extract-2026-10-28.*`): `default` 0/10,
+73.6% (completeness 94.0%); `main_content` 3/10, 87.4%. The over-escaping fix
+made `product_page` pass again under `main_content`; other gaps unchanged.
+
 First run (before IR v2, default only): 72.5%; row-header tables then
 collapsed to one column and dropped every `<td>`, fixed by IR v2 row-header
 `<th>` mapping. Open gaps:
@@ -208,9 +212,29 @@ at what token cost? Code: `src/qa.rs` (subject, scorer, eval) and
   override endpoints.
 - **Failures**: HTTP/provider errors and unknown inputs are infra (N/A);
   a markkit extraction failure gives the model an empty document (scored).
-- **Status**: implemented and smoke-tested end to end against a local mock
-  endpoint; no keyed run yet (the default cloud environment has no Doppler
-  access and blocks `api.doppler.com` / `openrouter.ai`).
+- **Keys in Doppler**: project `everruns-dev`, config `dev` (no markkit
+  project): `doppler run -p everruns-dev -c dev -- just eval-llm`. The built-in
+  cloud environment has no Doppler access; run locally or on a cloud
+  environment that allows `api.doppler.com` and `openrouter.ai`.
+
+### QA results (2026-10-28)
+
+First keyed run (`results/markkit_qa-2026-10-28.{md,json}`), 23 questions per
+row:
+
+| target | input | correct | mean input tokens |
+|---|---|---|---|
+| `anthropic/claude-sonnet-5-5` | `markdown` | 23/23 | 464 |
+| `anthropic/claude-sonnet-5-5` | `main_content` | 22/23 | 377 |
+| `anthropic/claude-sonnet-5-5` | `html` | 23/23 | 945 |
+| `openrouter/meta/muse-spark-1.3-contributor` | all | N/A | - |
+
+- markkit markdown matches raw HTML accuracy at ~49% of the input tokens;
+  `main_content` cuts a further ~19%.
+- The one miss (`forum_thread_q2`, `main_content`) is the known gap:
+  main-content detection drops the forum question body.
+- OpenRouter: every call HTTP 402 (key's daily credit limit below
+  `max_tokens` 1024). Re-run after raising the limit.
 
 ## Planned evals
 

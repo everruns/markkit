@@ -1,5 +1,9 @@
 # Markkit Knowledge Update Log
 
+## 2026-10-28
+
+* **First keyed eval run**: `markkit_qa` with Claude Sonnet 5.5: markdown 23/23 at 464 input tokens vs raw HTML 23/23 at 945; `main_content` 22/23 at 377 (miss = known forum-question gap). OpenRouter Muse Spark returned HTTP 402 (key daily limit), so no numbers yet. `markkit_extract` re-run: main_content 3/10 pages (product_page fixed by the escaping change). Doppler keys live in `everruns-dev/dev`. See [Evaluation Harness](operations/eval.md).
+
 ## 2026-10-27
 
 * **Embedder API (#11)**: `Markkit` derives `Clone` + `Debug`; warnings are structured (`Warning { code: WarningCode, detail }`) instead of `"code: detail"` strings. The agent tool keeps string warnings. See [Format Support](formats/format-support.md) and [Tool Contract](integrations/tool-contract.md).
