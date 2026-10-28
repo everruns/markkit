@@ -1,0 +1,9 @@
+{
+  "wcxb": "c039d5ee9f5a3a984a0e167e63aacd04e76e78a9",
+  "agentdocbench": "e97ccc4a2be9c9a71289c4e000e60e953daccaa3",
+  "mira": "v0.5.0",
+  "mira_sdk": "334506ef19a1d975dace0f2c51092548a10c7b3e",
+  "mira_linux_archive_sha256": "b69d1a9af34d83aae87aad2453cf642739de9e0859e043b2b6571839ef7462fc",
+  "seed": "markkit-public-pilot-v1:",
+  "samples_per_type": 10
+}

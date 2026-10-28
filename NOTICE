@@ -34,3 +34,11 @@ Markkit relies on several permissively licensed crates:
 * serde / serde_json (MIT/Apache-2.0) – Serialization
 
 Full dependency license details are available via `cargo deny check licenses`.
+
+=== Public Benchmark Tooling ===
+
+scripts/public_benchmarks/vendor includes the Mira Python SDK (Everruns, MIT),
+the AgentDocBench scorer (SylphxAI, MIT), and the WCXB scorer (Murrough Foley,
+CC-BY-4.0), each with its license. Input documents retain the individual
+licenses and attribution in scripts/public_benchmarks/CORPUS-NOTICE and
+agentdocbench-corpus.json. The downloaded corpora are not included in packages.

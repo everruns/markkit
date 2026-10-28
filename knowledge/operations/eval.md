@@ -212,6 +212,49 @@ at what token cost? Code: `src/qa.rs` (subject, scorer, eval) and
   endpoint; no keyed run yet (the default cloud environment has no Doppler
   access and blocks `api.doppler.com` / `openrouter.ai`).
 
+## Public benchmarks
+
+`scripts/public_benchmarks` adds two companion Mira Python evals,
+`markkit_wcxb` and `markkit_agentdocbench`, driven through the same host CLI.
+The existing Rust fixture and QA evals remain separate. Code and run instructions:
+[`scripts/public_benchmarks/README.md`](../../scripts/public_benchmarks/README.md).
+
+- **Corpora**: immutable source commits in `pins.json`; WCXB compressed HTML and
+  annotations locked by Git blob ID, AgentDocBench documents by upstream SHA-256
+  and labels/references by blob ID. Prepared files are SHA-256 checked before the
+  study advertises cases. Missing/corrupt data fails setup, never skips samples.
+- **Split integrity**: WCXB upstream has 139 identical HTML files in both splits;
+  its keyed metadata also overwrites those dev entries. The committed manifest
+  keys annotations by split and excludes shared HTML from all dev selections.
+  Selections: fixed 70-page PR slice; full 1,358-page dev; 511-page upstream test.
+- **Subjects**: release Markkit CLI, all formats, no URL fetching during execution;
+  WCXB `mode=default,main_content`, AgentDocBench default only. One warm-up plus
+  three fresh-process conversions, sequential, identical output required.
+- **Scoring**: unchanged upstream Python scorers; Markdown projected to visible
+  text before WCXB word-F1/snippet scoring, original Markdown for AgentDocBench.
+  AgentDocBench overall is category macro, not document mean; scans remain zero
+  in the full score, with a separate no-OCR slice. Component N/A is preserved.
+- **Gates**: runner requires exact case coverage and successful conversions, then
+  compares canonical aggregates and per-type/category/format scores on the fixed
+  baseline subset, tolerance 0.005 absolute. Full dev reports its whole-set score
+  but gates the same fixed subset. Test scope gates execution/coverage only.
+  Rebaselining requires explicit `--write-baseline` on PR scope; CI never does it.
+  Corpus/scorer contract changes invalidate the old baseline.
+- **CI**: `public-benchmarks.yml` runs 178 cases for PR/push, 2,754 on schedule;
+  manual dispatch supports all scopes (test is 1,060 cases). Reports include
+  source/binary hashes, profile, compiler/platform, commands, manifests and notices.
+  They upload on failure too. No keys/models/GPU or third-party conversion service.
+- **Tests**: `scripts/tests/test_public_benchmarks.py` covers split leakage,
+  cache/checksum failures, path traversal, score normalization, category weighting,
+  missing/duplicate/N/A cases and regression gates. The public CI job installs
+  scorer dependencies and runs every test; the stdlib script suite skips the
+  Markdown-specific tests when that optional dependency is absent.
+
+Vendored SDK/scorers retain MIT/CC-BY-4.0 notices; each AgentDocBench input keeps
+its own attribution in `CORPUS-NOTICE`. These are development tools only, with no
+new dependency in the published library. Keep internal structural and security
+tests: public sparse checks do not replace exact Markdown expectations.
+
 ## Planned evals
 
 - **`markkit_judge`**: LLM-as-judge grading each page's markdown against its

@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Public WCXB and AgentDocBench evaluations through Mira (`just eval-public`), with
+  pinned/verified corpora, a release-build baseline regression gate, per-type/format
+  quality and conversion timings. PR/push runs use a fixed slice; nightly runs cover
+  the full development selection after excluding 139 upstream dev/test duplicates.
+
 - `markkit_qa` LLM eval (`just eval-llm`): models answer 23 questions about the eval pages from
   markkit markdown, main-content markdown or raw HTML, scored on correct answers with token usage
   per input. Targets: Meta Muse Spark 1.3 contributor via OpenRouter and Claude Sonnet 5.5;

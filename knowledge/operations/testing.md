@@ -33,6 +33,7 @@ tags:
 | `crates/markkit/benches/extraction.rs` | Criterion micro-benchmarks |
 | `crates/markkit-bench/` | Benchmark harness; `cargo test` runs every case once |
 | `crates/markkit-eval/src/**` `#[cfg(test)]` | Eval dataset validity, check semantics, scorers, subject |
+| `scripts/tests/test_public_benchmarks.py` | Pinned public corpus integrity, split leakage, canonical scores and regression gate |
 
 Office fixtures are generated in code (`tests/common`), not committed binaries, so
 each security test states exactly which bytes it feeds the parser.
@@ -69,6 +70,12 @@ each security test states exactly which bytes it feeds the parser.
 `nightly.yml` repeats build + test on nightly Rust daily; `fuzz.yml` runs every
 cargo-fuzz target nightly and uploads crashes; `coverage.yml` uploads
 tarpaulin coverage (`--engine llvm`; ptrace segfaults on threaded socket tests). All must pass before merge.
+
+`public-benchmarks.yml` runs the WCXB and AgentDocBench Mira studies in release
+mode on every PR/push and nightly, enforcing full coverage and fixed-slice quality
+regressions. It installs the optional scorer dependencies, runs all public-tool
+contract tests, and uploads canonical scores/timing/provenance even on failure.
+See [Evaluation Harness](eval.md) Public benchmarks for split and baseline policy.
 
 ## See also
 

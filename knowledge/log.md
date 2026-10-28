@@ -3,6 +3,7 @@
 ## 2026-10-28
 
 * **Footnote safety**: a blank line separates footnote markers from their indented bodies, preventing Markdown readers without footnotes from treating body text as a reference-link destination. Fixes the nightly renderer fuzz failure; regression checks both reader modes. See [Threat Model](security/threat-model.md) S17.
+* **Public benchmarks**: WCXB and AgentDocBench run through the Mira Python SDK with exact upstream scorers, pinned corpus blobs, release CLI timing and a canonical score regression gate. PRs use 178 cases; scheduled dev uses 2,754 after excluding 139 HTML duplicates shared with WCXB test. Test evaluation is manual/report-only for quality. See [Evaluation Harness](operations/eval.md) and [Performance Results](operations/performance-results.md).
 
 ## 2026-10-27
 

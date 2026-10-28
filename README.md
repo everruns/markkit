@@ -329,7 +329,13 @@ just lint       # Run clippy
 just check      # fmt, clippy, tests, knowledge, examples
 just pre-pr     # Full pre-PR validation
 just bench      # Benchmarks, results saved to crates/markkit-bench/results
+just eval-public-setup   # Pinned Mira host + isolated scorer environment
+just eval-public-prepare # Download and verify WCXB + AgentDocBench inputs
+just eval-public        # Release quality/timing run and regression gate
 ```
+
+Public benchmark selections, scoring and baseline policy:
+[`scripts/public_benchmarks/README.md`](scripts/public_benchmarks/README.md).
 
 Coding agents: start with [AGENTS.md](AGENTS.md).
 
