@@ -182,7 +182,7 @@
   ],
   "contract": "9c558864ae0d463528ea92d088f55aed75f12c36f5345ca75f7e923c6f44066c",
   "provenance": {
-    "binary_sha256": "49ca4a27f182de3b6c086a026ea3e04d872ab81cb3b75a4495a331658781e1e7",
+    "binary_sha256": "390d54760c41a108b4ed4f94c6aa99b993bbf04d8a36e94e4ecb861e66e56918",
     "build_profile": "release",
     "command": [
       "/workspace/work/markkit-tools/bin/mira",
@@ -218,8 +218,8 @@
     "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
     "python": "3.12.14",
     "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
-    "source_dirty": true,
-    "source_revision": "194cf0c844ab28c79bcbb32cc0fffd706d281c42",
+    "source_dirty": false,
+    "source_revision": "0e1a9df33e6f3ec0967be5ae7f6b8016a1f585ba",
     "timing_boundary": "median of 3 fresh CLI processes after 1 warm-up; sequential; includes startup"
   },
   "quality": {

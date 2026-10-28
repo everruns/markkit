@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1] / "public_benchmarks"
 sys.path.insert(0, str(ROOT))
@@ -93,6 +94,8 @@ class PublicBenchmarksTest(unittest.TestCase):
         changed = [self.row("a", "a", .9)]
         self.assertTrue(public_run.regressions(changed, baseline, "contract"))
         self.assertEqual(public_run.regressions([self.row("a", "a", .996)], baseline, "contract"), [])
+        baseline["quality"]["agentdocbench/overall"] = float("nan")
+        self.assertTrue(public_run.regressions(rows, baseline, "contract"))
 
     def test_report_rejects_missing_duplicate_na_and_invalid_scores(self):
         sample = {"suite": "agentdocbench", "id": "a", "category": "docx", "format": "docx", "ocr": False}
@@ -111,6 +114,43 @@ class PublicBenchmarksTest(unittest.TestCase):
             bad["scores"][1] = score
             with self.assertRaises(ValueError):
                 public_run.report_rows({"cases": [bad]}, manifest)
+
+    def test_failed_mira_run_replaces_stale_success_and_preserves_provenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cache, output = root / "cache", root / "output"
+            cache.mkdir()
+            output.mkdir()
+            (root / "release").mkdir()
+            (root / "release/markkit").write_bytes(b"mock executable")
+            (cache / "manifest-pr.json").write_text("{}")
+            (output / "mira.json").write_text("stale success")
+            (output / "summary.json").write_text('{"quality": 1}')
+
+            def command_output(command, **kwargs):
+                if command[:2] == ["cargo", "metadata"]:
+                    return json.dumps({"target_directory": str(root)}).encode()
+                if command[0] == "mock-mira":
+                    return "mira 0.5.0\n"
+                if command[:2] == ["git", "rev-parse"]:
+                    return "commit\n"
+                if command[0] == "rustc":
+                    return "rustc test\n"
+                return "" if kwargs.get("text") else b""
+
+            argv = ["run.py", "--cache", str(cache), "--out", str(output), "--mira", "mock-mira"]
+            manifest = {"scope": "pr", "contract": "fixed", "pins": {"wcxb": "fixed"}, "samples": []}
+            with patch.object(sys, "argv", argv), patch.object(public_run, "read_manifest", return_value=manifest), \
+                    patch.object(public_run.subprocess, "check_output", side_effect=command_output), \
+                    patch.object(public_run.subprocess, "run", side_effect=[SimpleNamespace(returncode=0), SimpleNamespace(returncode=1)]):
+                with self.assertRaises(SystemExit):
+                    public_run.main()
+            summary = json.loads((output / "summary.json").read_text())
+            self.assertEqual(summary["status"], "failed")
+            self.assertNotIn("quality", summary)
+            self.assertFalse((output / "mira.json").exists())
+            self.assertTrue((output / "provenance.json").is_file())
+            self.assertTrue((output / "CORPUS-NOTICE").is_file())
 
     @unittest.skipUnless(importlib.util.find_spec("markdown_it"), "public benchmark environment installs markdown-it-py")
     def test_wcxb_markdown_projection_excludes_link_destinations(self):

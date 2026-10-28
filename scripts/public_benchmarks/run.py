@@ -101,7 +101,8 @@ def regressions(rows, baseline, contract):
         return ["run is missing baseline cases"]
     current = quality_vectors(selected)
     tolerance = baseline["absolute_tolerance"]
-    if not math.isfinite(tolerance) or not 0 <= tolerance <= 0.005 or not baseline["quality"] or not baseline["cases"]:
+    if (not math.isfinite(tolerance) or not 0 <= tolerance <= 0.005 or not baseline["quality"] or not baseline["cases"]
+            or not all(math.isfinite(value) and 0 <= value <= 1 for value in baseline["quality"].values())):
         return ["invalid committed baseline policy"]
     return [f"{key}: {current.get(key, -1):.6f} < baseline {value:.6f} minus {tolerance}"
             for key, value in baseline["quality"].items() if current.get(key, -1) + tolerance + 1e-12 < value]
@@ -145,11 +146,33 @@ def main():
     command = [args.mira, "run", "--study-python", "scripts/public_benchmarks/study.py", "--max-concurrent", "1",
                "--max-retries", "0", "--timeout", "300", "--group-by", "category", "--format", "json", "--out", str(output / "mira.json")]
     provenance["command"] = command
+    # A failed new run must not upload a previous successful report from this
+    # output directory. Retain current provenance/notices even if Mira fails.
+    for name in ["mira.json", "summary.json", "summary.md"]:
+        (output / name).unlink(missing_ok=True)
+    atomic_write(output / "provenance.json", (json.dumps(provenance, indent=2) + "\n").encode())
+    atomic_write(output / "manifest.json", manifest_path.read_bytes())
+    for name in ["CORPUS-NOTICE", "agentdocbench-corpus.json"]:
+        atomic_write(output / name, (ROOT / name).read_bytes())
+    atomic_write(output / "WCXB-NOTICE.txt", ("WCXB by Murrough Foley, CC-BY-4.0. Markkit outputs are conversions of the pinned HTML.\n"
+                 f"https://github.com/Murrough-Foley/web-content-extraction-benchmark/tree/{manifest['pins']['wcxb']}\n"
+                 "Source URLs and annotations are in the upstream ground-truth/<id>.json files for the recorded split.\n"
+                 + (ROOT / "vendor/wcxb/LICENSE").read_text()).encode())
+
+    def failed(reason):
+        atomic_write(output / "summary.json", (json.dumps({"status": "failed", "scope": args.scope, "reason": reason, "provenance": provenance}, indent=2) + "\n").encode())
+        atomic_write(output / "summary.md", f"# Public benchmarks ({args.scope})\n\nExecution/coverage failed: {reason}\n".encode())
+
     process = subprocess.run(command, cwd=REPO, env=env)
     if process.returncode:
+        failed(f"Mira exited {process.returncode}")
         raise SystemExit(process.returncode)
     report = json.loads((output / "mira.json").read_text())
-    rows = report_rows(report, manifest)
+    try:
+        rows = report_rows(report, manifest)
+    except ValueError as error:
+        failed(str(error))
+        raise
     quality = quality_vectors(rows)
     baseline_path = ROOT / "baseline.json"
     if args.write_baseline:
@@ -161,13 +184,6 @@ def main():
                "test_quality_report_only": args.scope == "test", "cases": rows,
                "wcxb_empty_references": [row["id"] for row in manifest["samples"] if row["suite"] == "wcxb" and not row["full_text_reference"]]}
     atomic_write(output / "summary.json", (json.dumps(summary, indent=2, sort_keys=True) + "\n").encode())
-    atomic_write(output / "manifest.json", manifest_path.read_bytes())
-    for name in ["CORPUS-NOTICE", "agentdocbench-corpus.json"]:
-        atomic_write(output / name, (ROOT / name).read_bytes())
-    atomic_write(output / "WCXB-NOTICE.txt", ("WCXB by Murrough Foley, CC-BY-4.0. Markkit outputs are conversions of the pinned HTML.\n"
-                 f"https://github.com/Murrough-Foley/web-content-extraction-benchmark/tree/{manifest['pins']['wcxb']}\n"
-                 "Source URLs and annotations are in the upstream ground-truth/<id>.json files for the recorded split.\n"
-                 + (ROOT / "vendor/wcxb/LICENSE").read_text()).encode())
     lines = [f"# Public benchmarks ({args.scope})", "", f"{len(rows)} cases; {len(failures)} quality regressions.", "", "| Metric | Score |", "|---|---:|"]
     lines += [f"| {key} | {value:.4f} |" for key, value in sorted(quality.items())]
     if summary["wcxb_empty_references"]:
