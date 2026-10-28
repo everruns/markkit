@@ -275,7 +275,10 @@ impl MarkdownRenderer {
                 self.buf.push_str("[^");
                 self.buf.push_str(&footnote_label(label));
                 self.buf.push_str("]:");
-                push_hanging(&mut self.buf, &inner, " ", "    ");
+                // A blank line prevents readers without footnote support from
+                // treating the body as a reference-link destination (S17).
+                self.buf.push_str("\n\n");
+                push_hanging(&mut self.buf, &inner, "    ", "    ");
             }
 
             // Inline nodes rendered at block level get wrapped in a line
