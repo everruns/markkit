@@ -1,5 +1,9 @@
 # Markkit Knowledge Update Log
 
+## 2026-10-28
+
+* **Footnote safety**: a blank line separates footnote markers from their indented bodies, preventing Markdown readers without footnotes from treating body text as a reference-link destination. Fixes the nightly renderer fuzz failure; regression checks both reader modes. See [Threat Model](security/threat-model.md) S17.
+
 ## 2026-10-27
 
 * **Embedder API (#11)**: `Markkit` derives `Clone` + `Debug`; warnings are structured (`Warning { code: WarningCode, detail }`) instead of `"code: detail"` strings. The agent tool keeps string warnings. See [Format Support](formats/format-support.md) and [Tool Contract](integrations/tool-contract.md).

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Footnote bodies cannot become unsafe reference-link destinations in Markdown readers
+  without footnote support. Bodies start after a blank line and remain valid footnotes
+  in readers that support them (nightly renderer fuzz regression).
+
 ### Added
 
 - `markkit_qa` LLM eval (`just eval-llm`): models answer 23 questions about the eval pages from
