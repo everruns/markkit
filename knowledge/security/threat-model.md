@@ -563,7 +563,7 @@ shared renderer under `max_output_size` (`tests/registry.rs`).
 | S14 | Returned Markdown never exceeds `max_output_size` | `limits::*output_cap*` |
 | S15 | No configuration of `max_nesting_depth` can overflow the stack | `limits::*hard_ceiling_survives_small_stack` |
 | S16 | Extraction stops with `ResourceLimit` once `timeout` passes (checked at least after each non-interruptible third-party step) | `limits::*zero_timeout_rejects`, `limits::tests::*` |
-| S17 | Rendered markdown has no raw HTML, no non-allowlisted link/image scheme, and document text cannot create Markdown structure | `output_safety::*` (pulldown-cmark oracle + proptests) |
+| S17 | Rendered markdown has no raw HTML, no non-allowlisted link/image scheme, and document text cannot create Markdown structure; footnote bodies are separated by a blank line so non-footnote readers cannot interpret them as reference destinations | `output_safety::*`, including `footnote_body_cannot_become_reference_link_destination` (both reader modes), pulldown-cmark oracle + proptests |
 | S18 | Text, Markdown, CSV/TSV, notebook and email output never contains C0 controls (except tab/newline); Markdown raw HTML (blocks, inline tags) is never copied | `text_integration::security_*`, `csv_integration::security_*`, `notebook_integration::security_*`, `email_integration::security_*` |
 | S19 | No PDF stream is decoded past `max_pdf_stream_size`, by markkit or hayro | `pdf_security::*bomb*`, `pdf_security::chained_filters_are_measured_after_every_stage` |
 | S20 | Hidden content is not rendered by default (HTML, DOCX, ODT, EPUB) | `hidden_content::*`, `odt_integration::security_hidden_content_skipped_by_default`, `epub_integration::security_hidden_content_skipped_by_default` |

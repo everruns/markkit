@@ -81,6 +81,40 @@ fn block_tags(md: &str) -> Vec<String> {
 // ─── Text escaping ───────────────────────────────────────────────────
 
 #[test]
+fn footnote_body_cannot_become_reference_link_destination() {
+    for body in ["javascript:alert(1)", "vbscript:run", "file:///etc/passwd"] {
+        let md = render(vec![
+            Node::paragraph(vec![Node::FootnoteReference {
+                label: "note".into(),
+            }]),
+            Node::FootnoteDefinition {
+                label: "note".into(),
+                children: vec![para(vec![text(body)])],
+                source: None,
+            },
+        ]);
+        assert_safe(&md);
+        assert!(
+            events(&md)
+                .iter()
+                .all(|event| !matches!(event, Event::Start(Tag::Link { .. })))
+        );
+        let footnotes = Options::ENABLE_FOOTNOTES;
+        let enabled: Vec<_> = Parser::new_ext(&md, footnotes).collect();
+        assert!(
+            enabled
+                .iter()
+                .any(|event| matches!(event, Event::Start(Tag::FootnoteDefinition(_))))
+        );
+        assert!(
+            enabled
+                .iter()
+                .any(|event| matches!(event, Event::Text(value) if value.contains(body)))
+        );
+    }
+}
+
+#[test]
 fn text_with_markdown_syntax_stays_text() {
     let s = "# not heading *x* _y_ `z` ~~w~~ [t](u) ![i](j) <b>";
     let md = render(vec![para(vec![text(s)])]);

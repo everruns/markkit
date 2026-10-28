@@ -142,6 +142,21 @@ eval *args:
 eval-llm *args:
     mira run --study-bin markkit-eval markkit_qa {{args}}
 
+# Install pinned public-benchmark scorer dependencies and verified Mira (Linux x86_64).
+eval-public-setup:
+    python3 -m venv target/public-benchmarks/venv
+    target/public-benchmarks/venv/bin/python -m pip install --require-hashes -r scripts/public_benchmarks/requirements.txt
+    target/public-benchmarks/venv/bin/python scripts/public_benchmarks/install_mira.py
+
+# Download and verify the fixed PR sample, or --scope dev / test. Evaluation is offline.
+eval-public-prepare *args:
+    target/public-benchmarks/venv/bin/python scripts/public_benchmarks/prepare.py {{args}}
+
+# Release CLI, public quality scores, conversion timing and canonical regression gate.
+eval-public *args:
+    cargo build --locked --release -p markkit-cli
+    target/public-benchmarks/venv/bin/python scripts/public_benchmarks/run.py {{args}}
+
 # ─── Security & Audit ───────────────────────────────────────
 
 # Run cargo-deny checks

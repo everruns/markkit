@@ -618,7 +618,7 @@ mod tests {
         assert!(out.contains("| :--- | :---: | ---: |"), "{out}");
         assert!(out.contains("- [x] done"), "{out}");
         assert!(out.contains("Note[^n]."), "{out}");
-        assert!(out.contains("[^n]: The note."), "{out}");
+        assert!(out.contains("[^n]:\n\n    The note."), "{out}");
     }
 
     #[test]

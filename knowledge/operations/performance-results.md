@@ -67,6 +67,13 @@ to `<hostname>-<os>-<arch>`, overridable with `--moniker`, sanitized to
 
 ## Contract
 
+Public corpus conversion timing is separate from these in-process generated
+workloads. `just eval-public` builds the release CLI and records the median of
+three fresh processes after one untimed warm-up, sequentially; startup is included,
+downloads/scoring are excluded. Public reports pair duration with quality and
+record source/binary/compiler/platform provenance. Latency is reported, not gated
+across CI machines. See [Evaluation Harness](eval.md) Public benchmarks.
+
 - Release builds only (`--release`); debug numbers are meaningless.
 - Commit saved runs for performance-relevant PRs and before releases.
 - Compare runs from the same moniker only; CPU, OS and container differ.

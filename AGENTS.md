@@ -78,6 +78,9 @@ just check-okf     # knowledge/ OKF conformance
 just examples      # Run every example
 just bench         # Benchmark harness, saves results to crates/markkit-bench/results
 just bench-criterion # Criterion micro-benches (crates/markkit/benches)
+just eval-public-setup   # Pinned Mira + isolated Python scorer environment
+just eval-public-prepare # Download and verify public corpora (PR slice)
+just eval-public        # Release WCXB + AgentDocBench runs and regression gate
 just pre-pr        # Pre-PR checks
 ```
 

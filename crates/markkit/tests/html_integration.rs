@@ -826,7 +826,7 @@ fn footnotes_github_markup() {
     <section data-footnotes class="footnotes"><h2 class="sr-only">Footnotes</h2>
     <ol><li id="user-content-fn-1"><p>Source. <a href="#user-content-fnref-1" data-footnote-backref class="data-footnote-backref">↩</a></p></li></ol>
     </section>"##;
-    assert_eq!(convert(html), "Claim[^1].\n\n[^1]: Source.\n");
+    assert_eq!(convert(html), "Claim[^1].\n\n[^1]:\n\n    Source.\n");
 }
 
 #[test]
@@ -835,7 +835,10 @@ fn footnotes_pandoc_markup() {
     <section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><hr />
     <ol><li id="fn1"><p>First.</p><p>Second.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li></ol>
     </section>"##;
-    assert_eq!(convert(html), "Text[^a]\n\n[^a]: First.\n\n    Second.\n");
+    assert_eq!(
+        convert(html),
+        "Text[^a]\n\n[^a]:\n\n    First.\n\n    Second.\n"
+    );
 }
 
 #[test]

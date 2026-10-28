@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Footnote bodies cannot become unsafe reference-link destinations in Markdown readers
+  without footnote support. Bodies start after a blank line and remain valid footnotes
+  in readers that support them (nightly renderer fuzz regression).
+
 ### Added
+
+- Public WCXB and AgentDocBench evaluations through Mira (`just eval-public`), with
+  pinned/verified corpora, a release-build baseline regression gate, per-type/format
+  quality and conversion timings. PR/push runs use a fixed slice; nightly runs cover
+  the full development selection after excluding 139 upstream dev/test duplicates.
 
 - `markkit_qa` LLM eval (`just eval-llm`): models answer 23 questions about the eval pages from
   markkit markdown, main-content markdown or raw HTML, scored on correct answers with token usage
