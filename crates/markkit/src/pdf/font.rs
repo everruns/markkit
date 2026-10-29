@@ -36,6 +36,8 @@ pub(crate) struct Font {
     /// Composite font with no ToUnicode: text cannot be mapped.
     pub unmapped: bool,
     pub name: String,
+    pub bold: bool,
+    pub italic: bool,
 }
 
 impl Font {
@@ -57,6 +59,10 @@ impl Font {
             cid_widths: Vec::new(),
             default_width: 0.5,
             unmapped: false,
+            bold: name.to_ascii_lowercase().contains("bold")
+                || name.to_ascii_lowercase().contains("black"),
+            italic: name.to_ascii_lowercase().contains("italic")
+                || name.to_ascii_lowercase().contains("oblique"),
             name,
         };
 
@@ -106,6 +112,8 @@ impl Font {
             default_width: 0.5,
             unmapped: false,
             name: String::new(),
+            bold: false,
+            italic: false,
         }
     }
 

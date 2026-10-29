@@ -1,6 +1,6 @@
 # @everruns/markkit-wasm
 
-Markkit compiled to WebAssembly: extract clean Markdown from HTML, DOCX,
+Markkit compiled to WebAssembly: extract clean Markdown from HTML, PDF text/layout, DOCX,
 spreadsheets (XLSX/XLSM, XLS, ODS), CSV/TSV, Jupyter notebooks, plain text and
 Markdown in the **browser and any JavaScript runtime**:
 edge workers (Cloudflare Workers, Vercel Edge, Deno Deploy), Node, Deno and Bun.
@@ -67,3 +67,25 @@ try {
 ## License
 
 MIT
+
+## PDF layout and tables
+
+PDF text extraction reconstructs columns, ruled and conservative borderless tables,
+including merged and wrapped cells. Tagged headings/ActualText, bold/italic and
+numbered lists are preserved. Set `pdfRemoveRepeatedHeaders: true` to suppress
+repeated margin headers/footers.
+
+`pdfLayout: true` adds `layout: { version: 1, pages }` to document results. Source
+`spans` retain drawing order and include glyph-positioned `words`. Semantic `blocks`
+are in reading order, with `id`, `kind`, `bbox`, `spanIds`, `lines` and table `cells`.
+Cells have row/column positions, rowspan/colspan and source references. Coordinates
+are display points from the cropped/rotated top-left, x right and y down. Font
+bounds approximate an em box. Layout is optional and does not change Markdown.
+
+Node and WASM use camelCase keys. `maxNodes` bounds primitives and geometry;
+`maxPdfDecodedSize` bounds retained geometry and analysis work; table row/column/
+grid limits apply. `maxOutputSize` independently bounds compact layout JSON and
+Markdown, excluding JSON wrapper/pretty-print overhead.
+
+WASM reads existing PDF text layers. Native process OCR runs through the Rust,
+Node or Python packages with installed Tesseract and language data.

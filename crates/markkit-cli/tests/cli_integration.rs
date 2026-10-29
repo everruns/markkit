@@ -169,6 +169,44 @@ fn extract_json_output() {
 }
 
 #[test]
+fn pdf_layout_requires_json_and_is_returned_for_pdf() {
+    let invalid = markkit_bin()
+        .args(["extract", "--stdin", "--layout"])
+        .output()
+        .unwrap();
+    assert!(!invalid.status.success());
+    assert!(String::from_utf8_lossy(&invalid.stderr).contains("--json"));
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("layout.pdf");
+    // A repairable PDF with one page and no text, no external fixture needed.
+    std::fs::write(&path, b"%PDF-1.7\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF").unwrap();
+    let output = markkit_bin()
+        .args([
+            "extract",
+            "--file",
+            path.to_str().unwrap(),
+            "--json",
+            "--layout",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["layout"]["pages"][0]["width"], 300.0);
+    assert_eq!(value["layout"]["pages"][0]["height"], 400.0);
+    assert!(
+        value["layout"]["pages"][0]["spans"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
 fn extract_with_include_selector() {
     let mut child = markkit_bin()
         .args(["extract", "--stdin", "-i", "article"])
@@ -301,4 +339,17 @@ fn extract_with_bad_rules_file_fails() {
         .expect("failed to run markkit");
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("invalid rules file"));
+}
+
+#[test]
+fn ocr_backend_flags_validate_names_and_require_ocr() {
+    for args in [
+        vec!["extract", "--stdin", "--ocr-backend", "ocrs"],
+        vec!["extract", "--stdin", "--ocr", "--ocr-backend", "unknown"],
+        vec!["extract", "--stdin", "--ocr-detection-model", "model.onnx"],
+    ] {
+        let output = markkit_bin().args(args).output().unwrap();
+        assert!(!output.status.success());
+        assert_eq!(output.status.code(), Some(2));
+    }
 }

@@ -27,6 +27,11 @@ struct Options {
     /// Absolute URL relative links and images resolve against.
     base_url: Option<String>,
     main_content: Option<bool>,
+    pdf_layout: Option<bool>,
+    pdf_remove_repeated_headers: Option<bool>,
+    max_pdf_pages: Option<usize>,
+    max_pdf_stream_size: Option<usize>,
+    max_pdf_decoded_size: Option<usize>,
     preserve_links: Option<bool>,
     preserve_images: Option<bool>,
     /// Added to the default selector set.
@@ -57,6 +62,11 @@ impl Options {
             max_nesting_depth,
             base_url,
             main_content,
+            pdf_layout,
+            pdf_remove_repeated_headers,
+            max_pdf_pages,
+            max_pdf_stream_size,
+            max_pdf_decoded_size,
             preserve_links,
             preserve_images,
             max_archive_entries,
@@ -139,6 +149,23 @@ fn to_js<T: Serialize + ?Sized>(value: &T) -> Result<JsValue, JsError> {
         .map_err(|e| JsError::new(&e.to_string()))
 }
 
+fn camel_case_tree(value: &mut serde_json::Value) {
+    camel_case_keys(value);
+    match value {
+        serde_json::Value::Object(map) => {
+            for v in map.values_mut() {
+                camel_case_tree(v);
+            }
+        }
+        serde_json::Value::Array(list) => {
+            for v in list {
+                camel_case_tree(v);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Rust serializes `snake_case`; JS callers get `camelCase` (`canonicalUrl`).
 fn camel_case_keys(value: &mut serde_json::Value) {
     if let serde_json::Value::Object(map) = value {
@@ -213,6 +240,9 @@ impl Markkit {
             .map_err(js_err)?;
         let mut value = serde_json::to_value(&extraction).map_err(js_err)?;
         camel_case_keys(&mut value["metadata"]);
+        if let Some(layout) = value.get_mut("layout") {
+            camel_case_tree(layout);
+        }
         to_js(&value)
     }
 

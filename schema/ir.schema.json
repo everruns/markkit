@@ -674,6 +674,15 @@
             "null"
           ]
         },
+        "layout_block": {
+          "description": "PDF: page-local semantic layout block ID.",
+          "format": "uint",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "page": {
           "description": "Paged formats: 1-based page number (PPTX: slide number).",
           "format": "uint32",

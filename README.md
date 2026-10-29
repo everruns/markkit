@@ -32,7 +32,7 @@ package for browsers and edge runtimes.
 - **Configurable** – CSS include/exclude selectors, link/image preservation, resource limits
 - **Safe by default** – No code execution (scripts, macros, formulas), bounded decompression,
   depth and size limits, [threat model](knowledge/security/threat-model.md) with a test per mitigation
-- **PDF** – Text layer to paragraphs, headings and bullet lists (pure Rust, no OCR; encrypted PDFs rejected)
+- **PDF** – Text/layout, columns and tables; optional native OCR (encrypted PDFs rejected)
 
 | Format | Status | Feature |
 |---|---|---|
@@ -47,8 +47,80 @@ package for browsers and edge runtimes.
 | Jupyter notebooks (ipynb) | Supported | always on |
 | Email (EML) | Supported | `email` |
 | Markdown | Supported | `markdown` |
-| PDF (text layer) | Supported | `pdf` |
+| PDF (text, layout and tables) | Supported | `pdf` |
+| PDF OCR | Supported with Tesseract/language data | `pdf-ocr` |
 | DOC, PPT | Detected, rejected explicitly | – |
+
+### PDF source layout
+
+```rust
+let parsed = markkit::Markkit::builder().pdf_layout(true).build()
+    .parse_document_sync(pdf_bytes, markkit::DocumentHint::file_name("report.pdf"))?;
+let layout = parsed.layout.as_ref().unwrap(); // pages, dimensions, positioned text spans
+```
+
+CLI: `markkit extract --file report.pdf --json --layout`.
+Node: `extractDocumentSync(bytes, { fileName: "report.pdf" }, { pdfLayout: true })`.
+WASM: `new Markkit({ pdfLayout: true }).extractDocument(bytes, { fileName: "report.pdf" })`.
+
+Layout v1 includes source runs and words, plus semantic blocks, lines and table
+cells in reading order. Coordinates are display points from the cropped/rotated
+page top-left (x right, y down). Source runs retain drawing order. Each block has
+an ID, type, bounds and source span IDs; table cells include row/column positions,
+rowspan/colspan and bounds. IR `Source.page` + `Source.layout_block` link blocks
+when layout is requested. Font bounds approximate an em box; OCR bounds come from
+the recognizer. Layout is omitted by default, and does not change Markdown.
+
+PDF extraction reconstructs columns, handles ruled and borderless tables, preserves
+bold/italic and numbered lists, and uses tagged-PDF heading roles and `ActualText`.
+Ambiguous alignments remain prose. Enable repeated margin-header/footer suppression
+with `.pdf_remove_repeated_headers(true)` or CLI `--remove-pdf-headers`.
+
+Native OCR uses Rust Hayro rendering for pages without text. Install **Tesseract**
+plus language data. Rust requires the `pdf-ocr` feature; the CLI,
+Node and Python packages compile support in. WASM extracts existing text layers;
+OCR helpers run in native hosts.
+
+```bash
+markkit extract --file scanned.pdf --ocr --ocr-language eng --timeout 300
+```
+
+Rust: `.pdf_ocr(true).pdf_ocr_language("eng+deu")`; Node: `{ pdfOcr: true,
+pdfOcrLanguage: "eng", timeout: 300 }`. Python: `extract_document_sync(data,
+file_name="report.pdf", pdf_layout=True, pdf_ocr=True, limits=Limits(timeout=300))`.
+The same structured Python API returns metadata and table counts for all formats.
+
+For Rust-only OCR, build with the optional `pdf-ocr-ocrs` feature and supply local
+ONNX models. Tesseract remains the default backend:
+
+```bash
+python3 scripts/prepare_ocr_models.py  # verifies pinned model sizes and SHA-256
+cargo build --release -p markkit-cli --features pdf-ocr-ocrs
+target/release/markkit extract --file scanned.pdf --ocr --ocr-backend ocrs \
+  --ocr-detection-model target/ocr-models/text-detection.onnx \
+  --ocr-recognition-model target/ocr-models/text-recognition.onnx --timeout 300
+```
+
+Rust: `.pdf_ocr_backend(markkit::PdfOcrBackend::Ocrs)` plus
+`.pdf_ocr_detection_model(path)` and `.pdf_ocr_recognition_model(path)`.
+Extraction never downloads models. The pinned weights are CC-BY-SA 4.0, separate
+from the MIT/Apache library code; the setup script writes their attribution and
+license to `target/ocr-models/NOTICE.json`. The default model supports the Latin
+alphabet; `ocrs` currently accepts `eng` only. Models are trusted deployment
+assets. RTen inference checks deadlines between phases and batches; host quotas
+provide hard CPU/memory limits. `RTEN_NUM_THREADS` and `RAYON_NUM_THREADS` configure
+inference/postprocessing thread pools at process startup. Markkit's WASM binding
+does not yet expose this native OCR path.
+
+PDF geometry/rules count against `max_nodes`; retained geometry and analysis work
+are bounded by `max_pdf_decoded_size`. Table grids obey row/column/grid limits.
+Compact layout JSON and Markdown are independently bounded by `max_output_size`
+(excluding JSON wrapper/pretty-print overhead), including parse-only callers.
+Hayro checks image/raster budgets before rendering and the deadline before/after
+its non-interruptible render step. Tesseract uses private files, output caps and
+a killable deadline; no shell is used. OCR currently supports JPEG, JPEG2000 and
+generic-filter images without DecodeParms. Inline, JBIG2 and CCITT OCR is refused
+until bounded decoding is available. Host isolation provides hard CPU/memory quotas.
 
 ## Quick Start
 
@@ -180,7 +252,7 @@ npm install @everruns/markkit-wasm
 ```
 
 Any JS runtime (browsers, Cloudflare Workers, Deno, Bun, Node); no special headers.
-HTML, DOCX and spreadsheets; no URL fetching. See
+HTML, PDF text/layout, DOCX and spreadsheets; no URL fetching. See
 [`crates/markkit-wasm/README.md`](crates/markkit-wasm/README.md).
 
 ## Configuration
@@ -206,7 +278,9 @@ let markkit = Markkit::builder()
 | `docx` | No | DOCX conversion (zip + quick-xml) |
 | `pptx` | No | PPTX conversion (zip + quick-xml) |
 | `spreadsheet` | No | XLSX/XLSM, XLS, ODS conversion (calamine) |
-| `pdf` | No | PDF text-layer extraction (hayro-syntax, pure Rust) |
+| `pdf` | No | PDF text/layout, reading order and tables (pure Rust) |
+| `pdf-ocr` | No | Native OCR: Rust Hayro rendering + installed Tesseract/language data |
+| `pdf-ocr-ocrs` | No | Optional Rust OCR via ocrs/RTen and caller-supplied local ONNX models |
 | `markdown` | No | Markdown normalization (pulldown-cmark) |
 | `email` | No | EML conversion (mail-parser) |
 | `odt` | No | ODT conversion (zip + quick-xml) |
@@ -238,7 +312,7 @@ names the field that was exceeded.
 | `max_output_size` | 128 MiB | Markdown output |
 | `timeout` | 60 s | Fetch + parse + render, per call |
 | `max_nesting_depth` | 256 (hard max 512) | HTML flattens deeper content; deeper DOCX XML is rejected |
-| `max_nodes` | 5 000 000 | HTML DOM nodes, DOCX XML nodes |
+| `max_nodes` | 5 000 000 | HTML DOM nodes, DOCX XML nodes; retained PDF layout pages/runs |
 | `max_archive_entries` | 10 000 | ZIP entries (DOCX/XLSX/ODS) |
 | `max_archive_entry_size` | 64 MiB | Decompressed bytes per ZIP entry |
 | `max_archive_total_size` | 256 MiB | Decompressed bytes per ZIP |

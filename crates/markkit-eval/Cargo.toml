@@ -23,8 +23,8 @@ path = "src/main.rs"
 # Mira eval framework (crates.io), imported as `mira`. `macros` provides the
 # #[eval] discovery attribute. In-process subject only: no mira-everruns.
 mira-eval = { version = "0.5", features = ["macros"] }
-# HTML only, no HTTP client: pages are embedded, markkit never fetches.
-markkit = { path = "../markkit", default-features = false, features = ["html"] }
+# Embedded HTML and generated PDF scenes; markkit never fetches.
+markkit = { path = "../markkit", default-features = false, features = ["html", "pdf"] }
 serde.workspace = true
 serde_json.workspace = true
 # LLM evals (markkit_qa) call Anthropic / OpenRouter. Eval crate only: the

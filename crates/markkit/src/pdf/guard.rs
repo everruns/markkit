@@ -15,7 +15,10 @@
 //! Content streams, form XObjects and ToUnicode CMaps are decoded through
 //! [`decode`] (same bounded decoders), never hayro's unbounded `decoded()`.
 //! Image filters (DCT, JPX, JBIG2, CCITT) end a chain: markkit never decodes
-//! images, and hayro is built without its `images` feature.
+//! images. OCR-enabled builds also enable Hayro image codecs: structural streams
+//! cannot use image filters, and rendering gets a stricter image preflight.
+//! JPEG, header-bounded JPEG2000 and generic image streams are supported; inline images, image
+//! DecodeParms, JBIG2/CCITT are refused for OCR until bounded decoding is available.
 
 use hayro_syntax::Filter;
 
@@ -93,6 +96,24 @@ pub(crate) fn prescan(
     stream_cap: usize,
     total_cap: usize,
 ) -> Result<(), PrescanError> {
+    prescan_inner(bytes, stream_cap, total_cap, false)
+}
+
+#[cfg(all(feature = "pdf-ocr", not(target_arch = "wasm32")))]
+pub(crate) fn preflight_render(
+    bytes: &[u8],
+    stream_cap: usize,
+    total_cap: usize,
+) -> Result<(), PrescanError> {
+    prescan_inner(bytes, stream_cap, total_cap, true)
+}
+
+fn prescan_inner(
+    bytes: &[u8],
+    stream_cap: usize,
+    total_cap: usize,
+    render: bool,
+) -> Result<(), PrescanError> {
     if find_key(bytes, b"/Encrypt").is_some() {
         return Err(PrescanError::Encrypted);
     }
@@ -111,13 +132,79 @@ pub(crate) fn prescan(
             Ok(c) => c,
             Err(()) => return Err(PrescanError::Unverifiable),
         };
-        if chain.iter().all(|k| matches!(k, Kind::Image)) {
-            continue;
+        // Enabling the renderer unifies hayro-syntax's image feature. Do not
+        // accept declared object/xref streams with image codecs.
+        #[cfg(feature = "pdf-ocr")]
+        if chain.contains(&Kind::Image)
+            && (direct_name(dict, b"/Subtype").as_deref() != Some(b"Image".as_slice())
+                || find_key(dict, b"/N").is_some()
+                || find_key(dict, b"/First").is_some()
+                || matches!(
+                    direct_name(dict, b"/Type").as_deref(),
+                    Some(b"ObjStm" | b"XRef")
+                ))
+        {
+            return Err(PrescanError::Unverifiable);
         }
         let end = find(&bytes[data_start..], b"endstream")
             .map(|e| data_start + e)
             .unwrap_or(bytes.len());
         let budget = stream_cap.min(total_cap.saturating_sub(total));
+        if render && direct_name(dict, b"/Subtype").as_deref() == Some(b"Image".as_slice()) {
+            // Reserve conservatively for color conversion, masks and 16-bit
+            // samples, not merely the final 1800px destination raster.
+            let width = direct_uint(dict, b"/Width").ok_or(PrescanError::Unverifiable)?;
+            let height = direct_uint(dict, b"/Height").ok_or(PrescanError::Unverifiable)?;
+            let size = width.checked_mul(height).and_then(|n| n.checked_mul(16));
+            let Some(mut size) = size.filter(|n| width > 0 && height > 0 && *n <= budget) else {
+                return Err(PrescanError::Limit(LimitExceeded::new(
+                    if budget < stream_cap {
+                        LimitKind::MaxPdfDecodedSize
+                    } else {
+                        LimitKind::MaxPdfStreamSize
+                    },
+                    "OCR image working storage exceeds PDF decode budget",
+                )));
+            };
+            if find_key(dict, b"/DecodeParms").is_some() {
+                return Err(PrescanError::RenderUnsupported);
+            }
+            if chain.contains(&Kind::Image) {
+                match direct_name(dict, b"/Filter").as_deref() {
+                    // JPEG patches oversized SOF dimensions to the PDF bounds.
+                    Some(b"DCTDecode" | b"DCT") => {}
+                    Some(b"JPXDecode") => {
+                        let pixels = jpx_pixels(&bytes[data_start..end])
+                            .ok_or(PrescanError::Unverifiable)?;
+                        let working =
+                            pixels
+                                .checked_mul(16)
+                                .filter(|n| *n <= budget)
+                                .ok_or_else(|| {
+                                    PrescanError::Limit(LimitExceeded::new(
+                                        if budget < stream_cap {
+                                            LimitKind::MaxPdfDecodedSize
+                                        } else {
+                                            LimitKind::MaxPdfStreamSize
+                                        },
+                                        "JPEG2000 codestream exceeds OCR image working budget",
+                                    ))
+                                })?;
+                        size = size.max(working);
+                    }
+                    _ => return Err(PrescanError::RenderUnsupported),
+                }
+                // Working buffers are released page by page; charge cumulative
+                // decoded RGBA bytes once, not every codec scratch copy.
+                total += size / 4;
+                continue;
+            }
+            // Generic filters still pass through bounded decoding below.
+            total += size / 4;
+        } else if !chain.is_empty() && chain.iter().all(|kind| *kind == Kind::Image) {
+            continue;
+        }
+
         let out = decode(&chain, &bytes[data_start..end], budget).map_err(|_| {
             if budget < stream_cap {
                 PrescanError::Limit(LimitExceeded::new(
@@ -131,7 +218,22 @@ pub(crate) fn prescan(
                 ))
             }
         })?;
-        total += out.len();
+        if render && direct_name(dict, b"/Subtype").as_deref() != Some(b"Image".as_slice()) {
+            let mut instructions = hayro_syntax::content::UntypedIter::new(&out);
+            while let Some(instruction) = instructions.next() {
+                let op: &[u8] = instruction.operator;
+                if op == b"BI" {
+                    return Err(PrescanError::RenderUnsupported);
+                }
+            }
+        }
+        total = total.saturating_add(out.len());
+        if total > total_cap {
+            return Err(PrescanError::Limit(LimitExceeded::new(
+                LimitKind::MaxPdfDecodedSize,
+                "OCR decoded storage exceeds max_pdf_decoded_size",
+            )));
+        }
     }
     Ok(())
 }
@@ -140,7 +242,108 @@ pub(crate) fn prescan(
 pub(crate) enum PrescanError {
     Encrypted,
     Unverifiable,
+    RenderUnsupported,
     Limit(LimitExceeded),
+}
+
+/// Bound JPEG2000 reference grid, tile area, tile count and channel precision
+/// directly from SIZ before any codec allocation. JP2 boxes are length-walked,
+/// never searched through arbitrary payload bytes.
+fn jpx_pixels(mut data: &[u8]) -> Option<usize> {
+    if !data.starts_with(b"\xff\x4f") {
+        loop {
+            let short = u32::from_be_bytes(data.get(..4)?.try_into().ok()?) as usize;
+            let kind = data.get(4..8)?;
+            let (len, header) = match short {
+                0 => (data.len(), 8),
+                1 => (
+                    usize::try_from(u64::from_be_bytes(data.get(8..16)?.try_into().ok()?)).ok()?,
+                    16,
+                ),
+                n => (n, 8),
+            };
+            if len < header || len > data.len() {
+                return None;
+            }
+            if kind == b"jp2c" {
+                data = &data[header..len];
+                break;
+            }
+            data = &data[len..];
+        }
+    }
+    if !data.starts_with(b"\xff\x4f\xff\x51") {
+        return None;
+    }
+    let read = |i| Some(u32::from_be_bytes(data.get(i..i + 4)?.try_into().ok()?) as usize);
+    let (w, h, x, y, tw, th, tx, ty) = (
+        read(8)?,
+        read(12)?,
+        read(16)?,
+        read(20)?,
+        read(24)?,
+        read(28)?,
+        read(32)?,
+        read(36)?,
+    );
+    if x >= w || y >= h || tw == 0 || th == 0 || tx > x || ty > y {
+        return None;
+    }
+    let tiles = (w - tx).div_ceil(tw).checked_mul((h - ty).div_ceil(th))?;
+    if tiles > 4096 {
+        return None;
+    }
+    let channels = u16::from_be_bytes(data.get(40..42)?.try_into().ok()?) as usize;
+    if !(1..=4).contains(&channels) {
+        return None;
+    }
+    let samples = data.get(42..42 + channels * 3)?;
+    if samples
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .any(|c| (c[0] & 127) >= 16 || c[1] == 0 || c[2] == 0)
+    {
+        return None;
+    }
+    Some(w.checked_mul(h)?.max(tw.checked_mul(th)?))
+}
+
+/// Conservative direct dictionary scalars. Ambiguous/indirect values fail closed.
+fn direct_value<'a>(dict: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    let at = find_key(dict, key)?.end;
+    if find_key(&dict[at..], key).is_some() {
+        return None;
+    }
+    Some(skip_ws(&dict[at..]))
+}
+fn direct_name<'a>(dict: &'a [u8], key: &[u8]) -> Option<std::borrow::Cow<'a, [u8]>> {
+    let rest = direct_value(dict, key)?.strip_prefix(b"/")?;
+    let n = rest
+        .iter()
+        .position(|b| !is_regular(*b))
+        .unwrap_or(rest.len());
+    let name = &rest[..n];
+    Some(if name.contains(&b'#') {
+        std::borrow::Cow::Owned(unescape_name(name))
+    } else {
+        std::borrow::Cow::Borrowed(name)
+    })
+}
+fn direct_uint(dict: &[u8], key: &[u8]) -> Option<usize> {
+    let rest = direct_value(dict, key)?;
+    let n = rest
+        .iter()
+        .position(|b| !b.is_ascii_digit())
+        .unwrap_or(rest.len());
+    if n == 0 || rest.get(n).is_some_and(|b| is_regular(*b)) {
+        return None;
+    }
+    // An indirect "W 1 0 R" must not pass as width=1.
+    if skip_ws(&rest[n..]).first().is_some_and(u8::is_ascii_digit) {
+        return None;
+    }
+    std::str::from_utf8(&rest[..n]).ok()?.parse().ok()
 }
 
 fn find(hay: &[u8], needle: &[u8]) -> Option<usize> {
@@ -170,16 +373,40 @@ fn is_regular(b: u8) -> bool {
     )
 }
 
-/// `/Key` followed by a delimiter (so `/Encrypt` does not match `/EncryptMetadata`).
-fn find_key(hay: &[u8], key: &[u8]) -> Option<usize> {
+/// Match PDF name keys, including #xx escapes. Return the complete raw name
+/// range so callers advance past escaped keys correctly. Comparison allocates
+/// nothing, even for a hostile name as long as the input.
+fn find_key(hay: &[u8], key: &[u8]) -> Option<std::ops::Range<usize>> {
     let mut from = 0;
-    while let Some(rel) = find(&hay[from..], key) {
-        let at = from + rel;
-        let next = hay.get(at + key.len()).copied().unwrap_or(b' ');
-        if !is_regular(next) {
-            return Some(at);
+    while let Some(rel) = hay[from..].iter().position(|b| *b == b'/') {
+        let start = from + rel;
+        let raw = &hay[start + 1..];
+        let len = raw
+            .iter()
+            .position(|b| !is_regular(*b))
+            .unwrap_or(raw.len());
+        let raw = &raw[..len];
+        let mut offset = 0;
+        let equal = key[1..].iter().all(|expected| {
+            let Some(mut value) = raw.get(offset).copied() else {
+                return false;
+            };
+            if value == b'#'
+                && let (Some(hi), Some(lo)) = (
+                    raw.get(offset + 1).and_then(hex),
+                    raw.get(offset + 2).and_then(hex),
+                )
+            {
+                value = hi << 4 | lo;
+                offset += 2;
+            }
+            offset += 1;
+            value == *expected
+        });
+        if equal && offset == raw.len() {
+            return Some(start..start + 1 + len);
         }
-        from = at + key.len();
+        from = start + 1 + len;
     }
     None
 }
@@ -213,13 +440,13 @@ fn dict_before(bytes: &[u8], kw: usize) -> &[u8] {
 
 /// Parse `/Filter` from raw dictionary text. `Err` when it cannot be verified.
 fn filter_chain(dict: &[u8]) -> Result<Vec<Kind>, ()> {
-    let Some(at) = find_key(dict, b"/Filter") else {
+    let Some(range) = find_key(dict, b"/Filter") else {
         return Ok(Vec::new());
     };
-    if find_key(&dict[at + 7..], b"/Filter").is_some() {
+    if find_key(&dict[range.end..], b"/Filter").is_some() {
         return Err(());
     }
-    let mut rest = skip_ws(&dict[at + 7..]);
+    let mut rest = skip_ws(&dict[range.end..]);
     let array = rest.first() == Some(&b'[');
     if array {
         rest = &rest[1..];
@@ -577,5 +804,149 @@ mod tests {
         ));
         // Words containing "stream" are not stream keywords.
         assert!(prescan(b"(upstream)\n", 10, 10).is_ok());
+    }
+    #[test]
+    fn unfiltered_streams_obey_caps() {
+        assert!(matches!(
+            prescan(b"1 0 obj << >>\nstream\n123456789\nendstream", 4, 100),
+            Err(PrescanError::Limit(_))
+        ));
+    }
+
+    #[cfg(feature = "pdf-ocr")]
+    #[test]
+    fn image_codec_cannot_be_used_as_structural_stream() {
+        assert!(matches!(
+            prescan(
+                b"1 0 obj << /Type /ObjStm /Filter /JBIG2Decode >>\nstream\nx\nendstream",
+                100,
+                100
+            ),
+            Err(PrescanError::Unverifiable)
+        ));
+    }
+
+    #[cfg(all(feature = "pdf-ocr", not(target_arch = "wasm32")))]
+    #[test]
+    fn render_preflight_bounds_images_and_refuses_unbounded_codecs() {
+        let stream = |dict: &str, data: &[u8]| {
+            let mut bytes = format!("1 0 obj << {dict} >>\nstream\n").into_bytes();
+            bytes.extend_from_slice(data);
+            bytes.extend_from_slice(b"\nendstream");
+            bytes
+        };
+        let image = "/Type /XObject /Subtype /Image /Width 10 /Height 10";
+        assert!(preflight_render(&stream(image, &[255; 100]), 10000, 20000).is_ok());
+        for extra in [
+            "/Filter /JBIG2Decode",
+            "/Filter /CCITTFaxDecode",
+            "/DecodeParms << /Columns 999999999 >>",
+        ] {
+            assert!(matches!(
+                preflight_render(&stream(&format!("{image} {extra}"), b"x"), 10000, 20000),
+                Err(PrescanError::RenderUnsupported)
+            ));
+        }
+        assert!(matches!(
+            preflight_render(
+                &stream("/Subtype /Image /Width 999999999 /Height 999999999", b"x"),
+                10000,
+                20000
+            ),
+            Err(PrescanError::Limit(_))
+        ));
+        assert!(matches!(
+            preflight_render(
+                &stream("/Subtype /Image /Width 10 0 R /Height 10", b"x"),
+                10000,
+                20000
+            ),
+            Err(PrescanError::Unverifiable)
+        ));
+        assert!(matches!(
+            preflight_render(
+                &stream("", b"BI /W 1 /H 1 /BPC 8 /CS /G ID x EI"),
+                10000,
+                20000
+            ),
+            Err(PrescanError::RenderUnsupported)
+        ));
+    }
+    #[test]
+    fn jpeg2000_bounds_use_codestream_not_pdf_dictionary() {
+        let mut code = b"\xff\x4f\xff\x51\x00\x29\x00\x00".to_vec();
+        for n in [100_u32, 200, 0, 0, 100, 200, 0, 0] {
+            code.extend(n.to_be_bytes());
+        }
+        code.extend([0, 1, 7, 1, 1]);
+        assert_eq!(jpx_pixels(&code), Some(20000));
+        let mut boxed = ((code.len() + 8) as u32).to_be_bytes().to_vec();
+        boxed.extend(b"jp2c");
+        boxed.extend(&code);
+        assert_eq!(jpx_pixels(&boxed), Some(20000));
+        code[24..28].copy_from_slice(&u32::MAX.to_be_bytes());
+        assert_eq!(jpx_pixels(&code), (u32::MAX as usize).checked_mul(200));
+        #[cfg(all(feature = "pdf-ocr", not(target_arch = "wasm32")))]
+        {
+            let mut stream =
+                b"1 0 obj << /Subtype /Image /Width 10 /Height 10 /Filter /JPXDecode >>\nstream\n"
+                    .to_vec();
+            stream.extend(&code);
+            stream.extend(b"\nendstream");
+            assert!(matches!(
+                preflight_render(&stream, 10000, 20000),
+                Err(PrescanError::Limit(_))
+            ));
+        }
+        code[40..42].copy_from_slice(&500_u16.to_be_bytes());
+        assert_eq!(jpx_pixels(&code), None);
+        assert_eq!(jpx_pixels(b"\x00\x00\x00\x01jp2c"), None);
+    }
+    #[cfg(all(feature = "pdf-ocr", not(target_arch = "wasm32")))]
+    #[test]
+    fn sequential_image_working_buffers_are_not_charged_as_retained_bytes() {
+        let image = b"1 0 obj << /Subtype /Image /Width 10 /Height 10 /Filter /DCTDecode >>\nstream\nx\nendstream\nendobj\n";
+        assert!(preflight_render(&image.repeat(5), 2000, 6500).is_ok());
+        assert!(matches!(
+            preflight_render(image, 1500, 6500),
+            Err(PrescanError::Limit(_))
+        ));
+    }
+    #[test]
+    fn image_filter_prefixes_cannot_bypass_decoded_caps() {
+        let mut bytes = b"1 0 obj << /Subtype /Image /Width 1 /Height 1 /Filter [/FlateDecode /DCTDecode] >>\nstream\n".to_vec();
+        bytes.extend(zlib(&vec![0; 2000]));
+        bytes.extend(b"\nendstream");
+        assert!(matches!(
+            prescan(&bytes, 1000, 10000),
+            Err(PrescanError::Limit(_))
+        ));
+    }
+
+    #[test]
+    fn escaped_dictionary_keys_cannot_bypass_stream_guards() {
+        let mut bytes =
+            b"1 0 obj << /Type /ObjStm /N 1 /First 4 /Fil#74er /FlateDecode >>\nstream\n".to_vec();
+        bytes.extend(zlib(&vec![0; 2000]));
+        bytes.extend(b"\nendstream");
+        assert!(matches!(
+            prescan(&bytes, 1000, 10000),
+            Err(PrescanError::Limit(_))
+        ));
+        assert!(matches!(
+            prescan(b"trailer << /En#63rypt 5 0 R >>", 1000, 10000),
+            Err(PrescanError::Encrypted)
+        ));
+        assert_eq!(filter_chain(b"<< /Filter /Fl /Fil#74er /AHx >>"), Err(()));
+    }
+
+    #[cfg(all(feature = "pdf-ocr", not(target_arch = "wasm32")))]
+    #[test]
+    fn escaped_image_names_and_dimensions_are_preflighted() {
+        let bytes = b"1 0 obj << /Sub#74ype /Ima#67e /W#69dth 999999999 /Height 999999999 >>\nstream\nx\nendstream";
+        assert!(matches!(
+            preflight_render(bytes, 10000, 20000),
+            Err(PrescanError::Limit(_))
+        ));
     }
 }

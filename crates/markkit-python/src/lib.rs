@@ -251,10 +251,56 @@ fn extract_bytes<'py>(
     })
 }
 
+/// Extract document bytes to a Python dictionary containing Markdown, metadata
+/// and optional PDF layout. OCR is local and opt-in; helpers must be installed.
+#[pyfunction]
+#[pyo3(signature = (data, *, file_name=None, content_type=None, pdf_layout=false, pdf_remove_repeated_headers=false, pdf_ocr=false, pdf_ocr_language="eng", pdf_ocr_backend="tesseract", pdf_ocr_detection_model=None, pdf_ocr_recognition_model=None, limits=None))]
+#[allow(clippy::too_many_arguments)]
+fn extract_document_sync<'py>(
+    py: Python<'py>,
+    data: Vec<u8>,
+    file_name: Option<String>,
+    content_type: Option<String>,
+    pdf_layout: bool,
+    pdf_remove_repeated_headers: bool,
+    pdf_ocr: bool,
+    pdf_ocr_language: &str,
+    pdf_ocr_backend: &str,
+    pdf_ocr_detection_model: Option<String>,
+    pdf_ocr_recognition_model: Option<String>,
+    limits: Option<PyRef<'py, Limits>>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let mut config = builder(limits.as_deref())
+        .pdf_layout(pdf_layout)
+        .pdf_remove_repeated_headers(pdf_remove_repeated_headers)
+        .pdf_ocr(pdf_ocr)
+        .pdf_ocr_language(pdf_ocr_language)
+        .pdf_ocr_backend(pdf_ocr_backend.parse().map_err(PyValueError::new_err)?);
+    if let Some(path) = pdf_ocr_detection_model {
+        config = config.pdf_ocr_detection_model(path);
+    }
+    if let Some(path) = pdf_ocr_recognition_model {
+        config = config.pdf_ocr_recognition_model(path);
+    }
+    let e = config
+        .build()
+        .extract_document_sync(
+            &data,
+            markkit::DocumentHint {
+                file_name: file_name.as_deref(),
+                content_type: content_type.as_deref(),
+            },
+        )
+        .map_err(err)?;
+    let json = serde_json::to_string(&e).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    py.import("json")?.call_method1("loads", (json,))
+}
+
 #[pymodule]
 #[pyo3(name = "markkit")]
 fn markkit_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Limits>()?;
+    m.add_function(wrap_pyfunction!(extract_document_sync, m)?)?;
     m.add_function(wrap_pyfunction!(extract_html, m)?)?;
     m.add_function(wrap_pyfunction!(extract_html_sync, m)?)?;
     m.add_function(wrap_pyfunction!(extract_html_sync_with_options, m)?)?;

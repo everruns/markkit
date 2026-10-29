@@ -19,9 +19,11 @@ path = "src/main.rs"
 doc = false
 
 [features]
-default = ["all_formats"]
+default = ["all_formats", "pdf-ocr"]
 all_formats = ["markkit/all_formats"]
 pdf = ["markkit/pdf"]
+pdf-ocr = ["pdf", "markkit/pdf-ocr"]
+pdf-ocr-ocrs = ["pdf-ocr", "markkit/pdf-ocr-ocrs"]
 docx = ["markkit/docx"]
 pptx = ["markkit/pptx"]
 spreadsheet = ["markkit/spreadsheet"]

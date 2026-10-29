@@ -126,7 +126,7 @@ pub struct Limits {
     /// [`HARD_MAX_NESTING_DEPTH`]. Default: 256.
     pub max_nesting_depth: usize,
     /// Maximum parsed nodes (HTML DOM nodes; XML elements and text nodes summed
-    /// over DOCX parts). Default: 5 000 000.
+    /// over DOCX parts; retained PDF layout pages/runs). Default: 5 000 000.
     pub max_nodes: usize,
     /// Maximum number of entries in a ZIP container (DOCX/XLSX/ODS). Default: 10 000.
     pub max_archive_entries: usize,

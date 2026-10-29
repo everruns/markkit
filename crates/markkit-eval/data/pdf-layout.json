@@ -1,0 +1,1720 @@
+[
+  {
+    "id": "simple",
+    "category": "text",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "BT /F1 10 Tf 72 700 Td (Hello) Tj ET"
+      }
+    ],
+    "markdown": "Hello\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Hello",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  97.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84.0,
+                97.0,
+                94.0
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "cropped",
+    "category": "crop",
+    "pages": [
+      {
+        "attrs": "/CropBox [50 100 450 700] /UserUnit 2",
+        "content": "BT /F1 10 Tf 100 200 Td (Hello) Tj ET"
+      }
+    ],
+    "markdown": "Hello\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 800,
+          "height": 1200,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Hello",
+              "font": "Helvetica",
+              "size": 20,
+              "angle": 0,
+              "baseline": [
+                [
+                  100,
+                  1000
+                ],
+                [
+                  150.0,
+                  1000
+                ]
+              ],
+              "bbox": [
+                100,
+                984.0,
+                150.0,
+                1004.0
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "rotate-90",
+    "category": "rotation",
+    "pages": [
+      {
+        "attrs": "/Rotate 90",
+        "content": "BT /F1 10 Tf 72 700 Td (Hello) Tj ET"
+      }
+    ],
+    "markdown": "Hello\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 792,
+          "height": 612,
+          "rotation": 90,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Hello",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 90,
+              "baseline": [
+                [
+                  700,
+                  72
+                ],
+                [
+                  700,
+                  97
+                ]
+              ],
+              "bbox": [
+                698,
+                72,
+                708,
+                97
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "rotate-180",
+    "category": "rotation",
+    "pages": [
+      {
+        "attrs": "/Rotate 180",
+        "content": "BT /F1 10 Tf 72 700 Td (Hello) Tj ET"
+      }
+    ],
+    "markdown": "Hello\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 180,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Hello",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 180,
+              "baseline": [
+                [
+                  540,
+                  700
+                ],
+                [
+                  515,
+                  700
+                ]
+              ],
+              "bbox": [
+                515,
+                698,
+                540,
+                708
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "rotate-270",
+    "category": "rotation",
+    "pages": [
+      {
+        "attrs": "/Rotate 270",
+        "content": "BT /F1 10 Tf 72 700 Td (Hello) Tj ET"
+      }
+    ],
+    "markdown": "Hello\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 792,
+          "height": 612,
+          "rotation": 270,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Hello",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 270,
+              "baseline": [
+                [
+                  92,
+                  540
+                ],
+                [
+                  92,
+                  515
+                ]
+              ],
+              "bbox": [
+                84,
+                515,
+                94,
+                540
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "text-rotated",
+    "category": "rotation",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "BT /F1 10 Tf 0 1 -1 0 100 200 Tm (Hello) Tj ET"
+      }
+    ],
+    "markdown": "Hello\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Hello",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 270,
+              "baseline": [
+                [
+                  100,
+                  592
+                ],
+                [
+                  100,
+                  567
+                ]
+              ],
+              "bbox": [
+                92,
+                567,
+                102,
+                592
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "tj-spacing",
+    "category": "spacing",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "BT /F1 10 Tf 72 700 Td [(Hi) -500 (there)] TJ ET"
+      }
+    ],
+    "markdown": "Hi there\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Hi",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  82.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84.0,
+                82.0,
+                94.0
+              ]
+            },
+            {
+              "id": 1,
+              "text": "there",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  87,
+                  92
+                ],
+                [
+                  112.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                87,
+                84.0,
+                112.0,
+                94.0
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "scaled",
+    "category": "matrix",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "q 2 0 0 2 10 20 cm BT /F1 10 Tf 10 100 Td (Hi) Tj ET Q"
+      }
+    ],
+    "markdown": "Hi\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Hi",
+              "font": "Helvetica",
+              "size": 20,
+              "angle": 0,
+              "baseline": [
+                [
+                  30,
+                  572
+                ],
+                [
+                  50.0,
+                  572
+                ]
+              ],
+              "bbox": [
+                30,
+                556.0,
+                50.0,
+                576.0
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "empty",
+    "category": "empty",
+    "pages": [
+      {
+        "attrs": "",
+        "content": ""
+      }
+    ],
+    "markdown": "",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "shuffled-columns",
+    "category": "columns",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "BT /F1 10 Tf 72 700 Td (Left first) Tj ET\nBT /F1 10 Tf 300 700 Td (Right first) Tj ET\nBT /F1 10 Tf 72 686 Td (Left second) Tj ET\nBT /F1 10 Tf 300 686 Td (Right second) Tj ET"
+      }
+    ],
+    "markdown": "Left first Left second\n\nRight first Right second\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Left first",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  122.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84.0,
+                122.0,
+                94.0
+              ]
+            },
+            {
+              "id": 1,
+              "text": "Right first",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  300,
+                  92
+                ],
+                [
+                  355.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                300,
+                84.0,
+                355.0,
+                94.0
+              ]
+            },
+            {
+              "id": 2,
+              "text": "Left second",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  106
+                ],
+                [
+                  127.0,
+                  106
+                ]
+              ],
+              "bbox": [
+                72,
+                98.0,
+                127.0,
+                108.0
+              ]
+            },
+            {
+              "id": 3,
+              "text": "Right second",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  300,
+                  106
+                ],
+                [
+                  360.0,
+                  106
+                ]
+              ],
+              "bbox": [
+                300,
+                98.0,
+                360.0,
+                108.0
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "ruled-table",
+    "category": "table",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "72 660 200 60 re S\n72 680 m 272 680 l S\n72 700 m 272 700 l S\n172 660 m 172 720 l S\nBT /F1 10 Tf 80 705 Td (Item) Tj ET\nBT /F1 10 Tf 180 705 Td (Qty) Tj ET\nBT /F1 10 Tf 80 685 Td (Apples) Tj ET\nBT /F1 10 Tf 180 685 Td (3) Tj ET\nBT /F1 10 Tf 80 665 Td (Pears) Tj ET\nBT /F1 10 Tf 180 665 Td (2) Tj ET"
+      }
+    ],
+    "markdown": "| Item | Qty |\n| --- | --- |\n| Apples | 3 |\n| Pears | 2 |\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Item",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  80,
+                  87
+                ],
+                [
+                  100.0,
+                  87
+                ]
+              ],
+              "bbox": [
+                80,
+                79.0,
+                100.0,
+                89.0
+              ]
+            },
+            {
+              "id": 1,
+              "text": "Qty",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  180,
+                  87
+                ],
+                [
+                  195.0,
+                  87
+                ]
+              ],
+              "bbox": [
+                180,
+                79.0,
+                195.0,
+                89.0
+              ]
+            },
+            {
+              "id": 2,
+              "text": "Apples",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  80,
+                  107
+                ],
+                [
+                  110.0,
+                  107
+                ]
+              ],
+              "bbox": [
+                80,
+                99.0,
+                110.0,
+                109.0
+              ]
+            },
+            {
+              "id": 3,
+              "text": "3",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  180,
+                  107
+                ],
+                [
+                  185.0,
+                  107
+                ]
+              ],
+              "bbox": [
+                180,
+                99.0,
+                185.0,
+                109.0
+              ]
+            },
+            {
+              "id": 4,
+              "text": "Pears",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  80,
+                  127
+                ],
+                [
+                  105.0,
+                  127
+                ]
+              ],
+              "bbox": [
+                80,
+                119.0,
+                105.0,
+                129.0
+              ]
+            },
+            {
+              "id": 5,
+              "text": "2",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  180,
+                  127
+                ],
+                [
+                  185.0,
+                  127
+                ]
+              ],
+              "bbox": [
+                180,
+                119.0,
+                185.0,
+                129.0
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "multiple-pages",
+    "category": "pages",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "BT /F1 10 Tf 72 700 Td (One) Tj ET"
+      },
+      {
+        "attrs": "",
+        "content": ""
+      },
+      {
+        "attrs": "",
+        "content": "BT /F1 10 Tf 72 700 Td (Three) Tj ET"
+      }
+    ],
+    "markdown": "One\n\nThree\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "One",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  87.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84.0,
+                87.0,
+                94.0
+              ]
+            }
+          ]
+        },
+        {
+          "page": 2,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": []
+        },
+        {
+          "page": 3,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Three",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  97.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84.0,
+                97.0,
+                94.0
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "borderless-table",
+    "category": "table",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "BT /F1 10 Tf 72 700 Td (Item) Tj ET\nBT /F1 10 Tf 300 700 Td (Qty) Tj ET\nBT /F1 10 Tf 72 684 Td (Apples) Tj ET\nBT /F1 10 Tf 300 684 Td (3) Tj ET\nBT /F1 10 Tf 72 668 Td (Pears) Tj ET\nBT /F1 10 Tf 300 668 Td (2) Tj ET\n"
+      }
+    ],
+    "markdown": "| Item | Qty |\n| --- | --- |\n| Apples | 3 |\n| Pears | 2 |\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Item",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  92.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84.0,
+                92.0,
+                94.0
+              ]
+            },
+            {
+              "id": 1,
+              "text": "Qty",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  300,
+                  92
+                ],
+                [
+                  315.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                300,
+                84.0,
+                315.0,
+                94.0
+              ]
+            },
+            {
+              "id": 2,
+              "text": "Apples",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  108
+                ],
+                [
+                  102.0,
+                  108
+                ]
+              ],
+              "bbox": [
+                72,
+                100.0,
+                102.0,
+                110.0
+              ]
+            },
+            {
+              "id": 3,
+              "text": "3",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  300,
+                  108
+                ],
+                [
+                  305.0,
+                  108
+                ]
+              ],
+              "bbox": [
+                300,
+                100.0,
+                305.0,
+                110.0
+              ]
+            },
+            {
+              "id": 4,
+              "text": "Pears",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  124
+                ],
+                [
+                  97.0,
+                  124
+                ]
+              ],
+              "bbox": [
+                72,
+                116.0,
+                97.0,
+                126.0
+              ]
+            },
+            {
+              "id": 5,
+              "text": "2",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  300,
+                  124
+                ],
+                [
+                  305.0,
+                  124
+                ]
+              ],
+              "bbox": [
+                300,
+                116.0,
+                305.0,
+                126.0
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "id": 0,
+              "kind": "table",
+              "cells": [
+                {
+                  "row": 0,
+                  "column": 0,
+                  "rowspan": 1,
+                  "colspan": 1
+                },
+                {
+                  "row": 0,
+                  "column": 1,
+                  "rowspan": 1,
+                  "colspan": 1
+                },
+                {
+                  "row": 1,
+                  "column": 0,
+                  "rowspan": 1,
+                  "colspan": 1
+                },
+                {
+                  "row": 1,
+                  "column": 1,
+                  "rowspan": 1,
+                  "colspan": 1
+                },
+                {
+                  "row": 2,
+                  "column": 0,
+                  "rowspan": 1,
+                  "colspan": 1
+                },
+                {
+                  "row": 2,
+                  "column": 1,
+                  "rowspan": 1,
+                  "colspan": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "wrapped-cell",
+    "category": "table",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "BT /F1 10 Tf 72 700 Td (Item) Tj ET\nBT /F1 10 Tf 300 700 Td (Qty) Tj ET\nBT /F1 10 Tf 72 684 Td (Long description) Tj ET\nBT /F1 10 Tf 300 684 Td (3) Tj ET\nBT /F1 10 Tf 72 672 Td (continued) Tj ET\nBT /F1 10 Tf 72 652 Td (Pears) Tj ET\nBT /F1 10 Tf 300 652 Td (2) Tj ET\n"
+      }
+    ],
+    "markdown": "| Item | Qty |\n| --- | --- |\n| Long description continued | 3 |\n| Pears | 2 |\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Item",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  92.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84.0,
+                92.0,
+                94.0
+              ]
+            },
+            {
+              "id": 1,
+              "text": "Qty",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  300,
+                  92
+                ],
+                [
+                  315.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                300,
+                84.0,
+                315.0,
+                94.0
+              ]
+            },
+            {
+              "id": 2,
+              "text": "Long description",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  108
+                ],
+                [
+                  152.0,
+                  108
+                ]
+              ],
+              "bbox": [
+                72,
+                100.0,
+                152.0,
+                110.0
+              ]
+            },
+            {
+              "id": 3,
+              "text": "3",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  300,
+                  108
+                ],
+                [
+                  305.0,
+                  108
+                ]
+              ],
+              "bbox": [
+                300,
+                100.0,
+                305.0,
+                110.0
+              ]
+            },
+            {
+              "id": 4,
+              "text": "continued",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  120
+                ],
+                [
+                  117.0,
+                  120
+                ]
+              ],
+              "bbox": [
+                72,
+                112.0,
+                117.0,
+                122.0
+              ]
+            },
+            {
+              "id": 5,
+              "text": "Pears",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  140
+                ],
+                [
+                  97.0,
+                  140
+                ]
+              ],
+              "bbox": [
+                72,
+                132.0,
+                97.0,
+                142.0
+              ]
+            },
+            {
+              "id": 6,
+              "text": "2",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  300,
+                  140
+                ],
+                [
+                  305.0,
+                  140
+                ]
+              ],
+              "bbox": [
+                300,
+                132.0,
+                305.0,
+                142.0
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "id": 0,
+              "kind": "table"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "tagged-heading",
+    "category": "tags",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "/H2 BMC BT /F1 10 Tf 72 700 Td (Section) Tj ET EMC\nBT /F1 10 Tf 72 670 Td (Body) Tj ET"
+      }
+    ],
+    "markdown": "## Section\n\nBody\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Section",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  107.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84.0,
+                107.0,
+                94.0
+              ]
+            },
+            {
+              "id": 1,
+              "text": "Body",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  122
+                ],
+                [
+                  92.0,
+                  122
+                ]
+              ],
+              "bbox": [
+                72,
+                114.0,
+                92.0,
+                124.0
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "id": 0,
+              "kind": "heading"
+            },
+            {
+              "id": 1,
+              "kind": "paragraph"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "ordered-list",
+    "category": "lists",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "BT /F1 10 Tf 14 TL 72 700 Td (3. first) Tj T* (4. second) Tj ET"
+      }
+    ],
+    "markdown": "3. first\n4. second\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "3. first",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  112.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84.0,
+                112.0,
+                94.0
+              ]
+            },
+            {
+              "id": 1,
+              "text": "4. second",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  106
+                ],
+                [
+                  117.0,
+                  106
+                ]
+              ],
+              "bbox": [
+                72,
+                98.0,
+                117.0,
+                108.0
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "id": 0,
+              "kind": "list"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "actual-text",
+    "category": "tags",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "BT /F1 10 Tf 72 700 Td /Span << /ActualText (Accessible text) >> BDC (junk) Tj (junk2) Tj EMC ET"
+      }
+    ],
+    "markdown": "Accessible text\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Accessible text",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  117,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84,
+                117,
+                94
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "spanning-heading",
+    "category": "columns",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "BT /F1 20 Tf 72 740 Td (Title across columns) Tj ET\nBT /F1 10 Tf 72 700 Td (Left first) Tj ET\nBT /F1 10 Tf 300 700 Td (Right first) Tj ET\nBT /F1 10 Tf 72 686 Td (Left second) Tj ET\nBT /F1 10 Tf 300 686 Td (Right second) Tj ET\n"
+      }
+    ],
+    "markdown": "# Title across columns\n\nLeft first Left second\n\nRight first Right second\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Title across columns",
+              "font": "Helvetica",
+              "size": 20,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  52
+                ],
+                [
+                  272.0,
+                  52
+                ]
+              ],
+              "bbox": [
+                72,
+                36.0,
+                272.0,
+                56.0
+              ]
+            },
+            {
+              "id": 1,
+              "text": "Left first",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  122.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84.0,
+                122.0,
+                94.0
+              ]
+            },
+            {
+              "id": 2,
+              "text": "Right first",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  300,
+                  92
+                ],
+                [
+                  355.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                300,
+                84.0,
+                355.0,
+                94.0
+              ]
+            },
+            {
+              "id": 3,
+              "text": "Left second",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  106
+                ],
+                [
+                  127.0,
+                  106
+                ]
+              ],
+              "bbox": [
+                72,
+                98.0,
+                127.0,
+                108.0
+              ]
+            },
+            {
+              "id": 4,
+              "text": "Right second",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  300,
+                  106
+                ],
+                [
+                  360.0,
+                  106
+                ]
+              ],
+              "bbox": [
+                300,
+                98.0,
+                360.0,
+                108.0
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "narrow-gutter",
+    "category": "columns",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "BT /F1 10 Tf 72 700 Td (Long left line filling the space completely.) Tj ET\nBT /F1 10 Tf 302 703 Td (Right first) Tj ET\nBT /F1 10 Tf 72 686 Td (Another left line filling the space fully.) Tj ET\nBT /F1 10 Tf 302 689 Td (Right second) Tj ET"
+      }
+    ],
+    "markdown": "Long left line filling the space completely. Another left line filling the space fully.\n\nRight first Right second\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Long left line filling the space completely.",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  292.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84.0,
+                292.0,
+                94.0
+              ]
+            },
+            {
+              "id": 1,
+              "text": "Right first",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  302,
+                  89
+                ],
+                [
+                  357.0,
+                  89
+                ]
+              ],
+              "bbox": [
+                302,
+                81.0,
+                357.0,
+                91.0
+              ]
+            },
+            {
+              "id": 2,
+              "text": "Another left line filling the space fully.",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  106
+                ],
+                [
+                  282.0,
+                  106
+                ]
+              ],
+              "bbox": [
+                72,
+                98.0,
+                282.0,
+                108.0
+              ]
+            },
+            {
+              "id": 3,
+              "text": "Right second",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  302,
+                  103
+                ],
+                [
+                  362.0,
+                  103
+                ]
+              ],
+              "bbox": [
+                302,
+                95.0,
+                362.0,
+                105.0
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "shuffled-lines",
+    "category": "order",
+    "pages": [
+      {
+        "attrs": "",
+        "content": "BT /F1 10 Tf 72 686 Td (Second line) Tj ET\nBT /F1 10 Tf 72 700 Td (First line) Tj ET"
+      }
+    ],
+    "markdown": "First line Second line\n",
+    "layout": {
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "width": 612,
+          "height": 792,
+          "rotation": 0,
+          "spans": [
+            {
+              "id": 0,
+              "text": "Second line",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  106
+                ],
+                [
+                  127.0,
+                  106
+                ]
+              ],
+              "bbox": [
+                72,
+                98.0,
+                127.0,
+                108.0
+              ]
+            },
+            {
+              "id": 1,
+              "text": "First line",
+              "font": "Helvetica",
+              "size": 10,
+              "angle": 0,
+              "baseline": [
+                [
+                  72,
+                  92
+                ],
+                [
+                  122.0,
+                  92
+                ]
+              ],
+              "bbox": [
+                72,
+                84.0,
+                122.0,
+                94.0
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

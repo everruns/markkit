@@ -1,0 +1,431 @@
+{
+  "date": "2026-10-29",
+  "scope": "Replace optional PDF OCR Poppler rasterization with Rust Hayro; retain layout/tables and Tesseract recognition; audit remaining native dependencies.",
+  "source_revision": "7a4e62f0497deee864f39600e5a36a3d348260bf",
+  "source_dirty": true,
+  "candidate_binary_sha256": "54ac90378f5c89ecad827836306e363641c3bfe79585365c00d2de6b34d8db47",
+  "provenance_review": {
+    "project": "https://github.com/LaurenzV/hayro",
+    "registry_release": "0.8.0",
+    "registry_checksum": "4675ff5acd7ca41c0c34ccd2a3a154f5c86d8b5ec92bef0a114bfb194969e2af",
+    "registry_owners": [
+      "LaurenzV"
+    ],
+    "maintainer_public_name": "Laurenz Stampfl",
+    "maintainer_public_location": "Vienna, Austria",
+    "earliest_surviving_default_branch_commit": "38efa5f7d08e68ebca2d1a209d4921c1deffeaf3",
+    "earliest_commit_date": "2025-04-22",
+    "finding": "No Russian organizational ownership found in public repository/registry records. Does not certify every contributor, historical affiliation or transitive dependency author."
+  },
+  "public_default_regression": {
+    "cases": 178,
+    "regressions": [],
+    "quality": {
+      "agentdocbench/category/cjk": 0.9335,
+      "agentdocbench/category/docx": 0.9988666666666667,
+      "agentdocbench/category/epub": 0.9891333333333333,
+      "agentdocbench/category/financial": 0.49095,
+      "agentdocbench/category/form": 0.8377666666666667,
+      "agentdocbench/category/html": 1.0,
+      "agentdocbench/category/paper": 0.8956333333333333,
+      "agentdocbench/category/report": 0.8705,
+      "agentdocbench/category/scanned": 0.0,
+      "agentdocbench/category/slides": 0.75135,
+      "agentdocbench/category/spreadsheet": 1.0,
+      "agentdocbench/category/two-column": 0.7586666666666667,
+      "agentdocbench/format/csv": 1.0,
+      "agentdocbench/format/docx": 0.9988666666666667,
+      "agentdocbench/format/epub": 0.9891333333333333,
+      "agentdocbench/format/html": 1.0,
+      "agentdocbench/format/pdf": 0.6553260869565217,
+      "agentdocbench/format/pptx": 0.9572,
+      "agentdocbench/format/xlsx": 1.0,
+      "agentdocbench/no_ocr": 0.8660333333333333,
+      "agentdocbench/overall": 0.7938638888888889,
+      "wcxb/default/overall": 0.6770940834789322,
+      "wcxb/default/type/article": 0.8593022688301003,
+      "wcxb/default/type/collection": 0.5618264586879532,
+      "wcxb/default/type/documentation": 0.849698642479727,
+      "wcxb/default/type/forum": 0.4559187546618804,
+      "wcxb/default/type/listing": 0.6660601098285603,
+      "wcxb/default/type/product": 0.5220558838570278,
+      "wcxb/default/type/service": 0.8247964660072756,
+      "wcxb/main_content/overall": 0.4999264653091694,
+      "wcxb/main_content/type/article": 0.9687139672138977,
+      "wcxb/main_content/type/collection": 0.484765233729096,
+      "wcxb/main_content/type/documentation": 0.7157843169028515,
+      "wcxb/main_content/type/forum": 0.10889386123735083,
+      "wcxb/main_content/type/listing": 0.33261257051933946,
+      "wcxb/main_content/type/product": 0.4767832465487646,
+      "wcxb/main_content/type/service": 0.41193206101288565
+    },
+    "provenance": {
+      "binary_sha256": "54ac90378f5c89ecad827836306e363641c3bfe79585365c00d2de6b34d8db47",
+      "build_profile": "release",
+      "command": [
+        "/workspace/markkit/target/public-benchmarks/bin/mira",
+        "run",
+        "--study-python",
+        "scripts/public_benchmarks/study.py",
+        "--max-concurrent",
+        "1",
+        "--max-retries",
+        "0",
+        "--timeout",
+        "300",
+        "--group-by",
+        "category",
+        "--format",
+        "json",
+        "--out",
+        "/workspace/markkit/work/hayro-review/public/mira.json"
+      ],
+      "core_diff_sha256": "d558790fae49d8a697de670706a70621ac0b787bfe2a903cfa51e2d1b46dfd50",
+      "cpu_count": 5,
+      "machine": "x86_64",
+      "mira_version": "mira 0.5.0",
+      "pins": {
+        "agentdocbench": "e97ccc4a2be9c9a71289c4e000e60e953daccaa3",
+        "mira": "v0.5.0",
+        "mira_linux_archive_sha256": "b69d1a9af34d83aae87aad2453cf642739de9e0859e043b2b6571839ef7462fc",
+        "mira_sdk": "334506ef19a1d975dace0f2c51092548a10c7b3e",
+        "samples_per_type": 10,
+        "seed": "markkit-public-pilot-v1:",
+        "wcxb": "c039d5ee9f5a3a984a0e167e63aacd04e76e78a9"
+      },
+      "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+      "python": "3.12.14",
+      "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+      "source_dirty": true,
+      "source_revision": "7a4e62f0497deee864f39600e5a36a3d348260bf",
+      "timing_boundary": "median of 3 fresh CLI processes after 1 warm-up; sequential; includes startup"
+    }
+  },
+  "pdf_scenes": {
+    "cases": 40,
+    "passed": 40,
+    "samples": 20,
+    "modes": [
+      "default",
+      "layout"
+    ]
+  },
+  "public_pdf_geometry": {
+    "documents": 23,
+    "pages": 243,
+    "cases": [
+      {
+        "id": "paper-evsched",
+        "pages": 23,
+        "spans": 12924,
+        "blocks": 310,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "paper-rankone",
+        "pages": 27,
+        "spans": 35955,
+        "blocks": 2302,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "paper-ulam",
+        "pages": 11,
+        "spans": 21304,
+        "blocks": 287,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "twocol-bygpt5",
+        "pages": 16,
+        "spans": 16572,
+        "blocks": 542,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "twocol-smile",
+        "pages": 13,
+        "spans": 11879,
+        "blocks": 733,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "twocol-uscore",
+        "pages": 17,
+        "spans": 16510,
+        "blocks": 502,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "report-crs-dod-approps",
+        "pages": 12,
+        "spans": 10842,
+        "blocks": 397,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "report-plz",
+        "pages": 5,
+        "spans": 5502,
+        "blocks": 52,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "fed-h8",
+        "pages": 22,
+        "spans": 10785,
+        "blocks": 2841,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "fin-bls-realer",
+        "pages": 5,
+        "spans": 6722,
+        "blocks": 571,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "fin-census-income",
+        "pages": 10,
+        "spans": 7424,
+        "blocks": 743,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "invoice-borderless",
+        "pages": 2,
+        "spans": 113,
+        "blocks": 42,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "form-1040es",
+        "pages": 12,
+        "spans": 5334,
+        "blocks": 631,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "form-w4",
+        "pages": 4,
+        "spans": 1739,
+        "blocks": 189,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "irs-w9",
+        "pages": 6,
+        "spans": 1074,
+        "blocks": 199,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "scan-nasa-budget",
+        "pages": 3,
+        "spans": 0,
+        "blocks": 0,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "scan-nasa-notes",
+        "pages": 3,
+        "spans": 0,
+        "blocks": 0,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "scan-oklahoma-address",
+        "pages": 7,
+        "spans": 0,
+        "blocks": 0,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "cjk-jp-stat-elderly",
+        "pages": 4,
+        "spans": 2797,
+        "blocks": 190,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "cjk-tw-archives",
+        "pages": 4,
+        "spans": 2385,
+        "blocks": 15,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "cjk-tw-dgbas-cpi",
+        "pages": 6,
+        "spans": 3614,
+        "blocks": 368,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "slides-nasa-clarreo",
+        "pages": 15,
+        "spans": 5715,
+        "blocks": 160,
+        "markdown_unchanged": true
+      },
+      {
+        "id": "slides-nist-pqc-update",
+        "pages": 16,
+        "spans": 4054,
+        "blocks": 190,
+        "markdown_unchanged": true
+      }
+    ]
+  },
+  "ocr": {
+    "documents": 3,
+    "poppler_mean_document_score": 0.5233666666666666,
+    "hayro_mean_document_score": 0.5604666666666667,
+    "cases": [
+      {
+        "id": "scan-nasa-budget",
+        "scores": {
+          "document_score": 0.3253,
+          "sentences": 0.2,
+          "order": 0.6667,
+          "table_cells_f1": 0.1091
+        },
+        "seconds": 5.4309253960000206,
+        "spans": 839,
+        "binary_sha256": "54ac90378f5c89ecad827836306e363641c3bfe79585365c00d2de6b34d8db47",
+        "baseline_score": 0.353,
+        "score_delta": -0.0277
+      },
+      {
+        "id": "scan-nasa-notes",
+        "scores": {
+          "document_score": 0.4394,
+          "sentences": 0.5,
+          "order": 0.8182,
+          "table_cells_f1": 0.0
+        },
+        "seconds": 5.464721544998611,
+        "spans": 785,
+        "binary_sha256": "54ac90378f5c89ecad827836306e363641c3bfe79585365c00d2de6b34d8db47",
+        "baseline_score": 0.3838,
+        "score_delta": 0.0556
+      },
+      {
+        "id": "scan-oklahoma-address",
+        "scores": {
+          "document_score": 0.9167,
+          "sentences": 0.8333333333333334,
+          "order": 1.0
+        },
+        "seconds": 14.05723030000081,
+        "spans": 3174,
+        "binary_sha256": "54ac90378f5c89ecad827836306e363641c3bfe79585365c00d2de6b34d8db47",
+        "baseline_score": 0.8333,
+        "score_delta": 0.0834
+      }
+    ],
+    "regressed_cases": [
+      "scan-nasa-budget"
+    ],
+    "configuration": "--ocr --timeout 300 --json --layout; 1800px white-backed grayscale PGM; interpolation forced; explicit page DPI; Tesseract eng with one OpenMP thread; PATH contains only Tesseract (no Poppler)",
+    "timing_note": "Observed end-to-end wall time only; concurrent build activity and cache differences prevent a controlled performance comparison."
+  },
+  "validation": {
+    "workspace_all_features": {
+      "passed": 820,
+      "failed": 0,
+      "ignored": 1
+    },
+    "ocr_integration_explicit": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    "pdf_only_tests": {
+      "passed": 134,
+      "failed": 0,
+      "ignored": 0
+    },
+    "format": "passed",
+    "knowledge": "OKF v0.2 conformant",
+    "clippy": "passed",
+    "clippy-pdf-only": "passed",
+    "workspace-build": "passed",
+    "wasm-build": "passed",
+    "rustdoc": "passed",
+    "node": {
+      "passed": 10,
+      "failed": 0
+    },
+    "wasm": {
+      "passed": 23,
+      "failed": 0
+    },
+    "python": {
+      "passed": 2,
+      "failed": 0
+    }
+  },
+  "native_dependencies": {
+    "production": [
+      "Tesseract C++ and Leptonica C, host-installed for optional OCR; distribution-specific codec libraries",
+      "AWS-LC C/assembly for optional http_client TLS",
+      "CPython C / Node V8 C++ host runtimes for bindings",
+      "OS APIs and platform certificate stores"
+    ],
+    "development_only": [
+      "alloca C shim via Criterion"
+    ],
+    "not_enabled": [
+      "ring is in lockfile but not the active reviewed all-features graph"
+    ],
+    "renderer": "Hayro and its rendering/codec/font/color libraries are Rust; no Poppler executable required."
+  },
+  "limits_and_tradeoffs": [
+    "OCR mean improves, but NASA Budget falls from 0.3530 to 0.3253; per-case regression remains visible.",
+    "Hayro rendering is non-interruptible with cooperative deadline checks before/after; host isolation provides hard CPU/memory quotas.",
+    "JPEG, header-bounded JPEG2000 and generic-filter image OCR are supported. Inline images, DecodeParms, JBIG2 and CCITT OCR fail explicitly until bounded decoder support exists.",
+    "Per-image working estimate is 16 bytes per pixel; cumulative RGBA estimate is four bytes per pixel. These estimates are not a hard heap quota.",
+    "All existing layout/table inference limitations remain; no corpus/baseline/scorer changes."
+  ],
+  "changed_source_sha256": {
+    "Cargo.lock": "5f00819f5dbc9ed5dbb2ca5fe1152b592af34ef6d6f125aa8a40861c0b780b1b",
+    "Cargo.toml": "16622c0ddc29a8556ec93743b0c05cfa73974679590f70029dc615e364e4ffa6",
+    "crates/markkit-cli/Cargo.toml": "00ca964fa09dbb701e54dd43895927bd193877dccb85664352e6f15f68c61de0",
+    "crates/markkit-cli/src/main.rs": "13a93ed3ad55e1244eb0e285aa343e56e2e9720383cd1fcdb06795c825f2b696",
+    "crates/markkit-cli/tests/cli_integration.rs": "7cecfb9131c1cc446bdc3438a448cd630b1b0d440e7fa26641dcb47177ce5aad",
+    "crates/markkit-eval/Cargo.toml": "903b131f5716708491924ea56af529e681a980c499223d909cab1b93e43fee7d",
+    "crates/markkit-eval/data/pdf-layout.json": "38f5ac20041441fad3f6efcbe5a2f8ca82d408339c953971ccf036ebf856d42b",
+    "crates/markkit-eval/src/lib.rs": "ee1e9ac8ec5113fbb2b0a2cea6948e07905d9cc0d021c49ee212fc3f51ddf843",
+    "crates/markkit-eval/src/main.rs": "feb406d2f02b3fc35efd7a0647780dc7c66656852da1219e24b17f848f70720e",
+    "crates/markkit-eval/src/pdf.rs": "43bc3ee3b2fbd358068361bdce611710859ada341a1c631d566f367ebe6d6319",
+    "crates/markkit-js/Cargo.toml": "8c1465370c370169f46de4d689ee7a65d49cc2a6d021ae9f24df4b75aaa773e6",
+    "crates/markkit-js/__test__/options.test.cjs": "551806085f99d27176e798eeb224c6d99828fd446573ca2641b2896b7df5851f",
+    "crates/markkit-js/src/lib.rs": "d95f076585da9f14ef29d8e622ddb3566ce6db46655c7570208807bd6275b316",
+    "crates/markkit-python/Cargo.toml": "60a08f0895531f9f4e47b9df5058c1f48b202449256f587c6f2b802d3295b86f",
+    "crates/markkit-python/src/lib.rs": "bed7b5ba5ec910e4561117599f88e83a9ff054d6555cc15012e28d0c3548326c",
+    "crates/markkit-python/tests/test_documents.py": "8bad0e0698412f3f26c0af583b16e2dbfb23f04aeaf5c2892875f21183b1b243",
+    "crates/markkit-wasm/Cargo.toml": "6b59cdb571c528ce4f362e5d0713e2ef0aab29eb928cd44579855cef2c9095cc",
+    "crates/markkit-wasm/__test__/markkit-wasm.test.mjs": "6edd60dae6a6bc165b6c78e9ef1d5134b21a5ab10f4509fe5e0953468612209b",
+    "crates/markkit-wasm/js/index.d.ts": "3f6c9853e1dd753ef940fa667827bff52d34a2707526ac243e6360082528c404",
+    "crates/markkit-wasm/src/lib.rs": "85791162e8d7862019c1b7da621a28ee4b2bb7789fafa04ccac1004eb72ad1d3",
+    "crates/markkit/Cargo.toml": "ac7cf6249887b6fc346206506097acefae230fd605224380ec0ab5eae48f5436",
+    "crates/markkit/src/config.rs": "829c85678fc0eee0b8912af173a8d175f125763af4a8ad90eca1f13ed97e1a69",
+    "crates/markkit/src/extract.rs": "87b796ff60a4f995e6c6c308e480d132281f53983b9a76a66da021b935e2ed5e",
+    "crates/markkit/src/ir.rs": "b7a121efe1e498697698176bf2b779631f76a5daf511aebd74b6fa97c0b368b2",
+    "crates/markkit/src/layout.rs": "1979d867083314b2d5550bfe80b2c1a85f7da3a3bc5056af13379080b40bb623",
+    "crates/markkit/src/lib.rs": "78db7fa50930b8d60e123ac0c199b27376667b360b93da34dc7a19cc3b1f3f63",
+    "crates/markkit/src/limits.rs": "a197331637943ef907791697f1cb1c3270e35a6b5f7aed8480464bd01b00e0cc",
+    "crates/markkit/src/pdf/analyze.rs": "f27c781852039c574b72a6cc71594ac04562d39134794311b97e8dfb6252aa4d",
+    "crates/markkit/src/pdf/font.rs": "32c2569858d14ffb1cc6caf6419d79c25dce9c57bb33e1741a8714a728fdf02e",
+    "crates/markkit/src/pdf/guard.rs": "489d3bf291c63656ecd0181318dd4fffd7ac300e89ad029428814f3f2660d07e",
+    "crates/markkit/src/pdf/layout.rs": "8c9be884482158a6832989dab75936381cea955419d122e710e5b195478e88c6",
+    "crates/markkit/src/pdf/mod.rs": "95c0f19f28f49569c7f554166b67b99aa335eadc88c129b140cc7a1a75a3ada2",
+    "crates/markkit/src/pdf/ocr.rs": "40fb7b6774646653d1a67a5a2a5dfe56ec6f15350bfec6d24128a4afa830a70f",
+    "crates/markkit/src/pdf/tags.rs": "9e925845654113cdc2fecdf5a96f55377c8a23bd8443f9b70494a7dbde71cced",
+    "crates/markkit/tests/pdf_layout.rs": "9db16686713b59ae187bd315c8c47416bd7f67925750f80011c88f6f6cd2964a",
+    "crates/markkit/tests/pdf_ocr.rs": "824fe669525deee5043420cfb13c0d91923b5bf1fa373d6cc000de021d040304",
+    "crates/markkit/tests/pdf_structure.rs": "fd941762bbee191421f3eb790906e25a9b7d6ce49e5f55f8641595a0a5c54ca8",
+    "schema/ir.schema.json": "3763054cb70c7ce75c86b0ec2a70948cbee17d2e60613256ec63d697e8fe1860"
+  }
+}

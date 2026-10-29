@@ -376,6 +376,9 @@ pub struct Source {
     /// Paged formats: 1-based page number (PPTX: slide number).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub page: Option<u32>,
+    /// PDF: page-local semantic layout block ID.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layout_block: Option<usize>,
 }
 
 impl Source {

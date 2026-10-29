@@ -19,6 +19,11 @@ fn markkit_extract() -> Eval {
 }
 
 #[eval]
+fn markkit_pdf() -> Eval {
+    markkit_eval::pdf::pdf_eval()
+}
+
+#[eval]
 fn markkit_qa() -> Eval {
     markkit_eval::qa::qa_eval()
 }

@@ -85,18 +85,33 @@ All block variants except `ThematicBreak` also carry `source` (see Provenance).
 | `FootnoteReference` | `label: String` | Marker pointing at the `FootnoteDefinition` with the same label. |
 | `Math` | `tex: String` | Inline math, TeX source. Renders GitHub's `` $`tex`$ `` form: one line, trimmed, inside a code span so plain-GFM readers never parse it as Markdown or HTML. |
 
+### PDF layout sidecar
+
+`ParsedDocument::layout` / `Extraction::layout` optionally hold `layout::PdfLayout`
+when `pdf_layout(true)` is enabled. This is source geometry, not part of `Document`
+or its schema: IR_VERSION remains 2. Layout has its own `version` (1), with pages
+source spans/words in drawing order, and blocks/lines/table cells in reading order.
+`(page, span.id)` identifies a source run deterministically. IR `Source.page` +
+`Source.layout_block` link to the page-local semantic block ID. Source geometry
+remains valid if transforms move or delete semantic nodes.
+See [Format Support](../formats/format-support.md) for coordinates and limits.
+
 ### Provenance (`Source`)
 
 Every block variant except `ThematicBreak` has `source: Option<Box<Source>>`
-(omitted from JSON when `None`). Parsers fill it only when
-`MarkkitBuilder::track_sources(true)`; Markdown output is identical either way.
+(omitted from JSON when `None`). Parsers fill it when
+`MarkkitBuilder::track_sources(true)`; PDF layout output additionally supplies page
+and layout-block references even when tracking is off. Markdown is identical either way.
 
 | Field | Set by | Meaning |
 |-------|--------|---------|
 | `path` | HTML | Absolute XPath in the parsed DOM, every step indexed: `/html[1]/body[1]/div[1]/p[2]`. Indexes count same-name element siblings (excluded elements included). Cached per parent, O(depth) per block. |
 | `index` | DOCX | 0-based index of the body-level `w:p`/`w:tbl` in document order, counting blank paragraphs and those inside `w:sdt`/`w:ins`. Lists take their first item's index. |
 | `sheet`, `range` | Spreadsheets | Sheet name on the heading and table; table gets the A1 bounding box of kept cells (`B2:C3`). |
-| `page` | PPTX; paged formats (PDF, later) | 1-based page; PPTX: slide number on every block of the slide, notes included. |
+| `page` | PPTX, PDF | 1-based page; PPTX: slide number on every block of the slide, notes included. |
+
+PDF layout additionally records `Source.layout_block`: the page-local block ID,
+when layout output is enabled, even if track_sources is off.
 
 Blocks synthesized by normalization (inline runs wrapped in `Paragraph`) and
 blocks nested inside inline/table-cell content have no source. Accessors:

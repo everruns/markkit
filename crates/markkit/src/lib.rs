@@ -42,7 +42,8 @@
 //! - **Jupyter notebooks** (always on): `.ipynb`, cells and text outputs
 //! - **CSV / TSV** (always on): `text/csv`, `text/tab-separated-values`, `.csv`, `.tsv`, one table
 //! - **Markdown** (`markdown`): `text/markdown`, `.md`, normalized through the IR
-//! - **PDF** (`pdf`): Text layer of PDF documents (no OCR); encrypted PDFs are
+//! - **PDF** (`pdf`): Text, layout and tables; optional native OCR (`pdf-ocr`)
+//!   uses Rust Hayro rendering and installed Tesseract. Encrypted PDFs are
 //!   rejected with [`Error::UnsupportedFormat`]
 //! - **URL fetching** (`http_client`, opt-in): Fetch and extract from URLs via reqwest
 //! - **Agent tool** (`tool`): `markkit::tool::MarkkitTool`, an LLM tool following the
@@ -77,6 +78,7 @@ pub mod format;
 #[cfg(feature = "html")]
 pub mod html;
 pub mod ir;
+pub mod layout;
 pub mod limits;
 #[cfg(feature = "markdown")]
 mod markdown;
@@ -108,7 +110,7 @@ pub mod transform;
 #[cfg_attr(not(feature = "docx"), allow(dead_code))] // DOCX uses every helper
 mod xml;
 
-pub use config::MarkkitBuilder;
+pub use config::{MarkkitBuilder, PdfOcrBackend};
 pub use error::Error;
 pub use extract::{
     Extraction, ExtractionStats, Markkit, Metadata, ParsedDocument, Warning, WarningCode,

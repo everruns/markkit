@@ -407,7 +407,16 @@ decompression or content amplification, crashing the parser, or hiding text.
   with the same bounded decoders, never hayro's `decoded()`.
 - Refused instead of trusted: an indirect or repeated `/Filter` (`Error::PdfExtract`),
   and encrypted files (`/Encrypt` key; the scan would only see ciphertext) →
-  `UnsupportedFormat`. Image filters end a chain; hayro is built without image decoders.
+  `UnsupportedFormat`. Image filters end a chain. OCR-enabled builds enable Hayro image decoders;
+  streams with image codecs must declare Image subtype and cannot declare structural
+  object/xref stream metadata.
+
+- Dictionary key/name matching honors PDF #xx escapes, including Filter,
+  Encrypt, Subtype and image dimensions. Compressed prefixes before an image
+  codec are still measured through bounded decoders; image termination cannot
+  bypass prefix caps. Regression tests: pdf::guard::tests::image_filter_prefixes_cannot_bypass_decoded_caps,
+  escaped_dictionary_keys_cannot_bypass_stream_guards and
+  escaped_image_names_and_dimensions_are_preflighted.
 
 #### T8b: Interpretation amplification
 - Every decoded content stream is charged to an interpretation budget equal to
@@ -417,6 +426,50 @@ decompression or content amplification, crashing the parser, or hiding text.
 - `q` nesting capped at 256 saved states; non-finite matrices are ignored.
 - CMap `bfrange`s are never expanded (binary-searched ranges); `/W` arrays capped at 65 536 entries.
 - `max_pdf_pages` (10 000) truncates with a `truncated_pdf` warning.
+- Source pages/runs/words, vector segments, structure-tree objects and semantic
+  regions count against `max_nodes`, including when layout JSON is disabled. Before
+  cloning each run, retained struct/text/font storage is charged to a separate
+  `max_pdf_decoded_size` budget. Compact layout JSON is counted through a bounded
+  writer (no JSON allocation) against `max_output_size`, even for parse-only
+  callers. The writer checks the deadline. Coordinates use f64 arithmetic;
+  invalid page dimensions/UserUnit and non-finite output geometry are rejected.
+  Pair comparisons have a separate decoded-size work budget and deadline checks;
+  table grids obey row/column/cell caps before allocation. Marked-content nesting
+  is capped at 256; structure-tree recursion obeys max_nesting_depth with cycle
+  detection; role names cap at 256 bytes and ActualText replacement is charged.
+- Opt-in OCR uses Rust Hayro rendering with Tesseract via direct argv or optional
+  Rust ocrs/RTen inference using explicit local ONNX models.
+  Image allocation estimates and raster dimensions/bytes are checked first; inline
+  images, DecodeParms and JBIG2/CCITT OCR are explicitly unsupported pending
+  bounded decoder support. Raster dimensions cap at 1800 per side; f32 scale
+  finiteness and resulting dimensions are checked before Hayro allocation,
+  including extreme aspect ratios. Hayro rendering
+  is non-interruptible; check the deadline before and after, per S16. This is not
+  a hard memory/CPU quota: deployments processing hostile input require host
+  isolation. Tesseract has private temporary files, output caps and deadline
+  polling, with kill+reap on expiry. OCR requires explicit configuration.
+  Ocrs never downloads assets or invokes helpers. Its models are trusted host
+  configuration; combined model file bytes obey max_pdf_decoded_size before
+  parsing, but weights/activation heap allocations require host quotas. Check
+  deadlines around each non-interruptible inference phase and between recognition
+  batches of at most 20 lines. Detected boxes and retained OCR words count against
+  max_nodes; strings/clones are checked against retained storage before allocation.
+  Model-version/size/hash pins and attribution live outside library packages;
+  the preparation script refuses corrupt downloads without replacing existing assets.
+  Tests: pdf_ocr::ocrs_model_size_and_invalid_data_fail_explicitly,
+  ocrs_requires_explicit_models_and_supported_language; explicit pinned-model
+  ocrs_recognizes_scanned_text_with_source_word_geometry covers known word positions.
+  Tests: pdf_ocr::invalid_ocr_language_is_rejected_without_spawning_helpers,
+  pdf::ocr::tests::tsv_words_are_scaled_and_malformed_rows_skipped, and explicit
+  image_only_pdf_is_recognized_with_positioned_words integration.
+  Geometry/table tests: pdf_structure::security_table_grid_caps_apply_before_expansion,
+  security_marked_content_depth_and_actual_text_storage_are_bounded. OCR cap kind
+  and child cleanup: pdf::ocr::tests::output_caps_keep_the_limit_kind /
+  expired_helper_is_killed_and_reaped.
+  Tests: `pdf_layout::security_layout_limits_apply_to_parse_only_callers`,
+  `security_invalid_page_dimensions_are_rejected`,
+  `security_extreme_transforms_never_publish_nonfinite_coordinates`,
+  `security_arbitrary_layout_streams_never_panic`.
 
 #### T8c: Parser crashes on malformed input
 - hayro-syntax repairs broken xref tables and returns `None` on bad objects; markkit

@@ -136,6 +136,10 @@ eval-list:
 eval *args:
     mira run --study-bin markkit-eval markkit_extract {{args}}
 
+# PDF text/layout quality, including column and table reconstruction.
+eval-pdf *args:
+    mira run --study-bin markkit-eval markkit_pdf {{args}}
+
 # Run the LLM QA eval (markkit markdown vs raw HTML as model context). Needs
 # ANTHROPIC_API_KEY / OPENROUTER_API_KEY; unkeyed targets are skipped. Keys live
 # in Doppler: doppler run -- just eval-llm
@@ -213,3 +217,11 @@ docs:
 # Build documentation (no open)
 docs-build:
     cargo doc --workspace --no-deps
+
+# Fetch and verify optional OCR model assets (separate CC-BY-SA weights).
+ocr-models *args:
+    python3 scripts/prepare_ocr_models.py {{args}}
+
+# Repeated Tesseract vs ocrs comparisons on the existing pinned public scans.
+eval-ocr *args:
+    target/public-benchmarks/venv/bin/python scripts/compare_pdf_ocr.py {{args}}

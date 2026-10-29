@@ -13,8 +13,11 @@ description = "Node.js bindings for Markkit markdown extraction via NAPI-RS"
 crate-type = ["cdylib"]
 doc = false
 
+[features]
+pdf-ocr-ocrs = ["markkit/pdf-ocr-ocrs"]
+
 [dependencies]
-markkit = { path = "../markkit", features = ["all_formats", "http_client"] }
+markkit = { path = "../markkit", features = ["all_formats", "pdf-ocr", "http_client"] }
 napi.workspace = true
 napi-derive.workspace = true
 
