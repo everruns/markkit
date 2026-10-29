@@ -20,7 +20,7 @@ tags:
   browsers (incl. iframes), edge workers, Node, Deno and Bun.
 - **Separate from the napi package** (`@everruns/markkit`), which stays the fast
   native option for Node on Linux x64.
-- **Features**: `html`, `docx`, `spreadsheet`, `markdown`, `tool`. No `http_client`: reqwest
+- **Features**: `html`, `pdf`, `docx`, `spreadsheet`, `markdown`, `tool`. No `http_client`: reqwest
   needs sockets, and the host fetching keeps network policy (SSRF) with the host.
   The tool therefore offers only `html` and `content_base64`.
 
@@ -38,6 +38,7 @@ tool.toolDefinition(); await tool.execute(args);
 ```
 
 Options are camelCase builder fields (`maxInputSize`, `maxOutputSize`,
+`pdfLayout`, `pdfRemoveRepeatedHeaders`, `maxPdfPages`, `maxPdfStreamSize`, `maxPdfDecodedSize`,
 `maxNodes`, `maxNestingDepth`, `baseUrl`, `mainContent`, `preserveLinks`,
 `preserveImages`, `includeSelectors`, `excludeSelectors`, archive and sheet
 limits, `includeHiddenSheets`). Selectors add to the defaults, as in Python.
@@ -65,14 +66,14 @@ bash crates/markkit-wasm/scripts/build.sh # -> crates/markkit-wasm/pkg
 ```
 
 Uses the `wasm-release` profile (`opt-level = "z"`, `panic = "abort"`); runs
-`wasm-opt -Oz` when binaryen is on PATH. Unoptimized output is about 1.4 MB.
+`wasm-opt -Oz` when binaryen is on PATH. Output size depends on enabled parsers.
 With `panic = "abort"` a Rust panic traps the instance; parsers are expected to
 return errors, never panic (invariant S9).
 
 ## Tests
 
 `crates/markkit-wasm/__test__/*.test.mjs` (`node --test`) run against `pkg/`:
-options and their validation, HTML, bytes, DOCX through the zip/XML stack
+options and their validation, HTML, bytes, PDF text/layout/tables and limits, DOCX through the zip/XML stack
 (fixtures built by `__test__/zip.mjs`), archive limits, malformed input, version
 parity with `package.json`, and the tool (definition, locale, execution,
 `userFacing` errors). CI job `wasm` in `ci.yml` also checks the core crate for

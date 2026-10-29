@@ -6,28 +6,24 @@
 //! checked by [`guard::prescan`] before hayro sees the file, and all streams
 //! markkit interprets go through [`guard::decode`] (see guard.rs).
 //!
-//! Text layer only: no OCR, no image extraction. Best-effort layout (see
-//! knowledge/formats/format-support.md):
-//! - Text-showing operators are interpreted with the text/graphics state
-//!   (`Tm`, `CTM`, `Tc`, `Tw`, `Tz`, `TL`, `Ts`, `TJ` kerning) to place each
-//!   run in device space. Form XObjects are followed (depth 8, cycle-safe).
-//! - Runs join into lines in content-stream order (same baseline, moving right);
-//!   gaps wider than ~0.15 em become spaces.
-//! - Lines join into paragraphs; a vertical gap above ~1.3× the page's typical
-//!   line pitch, a move upwards (new column), or a font-size change starts a new
-//!   one. `letter-` + lowercase continuation is de-hyphenated.
-//! - A line starting with a bullet glyph (`•`, `▪`, `–`, …) plus a space starts a
-//!   list item; consecutive items form one unordered list.
-//! - Headings: short paragraphs at ≥ 1.2× the dominant body size; the largest
-//!   sizes map to `#`, `##`, … (max 6).
+//! Glyph geometry, tagged roles and vector rulings feed a bounded spatial
+//! analyzer: reading order, paragraphs, headings, styled/numbered lists, ruled
+//! tables with spans and conservative borderless tables. Optional native OCR
+//! (`pdf-ocr`) recognizes textless pages using Hayro and installed Tesseract.
+//! `pdf_layout(true)` exposes source runs/words and semantic block/cell geometry.
 //!
 //! Limits: `max_pdf_pages` (truncate + `truncated_pdf` warning),
 //! `max_pdf_stream_size` / `max_pdf_decoded_size` for decoding, and the same
 //! total as an interpretation budget, so a form XObject reused on every page
 //! cannot multiply CPU time without bound.
 
+mod analyze;
 mod font;
 pub(crate) mod guard;
+mod layout;
+#[cfg(all(feature = "pdf-ocr", not(target_arch = "wasm32")))]
+mod ocr;
+mod tags;
 
 use std::collections::HashMap;
 
@@ -38,7 +34,7 @@ use hayro_syntax::page::Resources;
 
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
-use crate::ir::{Document, ListItem, Node, Source};
+use crate::ir::Document;
 use crate::limits::Budget;
 
 use font::{Font, Glyph};
@@ -46,8 +42,24 @@ use guard::PrescanError;
 
 const MAX_FORM_DEPTH: usize = 8;
 
+fn prescan_error(e: PrescanError) -> Error {
+    match e {
+        PrescanError::Encrypted => {
+            Error::UnsupportedFormat("encrypted PDFs are not supported".into())
+        }
+        PrescanError::Unverifiable => Error::PdfExtract(
+            "stream filter declared indirectly or ambiguously; refusing to decode".into(),
+        ),
+        PrescanError::RenderUnsupported => Error::UnsupportedFormat(
+            "OCR rendering supports JPEG, header-bounded JPEG2000 and generic-filter images without DecodeParms; inline, JBIG2 and CCITT images require bounded decoder support".into(),
+        ),
+        PrescanError::Limit(m) => Error::ResourceLimit(m),
+    }
+}
+
 /// Result of parsing a PDF.
 pub(crate) struct PdfOutput {
+    pub layout: Option<crate::layout::PdfLayout>,
     pub doc: Document,
     pub title: Option<String>,
     pub pages: usize,
@@ -64,15 +76,7 @@ pub(crate) fn parse(
         cfg.limits.max_pdf_stream_size,
         cfg.limits.max_pdf_decoded_size,
     )
-    .map_err(|e| match e {
-        PrescanError::Encrypted => {
-            Error::UnsupportedFormat("encrypted PDFs are not supported".into())
-        }
-        PrescanError::Unverifiable => Error::PdfExtract(
-            "stream filter declared indirectly or ambiguously; refusing to decode".into(),
-        ),
-        PrescanError::Limit(m) => Error::ResourceLimit(m),
-    })?;
+    .map_err(prescan_error)?;
 
     clock.check_time()?;
 
@@ -98,10 +102,15 @@ pub(crate) fn parse(
         cfg.limits.max_pdf_decoded_size,
         clock,
     );
-    let mut page_lines = Vec::new();
+    interp.layout = Some(layout::Capture::new(cfg));
+    interp.tag_roles = tags::roles(&pdf, cfg, clock)?;
+    let mut page_rules = Vec::new();
     for page in pages.iter().take(cfg.limits.max_pdf_pages) {
         clock.check_time()?;
-        interp.spans.clear();
+        interp.current_page = page.raw().obj_id();
+        if let Some(layout) = &mut interp.layout {
+            layout.page(page, clock)?;
+        }
         let res = page.resources().clone();
         if let Some(contents) = page.raw().get::<Object<'_>>(b"Contents") {
             let streams: Vec<Stream<'_>> = match contents {
@@ -117,7 +126,16 @@ pub(crate) fn parse(
             }
             interp.run(&data, &res, Matrix::IDENTITY, 0)?;
         }
-        page_lines.push(build_lines(std::mem::take(&mut interp.spans)));
+        let space = &interp.layout.as_ref().unwrap().space;
+        page_rules.push(
+            std::mem::take(&mut interp.rules)
+                .into_iter()
+                .map(|r| analyze::Rule {
+                    a: space.point(r.a[0], r.a[1]),
+                    b: space.point(r.b[0], r.b[1]),
+                })
+                .collect::<Vec<_>>(),
+        );
     }
     if pages.len() > cfg.limits.max_pdf_pages {
         warnings.push(crate::extract::Warning::new(
@@ -138,14 +156,28 @@ pub(crate) fn parse(
         ));
     }
 
-    let nodes = build_nodes(page_lines, cfg.track_sources);
+    if cfg.pdf_ocr {
+        #[cfg(all(feature = "pdf-ocr", not(target_arch = "wasm32")))]
+        ocr::recognize(bytes, &pdf, interp.layout.as_mut().unwrap(), cfg, clock)?;
+        #[cfg(not(all(feature = "pdf-ocr", not(target_arch = "wasm32"))))]
+        return Err(Error::UnsupportedFormat(
+            "native PDF OCR requires the pdf-ocr feature".into(),
+        ));
+    }
+    let capture = interp.layout.as_mut().unwrap();
+    let nodes = analyze::analyze(&mut capture.output, &page_rules, cfg, clock)?;
     if nodes.is_empty() && !pages.is_empty() {
         warnings.push(crate::extract::Warning::new(
             crate::extract::WarningCode::PdfNoText,
-            "no text layer found (scanned PDF? OCR is not supported)",
+            "no extractable text found (enable PDF OCR for scanned pages)",
         ));
     }
     Ok(PdfOutput {
+        layout: if cfg.pdf_layout {
+            Some(interp.layout.take().unwrap().finish(cfg, clock)?)
+        } else {
+            None
+        },
         doc: Document::new(nodes),
         title,
         pages: pages.len().min(cfg.limits.max_pdf_pages),
@@ -212,6 +244,7 @@ impl Matrix {
 #[derive(Clone)]
 struct State {
     ctm: Matrix,
+    role: Option<String>,
     font: Option<usize>,
     size: f32,
     char_spacing: f32,
@@ -225,6 +258,7 @@ impl State {
     fn new(ctm: Matrix) -> Self {
         State {
             ctm,
+            role: None,
             font: None,
             size: 0.0,
             char_spacing: 0.0,
@@ -236,21 +270,14 @@ impl State {
     }
 }
 
-/// A run of text placed in device space.
-#[derive(Debug, Clone)]
-struct Span {
-    x0: f32,
-    x1: f32,
-    y: f32,
-    size: f32,
-    text: String,
-}
-
 struct Interpreter<'c> {
+    layout: Option<layout::Capture>,
+    rules: Vec<analyze::Rule>,
+    tag_roles: tags::Roles,
+    current_page: Option<ObjectIdentifier>,
     fonts: Vec<Font>,
     font_ids: HashMap<ObjectIdentifier, usize>,
     unmapped: std::collections::BTreeSet<String>,
-    spans: Vec<Span>,
     stream_cap: usize,
     budget: usize,
     form_stack: Vec<ObjectIdentifier>,
@@ -274,10 +301,13 @@ fn num(o: Option<&Object<'_>>) -> f32 {
 impl<'c> Interpreter<'c> {
     fn new(stream_cap: usize, budget: usize, clock: &'c Budget) -> Self {
         Interpreter {
+            layout: None,
+            rules: Vec::new(),
+            tag_roles: Default::default(),
+            current_page: None,
             fonts: Vec::new(),
             font_ids: HashMap::new(),
             unmapped: Default::default(),
-            spans: Vec::new(),
             stream_cap,
             budget,
             form_stack: Vec::new(),
@@ -337,6 +367,10 @@ impl<'c> Interpreter<'c> {
         let mut glyphs = Vec::new();
         let mut ops = UntypedIter::new(data);
         let mut count = 0usize;
+        let mut path: Vec<analyze::Rule> = Vec::new();
+        let mut current = None;
+        let mut first = None;
+        let mut marks: Vec<(Option<String>, Option<String>, usize)> = Vec::new();
         while let Some(ins) = ops.next() {
             // Each operator costs at least one budget unit.
             count += 1;
@@ -350,6 +384,140 @@ impl<'c> Interpreter<'c> {
             let a = |i: usize| num(args.get(i).copied());
             let op: &[u8] = ins.operator;
             match op {
+                b"BMC" | b"BDC" => {
+                    if marks.len() >= 256 {
+                        return Err(Error::PdfExtract(
+                            "marked-content nesting exceeds 256".into(),
+                        ));
+                    }
+                    let mut role = args.first().and_then(|o| match o {
+                        Object::Name(n) => Some(font::name_of(Some((*n).clone()))),
+                        _ => None,
+                    });
+                    let props = args.get(1).and_then(|o| match o {
+                        Object::Dict(d) => Some((*d).clone()),
+                        Object::Name(n) => res.properties.get::<Dict<'_>>(n.as_ref()),
+                        _ => None,
+                    });
+                    if let (Some(page), Some(mcid)) = (
+                        self.current_page,
+                        props.as_ref().and_then(|d| d.get::<i32>(b"MCID")),
+                    ) && let Some(mapped) = self.tag_roles.get(&(page, mcid))
+                    {
+                        role = Some(mapped.clone());
+                    }
+                    if role.as_ref().is_some_and(|r| r.len() > 256) {
+                        return Err(Error::PdfExtract(
+                            "PDF marked-content role exceeds 256 bytes".into(),
+                        ));
+                    }
+                    let replacement = props
+                        .and_then(|d| d.get::<hayro_syntax::object::String<'_>>(b"ActualText"))
+                        .map(|s| pdf_text_string(s.as_bytes()));
+                    let index = self
+                        .layout
+                        .as_ref()
+                        .map_or(0, |l| l.output.pages.last().unwrap().spans.len());
+                    marks.push((st.role.clone(), replacement, index));
+                    st.role = role;
+                }
+                b"EMC" => {
+                    if let Some((role, replacement, index)) = marks.pop() {
+                        if let (Some(text), Some(capture)) = (replacement, self.layout.as_mut()) {
+                            capture.charge(
+                                text.len().saturating_mul(2)
+                                    + std::mem::size_of::<crate::layout::PdfWord>(),
+                            )?;
+                            self.clock.add_nodes(1)?;
+                            let spans = &mut capture.output.pages.last_mut().unwrap().spans;
+                            if index < spans.len() {
+                                let bbox = spans[index..]
+                                    .iter()
+                                    .map(|s| s.bbox)
+                                    .reduce(analyze::union)
+                                    .unwrap();
+                                let baseline =
+                                    [spans[index].baseline[0], spans.last().unwrap().baseline[1]];
+                                spans.truncate(index + 1);
+                                spans[index].text = text.clone();
+                                spans[index].bbox = bbox;
+                                spans[index].baseline = baseline;
+                                spans[index].words = vec![crate::layout::PdfWord {
+                                    text,
+                                    bbox,
+                                    baseline,
+                                }];
+                            }
+                        }
+                        st.role = role;
+                    }
+                }
+                b"m" | b"l" => {
+                    let (x, y) = st.ctm.apply(a(0), a(1));
+                    let p = [f64::from(x), f64::from(y)];
+                    if p.iter().all(|x| x.is_finite()) {
+                        if op == b"l"
+                            && let Some(prev) = current
+                        {
+                            self.clock.add_nodes(1)?;
+                            self.charge(32)?;
+                            path.push(analyze::Rule { a: prev, b: p });
+                        } else {
+                            first = Some(p);
+                        }
+                        current = Some(p);
+                    }
+                }
+                b"h" => {
+                    if let (Some(a), Some(b)) = (current, first) {
+                        self.clock.add_nodes(1)?;
+                        self.charge(32)?;
+                        path.push(analyze::Rule { a, b });
+                        current = Some(b);
+                    }
+                }
+                b"re" => {
+                    let pts = [
+                        (a(0), a(1)),
+                        (a(0) + a(2), a(1)),
+                        (a(0) + a(2), a(1) + a(3)),
+                        (a(0), a(1) + a(3)),
+                    ]
+                    .map(|(x, y)| {
+                        let (x, y) = st.ctm.apply(x, y);
+                        [f64::from(x), f64::from(y)]
+                    });
+                    if pts.iter().flatten().all(|x| x.is_finite()) {
+                        self.clock.add_nodes(4)?;
+                        self.charge(128)?;
+                        for i in 0..4 {
+                            path.push(analyze::Rule {
+                                a: pts[i],
+                                b: pts[(i + 1) % 4],
+                            });
+                        }
+                    }
+                }
+                b"S" | b"s" | b"B" | b"B*" | b"b" | b"b*" | b"f" | b"f*" | b"F" => {
+                    let fill_only = matches!(op, b"f" | b"f*" | b"F");
+                    let thin = path
+                        .iter()
+                        .map(|r| [r.a[0], r.a[1], r.b[0], r.b[1]])
+                        .reduce(analyze::union)
+                        .is_some_and(|b| (b[2] - b[0]).abs() < 2.0 || (b[3] - b[1]).abs() < 2.0);
+                    if !fill_only || thin {
+                        self.rules.append(&mut path);
+                    } else {
+                        path.clear();
+                    }
+                    current = None;
+                    first = None;
+                }
+                b"n" => {
+                    path.clear();
+                    current = None;
+                    first = None;
+                }
                 b"q" => {
                     if stack.len() < 256 {
                         stack.push(st.clone());
@@ -405,7 +573,7 @@ impl<'c> Interpreter<'c> {
                 }
                 b"Tj" => {
                     if let Some(Object::String(s)) = args.first() {
-                        self.show(&st, &mut tm, s.as_bytes(), &mut glyphs);
+                        self.show(&st, &mut tm, s.as_bytes(), &mut glyphs)?;
                     }
                 }
                 b"'" | b"\"" => {
@@ -416,12 +584,12 @@ impl<'c> Interpreter<'c> {
                     tlm = Matrix::translate(0.0, -st.leading).then(&tlm);
                     tm = tlm;
                     if let Some(Object::String(s)) = args.last() {
-                        self.show(&st, &mut tm, s.as_bytes(), &mut glyphs);
+                        self.show(&st, &mut tm, s.as_bytes(), &mut glyphs)?;
                     }
                 }
                 b"TJ" => {
                     if let Some(Object::Array(arr)) = args.first() {
-                        self.show_array(&st, &mut tm, arr, &mut glyphs);
+                        self.show_array(&st, &mut tm, arr, &mut glyphs)?;
                     }
                 }
                 b"Do" if depth < MAX_FORM_DEPTH => {
@@ -485,10 +653,10 @@ impl<'c> Interpreter<'c> {
         tm: &mut Matrix,
         arr: &Array<'_>,
         glyphs: &mut Vec<Glyph>,
-    ) {
+    ) -> Result<(), Error> {
         for item in arr.iter::<Object<'_>>() {
             match item {
-                Object::String(s) => self.show(st, tm, s.as_bytes(), glyphs),
+                Object::String(s) => self.show(st, tm, s.as_bytes(), glyphs)?,
                 Object::Number(n) => {
                     let adj = n.as_f32();
                     if !adj.is_finite() {
@@ -496,20 +664,20 @@ impl<'c> Interpreter<'c> {
                     }
                     let tx = -adj / 1000.0 * st.size * st.scale;
                     *tm = Matrix::translate(tx, 0.0).then(tm);
-                    // A large negative adjustment is a word gap.
-                    if -adj > 200.0
-                        && let Some(last) = self.spans.last_mut()
-                        && !last.text.ends_with(' ')
-                    {
-                        last.text.push(' ');
-                    }
                 }
                 _ => {}
             }
         }
+        Ok(())
     }
 
-    fn show(&mut self, st: &State, tm: &mut Matrix, bytes: &[u8], glyphs: &mut Vec<Glyph>) {
+    fn show(
+        &mut self,
+        st: &State,
+        tm: &mut Matrix,
+        bytes: &[u8],
+        glyphs: &mut Vec<Glyph>,
+    ) -> Result<(), Error> {
         glyphs.clear();
         match st.font {
             Some(i) => {
@@ -526,10 +694,10 @@ impl<'c> Interpreter<'c> {
             // No (resolvable) font selected: best effort as WinAnsi.
             None => Font::fallback().decode(bytes, glyphs),
         }
-        self.place(st, tm, glyphs);
+        self.place(st, tm, glyphs)
     }
 
-    fn place(&mut self, st: &State, tm: &mut Matrix, glyphs: &[Glyph]) {
+    fn place(&mut self, st: &State, tm: &mut Matrix, glyphs: &[Glyph]) -> Result<(), Error> {
         let trm = |tm: &Matrix| {
             Matrix([st.size * st.scale, 0.0, 0.0, st.size, 0.0, st.rise])
                 .then(tm)
@@ -539,7 +707,28 @@ impl<'c> Interpreter<'c> {
         let (x0, y) = start.apply(0.0, 0.0);
         let size = (start.0[2].hypot(start.0[3])).abs();
         let mut text = String::new();
+        let mut words = Vec::new();
+        let mut word = String::new();
+        let mut word_start = start;
         for g in glyphs {
+            let before = trm(tm);
+            let whitespace = g
+                .text
+                .as_ref()
+                .is_some_and(|t| t.chars().all(char::is_whitespace));
+            if whitespace && !word.is_empty() {
+                words.push(layout::RawWord {
+                    text: std::mem::take(&mut word),
+                    start: word_start,
+                    end: before,
+                });
+            }
+            if !whitespace && let Some(t) = &g.text {
+                if word.is_empty() {
+                    word_start = before;
+                }
+                push_clean(&mut word, t);
+            }
             if let Some(t) = &g.text {
                 push_clean(&mut text, t);
             }
@@ -549,17 +738,32 @@ impl<'c> Interpreter<'c> {
             }
             *tm = Matrix::translate(tx * st.scale, 0.0).then(tm);
         }
-        let (x1, _) = trm(tm).apply(0.0, 0.0);
-        if text.is_empty() || !x0.is_finite() || !y.is_finite() || !size.is_finite() {
-            return;
+        if !word.is_empty() {
+            words.push(layout::RawWord {
+                text: word,
+                start: word_start,
+                end: trm(tm),
+            });
         }
-        self.spans.push(Span {
-            x0,
-            x1: x1.max(x0),
-            y,
-            size: size.max(0.1),
-            text,
-        });
+        if text.is_empty() || !x0.is_finite() || !y.is_finite() || !size.is_finite() {
+            return Ok(());
+        }
+        if let Some(layout) = &mut self.layout {
+            layout.span(
+                start,
+                trm(tm),
+                &text,
+                layout::TextInfo {
+                    font: st.font.map(|i| self.fonts[i].name.as_str()),
+                    bold: st.font.is_some_and(|i| self.fonts[i].bold),
+                    italic: st.font.is_some_and(|i| self.fonts[i].italic),
+                    role: st.role.as_deref(),
+                    words,
+                },
+                self.clock,
+            )?;
+        }
+        Ok(())
     }
 }
 
@@ -581,265 +785,11 @@ fn push_clean(out: &mut String, t: &str) {
     }
 }
 
-// ─── Layout ─────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone)]
-struct Line {
-    y: f32,
-    size: f32,
-    x1: f32,
-    text: String,
-}
-
-fn build_lines(spans: Vec<Span>) -> Vec<Line> {
-    let mut lines: Vec<Line> = Vec::new();
-    for s in spans {
-        if let Some(line) = lines.last_mut() {
-            let tol = 0.5 * s.size.max(line.size);
-            let same_baseline = (s.y - line.y).abs() <= tol;
-            let gap = s.x0 - line.x1;
-            if same_baseline && gap > -0.5 * s.size {
-                if gap > 0.15 * s.size && !line.text.ends_with(' ') && !s.text.starts_with(' ') {
-                    line.text.push(' ');
-                }
-                line.text.push_str(&s.text);
-                line.x1 = line.x1.max(s.x1);
-                // Superscripts / subscripts keep the line's baseline and size.
-                if s.size > line.size {
-                    line.size = s.size;
-                }
-                continue;
-            }
-        }
-        lines.push(Line {
-            y: s.y,
-            size: s.size,
-            x1: s.x1,
-            text: s.text,
-        });
-    }
-    for l in &mut lines {
-        l.text = l.text.split_whitespace().collect::<Vec<_>>().join(" ");
-    }
-    lines.retain(|l| !l.text.is_empty());
-    lines
-}
-
-struct Para {
-    /// 1-based page number.
-    page: u32,
-    size: f32,
-    lines: usize,
-    text: String,
-    bullet: bool,
-}
-
 const BULLETS: &[char] = &['•', '●', '▪', '◦', '‣', '∙', '■', '–'];
-
-/// `• text` → `Some("text")`.
-fn strip_bullet(text: &str) -> Option<&str> {
-    let mut it = text.chars();
-    let c = it.next()?;
-    let rest = it.as_str();
-    (BULLETS.contains(&c) && rest.starts_with(' ')).then(|| rest.trim_start())
-}
-
-fn round_size(s: f32) -> i32 {
-    (s * 2.0).round() as i32
-}
-
-/// Lines per page → blocks; `track` records `Source::page` on each block.
-fn build_nodes(pages: Vec<Vec<Line>>, track: bool) -> Vec<Node> {
-    let mut paras: Vec<Para> = Vec::new();
-    for (page_idx, lines) in pages.into_iter().enumerate() {
-        let page = u32::try_from(page_idx + 1).unwrap_or(u32::MAX);
-        // Typical line pitch: most common downward step between lines (ties →
-        // smaller), so paragraph gaps stand out even when frequent.
-        let mut steps: HashMap<i32, usize> = HashMap::new();
-        for w in lines.windows(2) {
-            let d = w[0].y - w[1].y;
-            if d > 0.0 {
-                *steps.entry(round_size(d)).or_default() += 1;
-            }
-        }
-        let pitch = steps
-            .iter()
-            .max_by_key(|(d, n)| (**n, -**d))
-            .map(|(d, _)| *d as f32 / 2.0);
-
-        let mut prev: Option<&Line> = None;
-        for line in &lines {
-            let new_para = match prev {
-                None => true,
-                Some(p) => {
-                    let step = p.y - line.y;
-                    let size_change = (line.size - p.size).abs() > 0.15 * p.size.max(line.size);
-                    let limit = pitch.unwrap_or(1.2 * p.size).max(p.size * 0.8) * 1.3;
-                    size_change || step < -0.5 * line.size || step > limit
-                }
-            };
-            let bullet = strip_bullet(&line.text);
-            if new_para || bullet.is_some() {
-                paras.push(Para {
-                    page,
-                    size: line.size,
-                    lines: 1,
-                    text: bullet.unwrap_or(&line.text).to_string(),
-                    bullet: bullet.is_some(),
-                });
-            } else if let Some(para) = paras.last_mut() {
-                join_line(&mut para.text, &line.text);
-                para.lines += 1;
-            }
-            prev = Some(line);
-        }
-    }
-
-    // Dominant body size by character count.
-    let mut by_size: HashMap<i32, usize> = HashMap::new();
-    for p in &paras {
-        *by_size.entry(round_size(p.size)).or_default() += p.text.chars().count();
-    }
-    let body = by_size
-        .iter()
-        .max_by_key(|(s, n)| (**n, -**s))
-        .map(|(s, _)| *s as f32 / 2.0)
-        .unwrap_or(0.0);
-    let is_heading = |p: &Para| {
-        body > 0.0
-            && p.size >= body * 1.2
-            && p.lines <= 3
-            && p.text.chars().count() <= 200
-            && p.text.chars().any(char::is_alphabetic)
-    };
-    let mut heading_sizes: Vec<i32> = paras
-        .iter()
-        .filter(|p| is_heading(p))
-        .map(|p| round_size(p.size))
-        .collect();
-    heading_sizes.sort_unstable_by(|a, b| b.cmp(a));
-    heading_sizes.dedup();
-
-    let mut nodes = Vec::new();
-    for p in &paras {
-        let children = vec![Node::Text(p.text.clone())];
-        let source = track.then(|| Box::new(Source::default().with_page(p.page)));
-        if p.bullet {
-            let item = ListItem::new(vec![Node::Paragraph {
-                children,
-                source: None,
-            }]);
-            if let Some(Node::List { items, .. }) = nodes.last_mut() {
-                items.push(item);
-            } else {
-                nodes.push(Node::List {
-                    ordered: false,
-                    start: None,
-                    items: vec![item],
-                    source,
-                });
-            }
-        } else if is_heading(p) {
-            let rank = heading_sizes
-                .iter()
-                .position(|s| *s == round_size(p.size))
-                .unwrap_or(0);
-            nodes.push(Node::Heading {
-                level: (rank + 1).min(6) as u8,
-                children,
-                source,
-            });
-        } else {
-            nodes.push(Node::Paragraph { children, source });
-        }
-    }
-    nodes
-}
-
-/// Append a line to a paragraph, undoing end-of-line hyphenation.
-fn join_line(para: &mut String, line: &str) {
-    let mut tail = para.chars().rev();
-    let dehyphenate = tail.next() == Some('-')
-        && tail.next().is_some_and(char::is_alphabetic)
-        && line.chars().next().is_some_and(char::is_lowercase);
-    if dehyphenate || para.ends_with('\u{AD}') {
-        para.pop();
-    } else {
-        para.push(' ');
-    }
-    para.push_str(line);
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn line(y: f32, size: f32, text: &str) -> Line {
-        Line {
-            y,
-            size,
-            x1: 0.0,
-            text: text.into(),
-        }
-    }
-
-    #[test]
-    fn spans_join_into_lines_with_spaces() {
-        let spans = vec![
-            Span {
-                x0: 0.0,
-                x1: 20.0,
-                y: 100.0,
-                size: 10.0,
-                text: "Hello".into(),
-            },
-            Span {
-                x0: 23.0,
-                x1: 50.0,
-                y: 100.0,
-                size: 10.0,
-                text: "world".into(),
-            },
-            Span {
-                x0: 50.0,
-                x1: 60.0,
-                y: 100.0,
-                size: 10.0,
-                text: "!".into(),
-            },
-            Span {
-                x0: 0.0,
-                x1: 20.0,
-                y: 88.0,
-                size: 10.0,
-                text: "Next".into(),
-            },
-        ];
-        let lines = build_lines(spans);
-        assert_eq!(lines.len(), 2);
-        assert_eq!(lines[0].text, "Hello world!");
-    }
-
-    #[test]
-    fn paragraphs_headings_and_hyphenation() {
-        let page = vec![
-            line(700.0, 20.0, "Title"),
-            line(660.0, 10.0, "First para-"),
-            line(648.0, 10.0, "graph goes on."),
-            line(636.0, 10.0, "Still first."),
-            line(610.0, 10.0, "Second paragraph."),
-        ];
-        let nodes = build_nodes(vec![page], false);
-        assert_eq!(nodes.len(), 3);
-        assert!(matches!(&nodes[0], Node::Heading { level: 1, .. }));
-        assert_eq!(
-            nodes[1],
-            Node::Paragraph {
-                children: vec![Node::Text("First paragraph goes on. Still first.".into())],
-                source: None,
-            }
-        );
-    }
 
     #[test]
     fn text_strings() {

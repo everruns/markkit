@@ -26,6 +26,9 @@ tags:
 | `crates/markkit/tests/document_security.rs` | Zip bombs, grid amplification, XML entities, malformed containers |
 | `crates/markkit/tests/limits.rs` | Every `Limits` field enforced for HTML, DOCX, spreadsheets; small-stack depth ceiling |
 | `crates/markkit/tests/pdf_integration.rs` | PDF text layout, fonts/encodings, forms, page cap |
+| `crates/markkit/tests/pdf_structure.rs` | Columns, narrow gutters, tagged roles/ActualText, ruled/borderless/wrapped/merged cells, prose negatives, grid caps |
+| `crates/markkit/tests/pdf_ocr.rs` | Native OCR language validation and explicit helper-backed image-only integration |
+| `crates/markkit/tests/pdf_layout.rs` | Optional geometry, crop/rotation/UserUnit, transformed runs, stable IDs, layout budgets and malformed inputs |
 | `crates/markkit/tests/pdf_security.rs` | PDF bombs, interpretation budget, encrypted/unverifiable input, malformed PDFs |
 | `crates/markkit/tests/common/` | In-memory DOCX/XLSX/XLSB/XLS/ODS/PDF fixture builders; `fixtures/xlsb/` holds two real XLSB files from calamine (MIT) |
 | `crates/markkit-cli/tests/cli_integration.rs` | CLI flags and output |
@@ -76,6 +79,12 @@ mode on every PR/push and nightly, enforcing full coverage and fixed-slice quali
 regressions. It installs the optional scorer dependencies, runs all public-tool
 contract tests, and uploads canonical scores/timing/provenance even on failure.
 See [Evaluation Harness](eval.md) Public benchmarks for split and baseline policy.
+
+Optional OCR: `MARKKIT_OCR_MODEL_DIR=target/ocr-models RTEN_NUM_THREADS=1
+RAYON_NUM_THREADS=1 cargo test --release -p markkit --features pdf-ocr-ocrs
+--test pdf_ocr -- --include-ignored` runs model and helper-backed fixtures.
+CI explicitly runs the ocrs recognition fixture after pinned model setup; ordinary
+all-feature tests cover missing/invalid/oversized models and backend selection.
 
 ## See also
 

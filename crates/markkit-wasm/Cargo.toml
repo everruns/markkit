@@ -5,7 +5,7 @@
 # SharedArrayBuffer and no COOP/COEP headers, so it runs in browsers, edge
 # workers (Cloudflare, Vercel, Deno Deploy), Node, Deno and Bun.
 #
-# Feature surface: html, docx, spreadsheet, tool. `http_client` is excluded:
+# Feature surface includes pure-Rust PDF text/layout. `http_client` is excluded:
 # reqwest needs sockets; JS hosts fetch themselves and pass bytes in, which also
 # keeps SSRF policy with the host. See knowledge/runtimes/wasm-package.md.
 
@@ -26,6 +26,7 @@ doc = false
 [dependencies]
 markkit = { path = "../markkit", default-features = false, features = [
     "html",
+    "pdf",
     "docx",
     "spreadsheet",
     "markdown",

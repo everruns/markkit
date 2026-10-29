@@ -50,6 +50,22 @@ let doc = markkit.extract_document_sync(&bytes, hint)?;
 println!("{}", doc.markdown);
 ```
 
+## PDF source layout
+
+Enable optional positioned text output with `Markkit::builder().pdf_layout(true)`.
+The parse/extraction result has a `layout` sidecar: page dimensions and text runs
+with approximate bounding boxes, baselines, font names, sizes and angles. Coordinates
+are display points from the cropped/rotated page top-left (x right, y down).
+Layout is optional and does not change Markdown; source runs retain drawing order.
+Semantic blocks/lines/table cells are in reading order and link to IR provenance.
+PDF extraction reconstructs columns and ruled/borderless tables. Native OCR is
+opt-in with the `pdf-ocr` feature and installed Tesseract and language data.
+
+```bash
+markkit extract --file report.pdf --json --layout
+markkit extract --file scanned.pdf --ocr --ocr-language eng --timeout 300
+```
+
 ## IR and provenance
 
 `parse_document_sync` returns the IR (`markkit::ir::Document`) plus metadata instead of
@@ -89,3 +105,14 @@ Node.js and WASM.
 - [Format support](../knowledge/formats/format-support.md): formats, detection, DOCX, spreadsheet and PDF mapping
 - [Threat model](../knowledge/security/threat-model.md): security boundaries and limits
 - [Examples](../examples/): runnable with `cargo run -p markkit --example <name>`
+
+### Optional Rust OCR
+
+Build the CLI with `--features pdf-ocr-ocrs`, run
+`python3 scripts/prepare_ocr_models.py`, then select `--ocr --ocr-backend ocrs`
+with `--ocr-detection-model target/ocr-models/text-detection.onnx` and
+`--ocr-recognition-model target/ocr-models/text-recognition.onnx`.
+The default engine remains Tesseract. Extraction is offline; model weights are
+separate CC-BY-SA 4.0 assets and support Latin-alphabet text (`eng`).
+See the [PDF OCR guide](../README.md#pdf-source-layout) for Rust configuration,
+model attribution and resource-limit behavior.

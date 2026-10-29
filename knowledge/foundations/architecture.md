@@ -71,6 +71,16 @@ Via `MarkkitBuilder`:
 - Hidden content (`include_hidden_content`, default off): HTML hidden elements, DOCX hidden runs
 - URL fetch policy (`allow_private_networks`, `allow_host`, `max_redirects`)
 - Base URL for relative links, images and metadata URLs (`base_url`)
+- PDF source layout (`pdf_layout`, off by default): `ParsedDocument::layout` and
+  `Extraction::layout` hold positioned source text separately from semantic IR.
+  Layout includes source runs/words and semantic blocks/lines/table cells;
+  extraction reconstructs columns and tables even when layout JSON is off.
+  Native OCR (Hayro plus default Tesseract or optional ocrs/RTen with local ONNX
+  model paths) and repeated margin
+  removal are explicit options. Rendering has cooperative deadlines; deployment
+  isolation provides hard process budgets. See [Native Dependencies](../security/native-dependencies.md).
+  Exhaustive Rust `MarkkitBuilder` literals must supply the new PDF fields; prefer
+  builder methods or struct update syntax with `Default` for extensibility.
 - Provenance (`track_sources`): per-block `Source` in the IR (off by default)
 - Main-content detection for HTML (`main_content`)
 

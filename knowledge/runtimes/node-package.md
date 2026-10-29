@@ -30,7 +30,7 @@ const doc = m.extractDocumentSync(buf, { fileName: 'report.docx' });
 
 Every function takes an optional trailing `options` object (`MarkkitOptions`):
 the camelCase builder fields shared with the [WASM Package](wasm-package.md)
-(`maxInputSize`, `maxOutputSize`, `maxNodes`, `maxNestingDepth`, `baseUrl`, `mainContent`, `preserveLinks`, `preserveImages`, `includeSelectors`,
+(`pdfLayout`, `pdfRemoveRepeatedHeaders`, `pdfOcr`, `pdfOcrLanguage`, `pdfOcrBackend`, `pdfOcrDetectionModel`, `pdfOcrRecognitionModel`, `maxInputSize`, `maxOutputSize`, `maxNodes`, `maxNestingDepth`, `baseUrl`, `mainContent`, `preserveLinks`, `preserveImages`, `includeSelectors`,
 `excludeSelectors`, archive and sheet limits, `includeHiddenSheets`) plus the URL
 policy fields `timeout` (seconds, float; whole call), `maxProcessingSecs`
 (whole-second alias, `timeout` wins), `allowPrivateNetworks`, `allowedHosts`,
@@ -49,7 +49,9 @@ Errors reject (or throw) with the Rust error's `Display` text as the reason.
 | Resource limits (`Limits`) | `limits=markkit.Limits(...)` on every function | flat option keys, incl. `timeout` | flat option keys, no `timeout` (no clock) |
 | URL | yes, defaults only | yes, with URL policy options | no (host fetches) |
 | Bytes | yes | yes | yes |
-| `extract_document` (metadata) | no | yes | yes |
+| Structured documents | `extract_document_sync` | yes | yes |
+| PDF tables + optional source layout | `pdf_layout=True` | `pdfLayout: true` | `pdfLayout: true` |
+| Native PDF OCR | `pdf_ocr=True` | `pdfOcr: true` | no native processes |
 | Agent tool | no | no | `MarkkitTool` |
 
 Tests: `crates/markkit-js/__test__/*.test.cjs` (`node --test`, run by `js.yml`
@@ -68,6 +70,10 @@ napi build --release
 Published to npm by `publish-js.yml` from a verified release tag; see
 [Release Process](../operations/release-process.md). CI: `js.yml` on changes to
 `crates/markkit-js/` or `crates/markkit/`.
+
+Optional Cargo feature `pdf-ocr-ocrs` enables Rust OCR; default package builds
+retain Tesseract. Local model paths, Latin-language scope and model licensing
+follow [Format Support](../formats/format-support.md).
 
 ## See also
 

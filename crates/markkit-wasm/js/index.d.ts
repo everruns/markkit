@@ -20,6 +20,12 @@ export interface MarkkitOptions {
   baseUrl?: string;
   /** Keep only the detected main content (article body) of HTML pages. */
   mainContent?: boolean;
+  /** Include PDF source geometry in extractDocument results. */
+  pdfLayout?: boolean;
+  pdfRemoveRepeatedHeaders?: boolean;
+  maxPdfPages?: number;
+  maxPdfStreamSize?: number;
+  maxPdfDecodedSize?: number;
   preserveLinks?: boolean;
   preserveImages?: boolean;
   /** CSS selectors to include (empty = whole document). */
@@ -68,12 +74,49 @@ export interface Warning {
 }
 
 export interface Extraction {
+  layout?: PdfLayout;
   markdown: string;
   title: string | null;
   format: string;
   warnings: Warning[];
   stats: ExtractionStats;
   metadata: Metadata;
+}
+
+/** Source geometry in displayed crop-box points, x right and y down. */
+export interface PdfLayout {
+  version: number;
+  pages: {
+    page: number;
+    width: number;
+    height: number;
+    rotation: number;
+    blocks: PdfBlock[];
+    spans: {
+      id: number;
+      text: string;
+      /** Approximate em bounds: [left, top, right, bottom]. */
+      bbox: [number, number, number, number];
+      baseline: [[number, number], [number, number]];
+      font?: string;
+      size: number;
+      angle: number;
+      words: {text:string; bbox:[number,number,number,number]; baseline:[[number,number],[number,number]]}[];
+      bold?: boolean;
+      italic?: boolean;
+      role?: string;
+      ocr?: boolean;
+    }[];
+  }[];
+}
+
+export interface PdfBlock {
+  id:number;
+  kind:string;
+  bbox:[number,number,number,number];
+  spanIds:number[];
+  lines:{bbox:[number,number,number,number];spanIds:number[]}[];
+  cells?:{row:number;column:number;rowspan:number;colspan:number;bbox:[number,number,number,number];spanIds:number[]}[];
 }
 
 export class Markkit {

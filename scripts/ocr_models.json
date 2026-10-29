@@ -1,0 +1,23 @@
+{
+  "source": "https://github.com/robertknight/ocrs/blob/main/ocrs/examples/download-models.sh",
+  "revision": "Official example model pair, content pinned by SHA256",
+  "license": "CC-BY-SA-4.0",
+  "license_url": "https://huggingface.co/robertknight/ocrs/blob/df0edd170279ab971b53e094c627255a87e1a503/README.md",
+  "attribution": "Ocrs models by Robert Knight; trained on HierText (CC-BY-SA 4.0).",
+  "models": [
+    {
+      "name": "text-detection.onnx",
+      "url": "https://ocrs-models.s3-accelerate.amazonaws.com/text-detection.onnx",
+      "sha256": "a917b23dbd9524b465df7e922641b3ff2981623df4ded5a0234004ef2fee7cfe",
+      "size": 2499479,
+      "last_modified": "Sun, 13 Sep 2026 08:22:54 GMT"
+    },
+    {
+      "name": "text-recognition.onnx",
+      "url": "https://ocrs-models.s3-accelerate.amazonaws.com/text-recognition.onnx",
+      "sha256": "86c145c2edb96c8caed5b1ebb8f44d706408922211451c309c625157dd6061c5",
+      "size": 9713177,
+      "last_modified": "Sun, 13 Sep 2026 08:22:52 GMT"
+    }
+  ]
+}

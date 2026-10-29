@@ -37,3 +37,49 @@ PyPI API token. A dry run builds and verifies distributions without publishing.
 
 Python packaging is configured by the workspace-root `pyproject.toml`. Source
 archives retain the complete Cargo workspace and its unchanged security lockfile.
+
+## Structured documents, PDF layout and OCR
+
+```python
+from markkit import extract_document_sync, Limits
+result = extract_document_sync(
+    pdf_bytes, file_name="report.pdf", pdf_layout=True,
+    pdf_remove_repeated_headers=True,
+)
+print(result["markdown"], result["stats"]["tables"])
+print(result["layout"]["pages"][0]["blocks"])
+```
+
+PDF extraction reconstructs reading order, columns and ruled/borderless tables,
+with merged/wrapped cells, emphasis, numbered lists and tagged headings/ActualText.
+Layout includes source runs/words and semantic block/line/cell geometry. Keys are
+snake_case; coordinates are display points from the cropped/rotated top-left.
+
+For image-only pages, install Tesseract and your language data:
+`extract_document_sync(pdf_bytes, file_name="scan.pdf", pdf_ocr=True,
+pdf_ocr_language="eng", pdf_layout=True, limits=Limits(timeout=300))`.
+OCR is opt-in and only processes pages without text. Resource limits also bound
+geometry, grid expansion, raster dimensions/helper files and process deadlines.
+
+## Optional Rust OCR backend
+
+Source builds can enable Cargo feature `pdf-ocr-ocrs` (for example,
+`maturin build --features pdf-ocr-ocrs`). Default wheels retain Tesseract.
+Prepare the repository's pinned model pair with
+`python3 scripts/prepare_ocr_models.py`, then use:
+
+```python
+markkit.extract_document_sync(
+    data, file_name="scan.pdf", pdf_ocr=True, pdf_ocr_backend="ocrs",
+    pdf_ocr_detection_model="/models/text-detection.onnx",
+    pdf_ocr_recognition_model="/models/text-recognition.onnx",
+    limits=markkit.Limits(timeout=300),
+)
+```
+
+Extraction never downloads models. The pinned weights are CC-BY-SA 4.0 assets
+with attribution in the setup script's NOTICE.json. The current Latin model
+accepts `pdf_ocr_language="eng"` only. Model files are trusted deployment assets;
+inference deadlines are cooperative and hard CPU/memory limits require host
+quotas. Invalid backend names raise ValueError; missing features/models and
+unsupported languages raise RuntimeError.

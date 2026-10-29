@@ -51,6 +51,29 @@ enum Commands {
         #[arg(long)]
         json: bool,
 
+        /// Include PDF page dimensions and positioned text runs in JSON output
+        #[arg(long, requires = "json")]
+        layout: bool,
+
+        /// OCR textless PDF pages using the selected local backend
+        #[arg(long)]
+        ocr: bool,
+        /// Installed Tesseract language codes, e.g. eng+deu
+        #[arg(long, requires = "ocr")]
+        ocr_language: Option<String>,
+        /// OCR implementation: tesseract (default) or ocrs (optional feature)
+        #[arg(long, requires = "ocr", value_parser = ["tesseract", "ocrs"])]
+        ocr_backend: Option<String>,
+        /// Local ONNX detection model for the ocrs backend
+        #[arg(long, requires = "ocr")]
+        ocr_detection_model: Option<std::path::PathBuf>,
+        /// Local ONNX recognition model for the ocrs backend
+        #[arg(long, requires = "ocr")]
+        ocr_recognition_model: Option<std::path::PathBuf>,
+        /// Suppress headers/footers repeated in PDF page margins
+        #[arg(long)]
+        remove_pdf_headers: bool,
+
         /// Resolve relative links and images in files / stdin against this URL
         /// (URLs use the final response URL)
         #[arg(long)]
@@ -102,7 +125,7 @@ struct LimitArgs {
     /// Maximum element nesting, hard-capped at 512 [default: 256]
     #[arg(long, value_name = "N")]
     max_nesting_depth: Option<usize>,
-    /// Maximum parsed HTML DOM / DOCX XML nodes [default: 5000000]
+    /// Maximum parsed nodes / retained PDF layout pages and runs [default: 5000000]
     #[arg(long, value_name = "N")]
     max_nodes: Option<usize>,
     /// Maximum entries in a ZIP container [default: 10000]
@@ -200,6 +223,13 @@ async fn main() -> Result<()> {
             limits,
             rules,
             json: output_json,
+            layout,
+            ocr,
+            ocr_language,
+            ocr_backend,
+            ocr_detection_model,
+            ocr_recognition_model,
+            remove_pdf_headers,
             base_url,
             main_content,
         } => {
@@ -211,7 +241,21 @@ async fn main() -> Result<()> {
 
             let mut builder = Markkit::builder()
                 .limits(limits.apply(Limits::default()))
+                .pdf_layout(layout)
+                .pdf_ocr(ocr)
+                .pdf_ocr_language(ocr_language.unwrap_or_else(|| "eng".into()))
+                .pdf_remove_repeated_headers(remove_pdf_headers)
                 .main_content(main_content);
+
+            if let Some(backend) = ocr_backend {
+                builder = builder.pdf_ocr_backend(backend.parse().map_err(anyhow::Error::msg)?);
+            }
+            if let Some(path) = ocr_detection_model {
+                builder = builder.pdf_ocr_detection_model(path);
+            }
+            if let Some(path) = ocr_recognition_model {
+                builder = builder.pdf_ocr_recognition_model(path);
+            }
 
             for sel in &include_selectors {
                 builder = builder.include_selector(sel);
@@ -251,13 +295,18 @@ async fn main() -> Result<()> {
             };
 
             if output_json {
-                let output = serde_json::json!({
+                let mut output = serde_json::json!({
                     "source": source_label,
                     "markdown": extraction.markdown,
                     "format": extraction.format,
                     "title": extraction.title,
                     "metadata": extraction.metadata,
+                    "stats": extraction.stats,
+                    "warnings": extraction.warnings,
                 });
+                if let Some(layout) = extraction.layout {
+                    output["layout"] = serde_json::to_value(layout)?;
+                }
                 println!("{}", serde_json::to_string_pretty(&output)?);
             } else {
                 print!("{}", extraction.markdown);

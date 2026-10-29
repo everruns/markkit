@@ -14,7 +14,11 @@ name = "markkit_python"
 crate-type = ["cdylib"]
 doc = false
 
+[features]
+pdf-ocr-ocrs = ["markkit/pdf-ocr-ocrs"]
+
 [dependencies]
-markkit = { path = "../markkit", features = ["all_formats", "http_client"] }
+markkit = { path = "../markkit", features = ["all_formats", "pdf-ocr", "http_client"] }
+serde_json.workspace = true
 pyo3.workspace = true
 pyo3-async-runtimes.workspace = true

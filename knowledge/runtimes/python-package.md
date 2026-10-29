@@ -67,6 +67,21 @@ Published to PyPI by `publish-python.yml` from a verified release tag; see
 CI: `python.yml` builds and imports the module on changes to `crates/markkit-python/`
 or `crates/markkit/`.
 
+## Structured documents
+
+`extract_document_sync(data, *, file_name=None, content_type=None, pdf_layout=False,
+pdf_remove_repeated_headers=False, pdf_ocr=False, pdf_ocr_language="eng",
+pdf_ocr_backend="tesseract", pdf_ocr_detection_model=None,
+pdf_ocr_recognition_model=None, limits=None)`
+returns a Python dictionary with Markdown, metadata, statistics and optional layout.
+PDF tables/reading order are built in. Native OCR requires installed Tesseract/languages; callers can increase Limits.timeout for longer scanned files.
+`tests/test_documents.py` checks layout, tables and resource errors in python.yml.
+
+Source builds can enable Cargo feature `pdf-ocr-ocrs` and select `ocrs` with
+explicit local ONNX paths; default wheels retain Tesseract. Model licensing,
+Latin-only scope and cooperative inference deadlines follow
+[Format Support](../formats/format-support.md).
+
 ## See also
 
 - [Node.js Package](node-package.md), the sibling binding and parity gaps

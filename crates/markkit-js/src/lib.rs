@@ -33,6 +33,14 @@ pub struct MarkkitOptions {
     pub base_url: Option<String>,
     /// Keep only the detected main content (article body) of HTML pages.
     pub main_content: Option<bool>,
+    /// Retain PDF page dimensions and positioned text runs in `Extraction.layout`.
+    pub pdf_layout: Option<bool>,
+    pub pdf_remove_repeated_headers: Option<bool>,
+    pub pdf_ocr: Option<bool>,
+    pub pdf_ocr_language: Option<String>,
+    pub pdf_ocr_backend: Option<String>,
+    pub pdf_ocr_detection_model: Option<String>,
+    pub pdf_ocr_recognition_model: Option<String>,
     pub preserve_links: Option<bool>,
     pub preserve_images: Option<bool>,
     /// CSS selectors to include (empty = whole document).
@@ -100,6 +108,7 @@ pub struct Warning {
 /// Markdown plus metadata.
 #[napi(object)]
 pub struct Extraction {
+    pub layout: Option<PdfLayout>,
     pub markdown: String,
     pub title: Option<String>,
     /// Detected format (`html`, `docx`, `pptx`, `xlsx`, `xlsb`, `xls`, `ods`, `text`, `markdown`, `csv`, `tsv`, `ipynb`, `eml`, `odt`, `epub`).
@@ -107,6 +116,75 @@ pub struct Extraction {
     pub warnings: Vec<Warning>,
     pub stats: ExtractionStats,
     pub metadata: Metadata,
+}
+
+/// PDF source geometry; coordinates are display points, x right and y down.
+#[napi(object)]
+pub struct PdfLayout {
+    pub version: u32,
+    pub pages: Vec<PdfPageLayout>,
+}
+
+#[napi(object)]
+pub struct PdfPageLayout {
+    pub page: u32,
+    pub width: f64,
+    pub height: f64,
+    pub rotation: u32,
+    pub spans: Vec<PdfTextSpan>,
+    pub blocks: Vec<PdfBlock>,
+}
+
+#[napi(object)]
+pub struct PdfTextSpan {
+    pub id: u32,
+    pub text: String,
+    /// Approximate em bounds: [left, top, right, bottom].
+    pub bbox: Vec<f64>,
+    pub baseline: Vec<Vec<f64>>,
+    pub font: Option<String>,
+    pub size: f64,
+    pub angle: f64,
+    pub words: Vec<PdfWord>,
+    pub bold: bool,
+    pub italic: bool,
+    pub role: Option<String>,
+    pub ocr: bool,
+}
+
+#[napi(object)]
+pub struct PdfWord {
+    pub text: String,
+    pub bbox: Vec<f64>,
+    pub baseline: Vec<Vec<f64>>,
+}
+#[napi(object)]
+pub struct PdfLine {
+    pub bbox: Vec<f64>,
+    pub span_ids: Vec<u32>,
+}
+#[napi(object)]
+pub struct PdfCell {
+    pub row: u32,
+    pub column: u32,
+    pub rowspan: u32,
+    pub colspan: u32,
+    pub bbox: Vec<f64>,
+    pub span_ids: Vec<u32>,
+}
+#[napi(object)]
+pub struct PdfBlock {
+    pub id: u32,
+    pub kind: String,
+    pub bbox: Vec<f64>,
+    pub span_ids: Vec<u32>,
+    pub lines: Vec<PdfLine>,
+    pub cells: Vec<PdfCell>,
+}
+fn js_ids(ids: Vec<usize>) -> Vec<u32> {
+    ids.into_iter()
+        .map(|n| u32::try_from(n).unwrap_or(u32::MAX))
+        .collect()
 }
 
 fn invalid(field: &str) -> napi::Error {
@@ -163,6 +241,27 @@ fn markkit(options: Option<MarkkitOptions>) -> napi::Result<markkit::Markkit> {
     }
     if let Some(v) = o.main_content {
         b = b.main_content(v);
+    }
+    if let Some(v) = o.pdf_remove_repeated_headers {
+        b = b.pdf_remove_repeated_headers(v);
+    }
+    if let Some(v) = o.pdf_ocr {
+        b = b.pdf_ocr(v);
+    }
+    if let Some(v) = o.pdf_ocr_backend {
+        b = b.pdf_ocr_backend(v.parse().map_err(napi::Error::from_reason)?);
+    }
+    if let Some(v) = o.pdf_ocr_detection_model {
+        b = b.pdf_ocr_detection_model(v);
+    }
+    if let Some(v) = o.pdf_ocr_recognition_model {
+        b = b.pdf_ocr_recognition_model(v);
+    }
+    if let Some(v) = o.pdf_ocr_language {
+        b = b.pdf_ocr_language(v);
+    }
+    if let Some(v) = o.pdf_layout {
+        b = b.pdf_layout(v);
     }
     if let Some(v) = o.preserve_links {
         b = b.preserve_links(v);
@@ -228,6 +327,75 @@ fn count(v: Option<usize>) -> Option<u32> {
 
 fn to_js(e: markkit::Extraction) -> Extraction {
     Extraction {
+        layout: e.layout.map(|l| PdfLayout {
+            version: l.version,
+            pages: l
+                .pages
+                .into_iter()
+                .map(|p| PdfPageLayout {
+                    page: p.page,
+                    width: p.width,
+                    height: p.height,
+                    rotation: p.rotation.into(),
+                    blocks: p
+                        .blocks
+                        .into_iter()
+                        .map(|b| PdfBlock {
+                            id: b.id as u32,
+                            kind: b.kind,
+                            bbox: b.bbox.to_vec(),
+                            span_ids: js_ids(b.span_ids),
+                            lines: b
+                                .lines
+                                .into_iter()
+                                .map(|l| PdfLine {
+                                    bbox: l.bbox.to_vec(),
+                                    span_ids: js_ids(l.span_ids),
+                                })
+                                .collect(),
+                            cells: b
+                                .cells
+                                .into_iter()
+                                .map(|c| PdfCell {
+                                    row: c.row as u32,
+                                    column: c.column as u32,
+                                    rowspan: c.rowspan,
+                                    colspan: c.colspan,
+                                    bbox: c.bbox.to_vec(),
+                                    span_ids: js_ids(c.span_ids),
+                                })
+                                .collect(),
+                        })
+                        .collect(),
+                    spans: p
+                        .spans
+                        .into_iter()
+                        .map(|s| PdfTextSpan {
+                            id: u32::try_from(s.id).unwrap_or(u32::MAX),
+                            text: s.text,
+                            bbox: s.bbox.to_vec(),
+                            baseline: s.baseline.into_iter().map(|p| p.to_vec()).collect(),
+                            font: s.font,
+                            size: s.size,
+                            angle: s.angle,
+                            words: s
+                                .words
+                                .into_iter()
+                                .map(|w| PdfWord {
+                                    text: w.text,
+                                    bbox: w.bbox.to_vec(),
+                                    baseline: w.baseline.into_iter().map(|p| p.to_vec()).collect(),
+                                })
+                                .collect(),
+                            bold: s.bold,
+                            italic: s.italic,
+                            role: s.role,
+                            ocr: s.ocr,
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }),
         markdown: e.markdown,
         title: e.title,
         format: e.format.as_str().to_string(),

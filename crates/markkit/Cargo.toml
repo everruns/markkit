@@ -17,6 +17,10 @@ readme = "../../README.md"
 default = ["html"]
 html = ["dep:scraper", "dep:html5ever", "dep:ego-tree", "dep:url"]
 pdf = ["dep:hayro-syntax", "dep:miniz_oxide"]
+# Native OCR is opt-in; Rust rendering plus host-installed Tesseract.
+pdf-ocr = ["pdf", "dep:tempfile", "dep:hayro"]
+# Optional Rust OCR with caller-supplied, local ONNX models.
+pdf-ocr-ocrs = ["pdf-ocr", "dep:ocrs", "dep:rten"]
 docx = ["dep:zip", "dep:quick-xml"]
 pptx = ["dep:zip", "dep:quick-xml"]
 spreadsheet = ["dep:calamine", "dep:zip", "dep:quick-xml", "dep:cfb"]
@@ -33,7 +37,13 @@ tool = ["dep:tower", "dep:futures-core", "dep:base64", "dep:tokio", "tokio/sync"
 json-schema = ["dep:schemars"]
 all_formats = ["html", "pdf", "docx", "pptx", "spreadsheet", "markdown", "email", "odt", "epub"]
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+hayro = { workspace = true, optional = true }
+ocrs = { workspace = true, optional = true }
+rten = { workspace = true, optional = true }
+
 [dependencies]
+tempfile = { workspace = true, optional = true }
 # Async (optional): only URL fetching and the tool's output channel need tokio.
 tokio = { workspace = true, optional = true }
 

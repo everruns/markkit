@@ -105,7 +105,8 @@ test("extractDocument reads Jupyter notebooks", () => {
 test("extractBytes and unsupported formats", () => {
   const mk = new Markkit();
   assert.equal(mk.extractBytes(new TextEncoder().encode("<p>x</p>"), "text/html"), "x\n");
-  assert.throws(() => mk.extractDocument(new TextEncoder().encode("%PDF-1.7"), { fileName: "a.pdf" }), /Unsupported/);
+  assert.throws(() => mk.extractDocument(new TextEncoder().encode("%PDF-1.7"), { fileName: "a.pdf" }), /PDF extraction error/);
+  assert.throws(() => mk.extractDocument(new Uint8Array([0]), { fileName: "a.doc" }), /Unsupported/);
 });
 
 test("tool metadata and definition", () => {
@@ -181,4 +182,34 @@ test("tool converts base64 DOCX", async () => {
   const out = await tool.execute({ content_base64: b64, file_name: "a.docx" });
   assert.equal(out.format, "docx");
   assert.match(out.markdown, /From tool/);
+});
+
+test("PDF source geometry is opt-in and obeys layout limits", () => {
+  const content = "BT /F1 10 Tf 10 100 Td (Hi) Tj ET";
+  const source = `%PDF-1.7
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj
+4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+5 0 obj << /Length ${content.length} >> stream
+${content}
+endstream endobj
+trailer << /Root 1 0 R >>
+%%EOF`;
+  const data = new TextEncoder().encode(source);
+  const hint = { fileName: "a.pdf" };
+  const plain = new Markkit().extractDocument(data, hint);
+  assert.equal(plain.markdown, "Hi\n");
+  assert.ok(plain.layout == null);
+  const result = new Markkit({ pdfLayout: true }).extractDocument(data, hint);
+  assert.equal(result.markdown, plain.markdown);
+  assert.equal(result.layout.pages[0].width, 300);
+  assert.equal(result.layout.pages[0].blocks[0].kind, "paragraph");
+  assert.deepEqual(result.layout.pages[0].blocks[0].spanIds, [0]);
+  assert.equal(result.layout.pages[0].spans[0].words[0].text, "Hi");
+  assert.equal(result.layout.pages[0].height, 400);
+  assert.equal(result.layout.pages[0].spans[0].text, "Hi");
+  assert.deepEqual(result.layout.pages[0].spans[0].baseline, [[10, 300], [20, 300]]);
+  assert.throws(() => new Markkit({ pdfLayout: true, maxNodes: 1 }).extractDocument(data, hint), /max_nodes/);
+  assert.throws(() => new Markkit({ pdfLayout: true, maxOutputSize: 50 }).extractDocument(data, hint), /max_output_size/);
 });

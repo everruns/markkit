@@ -76,6 +76,14 @@ jobs:
         run: cargo test --workspace
       - name: Run tests (all features)
         run: cargo test --workspace --all-features
+      - name: Rust OCR model integration
+        env:
+          MARKKIT_OCR_MODEL_DIR: ${{ github.workspace }}/target/ocr-models
+          RTEN_NUM_THREADS: '1'
+          RAYON_NUM_THREADS: '1'
+        run: |
+          python3 scripts/prepare_ocr_models.py
+          cargo test --release -p markkit --features pdf-ocr-ocrs --test pdf_ocr ocrs_recognizes_scanned_text_with_source_word_geometry -- --include-ignored
       - name: Run tests (office formats, no HTTP client)
         run: |
           if cargo tree -p markkit -e normal | grep -E 'reqwest|hyper'; then

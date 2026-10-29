@@ -10,6 +10,9 @@ use crate::limits::Budget;
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Extraction {
+    /// Optional PDF source geometry (enable with `pdf_layout(true)`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout: Option<crate::layout::PdfLayout>,
     /// Rendered Markdown. Non-empty output always ends with exactly one `\n`
     /// (POSIX text convention, safe to concatenate); empty documents render `""`.
     pub markdown: String,
@@ -176,6 +179,9 @@ pub struct ExtractionStats {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct ParsedDocument {
+    /// Optional PDF source geometry, independent of semantic IR transforms.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout: Option<crate::layout::PdfLayout>,
     /// Canonical IR (blocks carry [`crate::ir::Source`] when
     /// [`MarkkitBuilder::track_sources`] is enabled).
     pub document: Document,
@@ -196,6 +202,7 @@ impl ParsedDocument {
     /// [`crate::registry::FormatParser`]s).
     pub fn new(document: Document, format: Format) -> Self {
         Self {
+            layout: None,
             document,
             title: None,
             format,
@@ -223,6 +230,7 @@ impl ParsedDocument {
 
     fn into_extraction(self, markdown: String) -> Extraction {
         Extraction {
+            layout: self.layout,
             markdown,
             title: self.title,
             format: self.format,
@@ -694,8 +702,17 @@ impl Markkit {
             crate::pdf::parse(bytes, &self.config, budget)
         })?;
         let mut p = ParsedDocument::new(out.doc, Format::Pdf);
+        p.layout = out.layout;
+        self.config.transforms.apply(&mut p.document)?;
         p.title = out.title;
         p.warnings = out.warnings;
+        p.stats.tables = Some(
+            p.document
+                .nodes
+                .iter()
+                .filter(|n| matches!(n, crate::ir::Node::Table { .. }))
+                .count(),
+        );
         p.stats.pages = Some(out.pages);
         Ok(p)
     }

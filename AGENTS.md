@@ -31,6 +31,7 @@ Fix root cause. Unsure: read more code; if stuck, ask w/ short options. Unrecogn
 | formats/format-support | Formats, bytes-in API, detection order, DOCX + spreadsheet mapping |
 | integrations/tool-contract | `MarkkitTool` LLM tool (`tool` feature), Everruns toolkit contract |
 | security/security-model | One-page threat/invariant summary |
+| security/native-dependencies | Hayro/ocrs provenance, model licensing, native library and host-runtime inventory |
 | security/fuzzing | cargo-fuzz targets, S17 oracle, nightly workflow, crash triage |
 | security/threat-model | Threats T1-T9, mitigations, test map, resource limits, invariants S1-S21 |
 | runtimes/python-package | PyO3 `markkit` module, maturin, PyPI |
@@ -81,6 +82,9 @@ just bench-criterion # Criterion micro-benches (crates/markkit/benches)
 just eval-public-setup   # Pinned Mira + isolated Python scorer environment
 just eval-public-prepare # Download and verify public corpora (PR slice)
 just eval-public        # Release WCXB + AgentDocBench runs and regression gate
+just eval-pdf           # Authored PDF text/layout/table expectations
+just ocr-models         # Verify optional OCR model assets and attribution
+just eval-ocr           # Tesseract/ocrs quality, geometry, timing and memory comparison
 just pre-pr        # Pre-PR checks
 ```
 

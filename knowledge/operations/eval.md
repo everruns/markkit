@@ -12,14 +12,75 @@ tags:
 
 ## Status
 
-Two evals on the [mira](https://github.com/everruns/mira) eval framework,
+Three evals on the [mira](https://github.com/everruns/mira) eval framework,
 modeled on everruns/bashkit's `bashkit-eval` study:
 
 - `markkit_extract`: offline, deterministic extraction quality.
+- `markkit_pdf`: authored PDF geometry, reading order and table expectations.
 - `markkit_qa`: LLM answers questions from markkit output vs raw HTML, over a
   key-gated model matrix; see [LLM QA Eval](#llm-qa-eval-markkit_qa).
 
 LLM-as-judge is planned; see [Planned evals](#planned-evals).
+
+## PDF extraction eval (`markkit_pdf`)
+
+`just eval-pdf` runs 20 authored scenes from `data/pdf-layout.json` through the
+Rust subject (`src/pdf.rs`), without external data/API keys. Inputs and expected
+text/coordinates are inspectable in the dataset and Mira files. Default/layout
+modes check exact ideal text fidelity, expected geometry (0.001-point tolerance,
+exact array lengths), block/cell structure where authored, and Markdown parity.
+Requested geometry missing from successful output or extraction failures score
+zero. Geometry is N/A only when capture is intentionally disabled. The full scene
+set includes columns/narrow gutters, spanning headings, ruled/borderless/wrapped
+cells, tags/ActualText, numbered lists and page/crop/rotation cases.
+
+Native OCR validation uses the optional `pdf_ocr` integration test (explicitly run
+with --include-ignored, installed helpers required) plus the pinned scanned public
+PDFs. No live pages, API keys or GPU are needed. Public WCXB/AgentDocBench scorer
+contracts/baselines remain unchanged; compare default extraction and OCR-enabled
+PDF scores separately, retaining image-only cases in their denominators.
+
+Recorded run: [PDF extraction results, 2026-10-28](../../crates/markkit-eval/results/pdf-layout-2026-10-28.json).
+
+Renderer follow-up: [Hayro results, 2026-10-29](../../crates/markkit-eval/results/hayro-2026-10-29.json).
+178 public default cases have no regressions; all 40 authored PDF cases pass.
+Three scanned documents run with only Tesseract on PATH (no Poppler): mean score
+0.52337 → 0.56047. NASA Budget declines (0.3530 → 0.3253); NASA Notes and Oklahoma
+improve. Retain the per-document scores rather than treating the mean as a
+no-regression gate. Renderer deadline/codec limits and native dependencies are
+recorded in [Native Dependencies](../security/native-dependencies.md).
+
+## OCR backend comparison
+
+`just ocr-models` prepares size/SHA256-pinned official example models with
+CC-BY-SA 4.0 attribution; `just eval-ocr` runs `scripts/compare_pdf_ocr.py` in the
+public scorer venv. It builds the release CLI with pdf-ocr-ocrs, verifies models
+and the unchanged public manifest, then evaluates all three existing scanned PDFs
+with both engines. Rendering, layout heuristics and scorer contracts are shared.
+
+Each engine has one untimed warm-up per document followed by three fresh-process
+runs (order alternates). RTEN_NUM_THREADS, RAYON_NUM_THREADS and OMP_THREAD_LIMIT
+are one; ocrs runs with an empty PATH. Timing includes startup/model loading and
+rendering; scoring is outside the measured interval. Linux peak process-tree RSS
+is sampled every 10ms (shared pages can be counted twice). JSON retains raw
+measurements, source/binary/model/input provenance, document/order/table scores,
+word counts and geometry checks. Valid geometry requires finite positive in-page
+boxes and consistent IDs. Exact-word matched bounding-box IoU measures engine
+agreement, not localization accuracy: public scans lack ground-truth word boxes.
+The authored model-backed integration test checks independent known text bounds.
+
+Recorded comparison: [ocrs results, 2026-10-28](../../crates/markkit-eval/results/ocrs-2026-10-28.json).
+Across the three unchanged scans, mean document scores are Tesseract 0.56047 and
+ocrs 0.54917. Median document time is 4.28s / 12.78s; median sampled peak process-tree
+RSS is 36.2 / 227.6 MiB (Tesseract / ocrs). The longer scan scores equally; the two
+NASA scans score lower with ocrs. All word geometry validates, and authored known
+word regions pass. Keep Tesseract as default; the optional Rust path removes
+external OCR helpers with measured accuracy/CPU/memory tradeoffs. These are three
+scans, not a general ranking of OCR engines.
+
+Run only with approved local models; weights are never fetched during extraction.
+Public quality gates and corpus baselines remain unchanged. Neither backend is
+removed from comparisons if execution/geometry/repeatability fails.
 
 ## Architecture
 

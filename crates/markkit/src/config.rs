@@ -3,6 +3,25 @@ use std::time::Duration;
 use crate::extract::Markkit;
 use crate::limits::Limits;
 
+/// Local OCR implementation for textless PDF pages. Tesseract is the default.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PdfOcrBackend {
+    #[default]
+    Tesseract,
+    /// Rust inference; requires `pdf-ocr-ocrs` and explicit local ONNX models.
+    Ocrs,
+}
+impl std::str::FromStr for PdfOcrBackend {
+    type Err = String;
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "tesseract" => Ok(Self::Tesseract),
+            "ocrs" => Ok(Self::Ocrs),
+            _ => Err("OCR backend must be tesseract or ocrs".into()),
+        }
+    }
+}
+
 /// Builder for configuring a Markkit instance.
 #[derive(Debug, Clone)]
 pub struct MarkkitBuilder {
@@ -39,6 +58,21 @@ pub struct MarkkitBuilder {
     /// HTML element XPath, DOCX block index, spreadsheet sheet and range.
     /// Default: false (no cost, no `source` in IR JSON).
     pub track_sources: bool,
+    /// Retain PDF page dimensions and positioned text runs. Default: false.
+    /// Source geometry is separate from the semantic IR and Markdown output.
+    pub pdf_layout: bool,
+    /// Remove text repeated in page margins. Default: false.
+    pub pdf_remove_repeated_headers: bool,
+    /// OCR textless PDF pages with Hayro rendering and the selected OCR backend (`pdf-ocr` feature).
+    pub pdf_ocr: bool,
+    /// Installed Tesseract language(s), e.g. `eng` or `eng+deu`.
+    pub pdf_ocr_language: String,
+    /// OCR backend; requires `pdf_ocr(true)`. Default: Tesseract.
+    pub pdf_ocr_backend: PdfOcrBackend,
+    /// Local ONNX text detection model, required by the ocrs backend.
+    pub pdf_ocr_detection_model: Option<std::path::PathBuf>,
+    /// Local ONNX text recognition model, required by the ocrs backend.
+    pub pdf_ocr_recognition_model: Option<std::path::PathBuf>,
     /// IR passes run after parsing, before rendering (see [`crate::transform`]).
     pub transforms: crate::transform::TransformChain,
     /// Keep only the detected main content (article body) of HTML pages,
@@ -74,6 +108,13 @@ impl Default for MarkkitBuilder {
             allowed_hosts: Vec::new(),
             base_url: None,
             track_sources: false,
+            pdf_layout: false,
+            pdf_remove_repeated_headers: false,
+            pdf_ocr: false,
+            pdf_ocr_language: "eng".into(),
+            pdf_ocr_backend: PdfOcrBackend::default(),
+            pdf_ocr_detection_model: None,
+            pdf_ocr_recognition_model: None,
             transforms: Default::default(),
             main_content: false,
             html_rules: Vec::new(),
@@ -83,6 +124,41 @@ impl Default for MarkkitBuilder {
 }
 
 impl MarkkitBuilder {
+    /// Retain PDF source geometry in `ParsedDocument::layout` and
+    /// `Extraction::layout`. Has no effect on other formats or Markdown.
+    pub fn pdf_layout(mut self, enabled: bool) -> Self {
+        self.pdf_layout = enabled;
+        self
+    }
+
+    pub fn pdf_remove_repeated_headers(mut self, enabled: bool) -> Self {
+        self.pdf_remove_repeated_headers = enabled;
+        self
+    }
+
+    pub fn pdf_ocr(mut self, enabled: bool) -> Self {
+        self.pdf_ocr = enabled;
+        self
+    }
+
+    pub fn pdf_ocr_language(mut self, language: impl Into<String>) -> Self {
+        self.pdf_ocr_language = language.into();
+        self
+    }
+
+    pub fn pdf_ocr_backend(mut self, backend: PdfOcrBackend) -> Self {
+        self.pdf_ocr_backend = backend;
+        self
+    }
+    pub fn pdf_ocr_detection_model(mut self, path: impl Into<std::path::PathBuf>) -> Self {
+        self.pdf_ocr_detection_model = Some(path.into());
+        self
+    }
+    pub fn pdf_ocr_recognition_model(mut self, path: impl Into<std::path::PathBuf>) -> Self {
+        self.pdf_ocr_recognition_model = Some(path.into());
+        self
+    }
+
     pub fn max_input_size(mut self, size: usize) -> Self {
         self.limits.max_input_size = size;
         self

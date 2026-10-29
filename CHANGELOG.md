@@ -9,11 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- PDF stream guards honor escaped dictionary keys and bound compressed prefixes
+  before image filters, including when OCR is disabled.
+
 - Footnote bodies cannot become unsafe reference-link destinations in Markdown readers
   without footnote support. Bodies start after a blank line and remain valid footnotes
   in readers that support them (nightly renderer fuzz regression).
 
 ### Added
+
+- Optional Rust OCR backend (`pdf-ocr-ocrs`) using ocrs/RTen and explicit local
+  ONNX model paths. CLI `--ocr-backend ocrs`, Node `pdfOcrBackend`, and Python
+  `pdf_ocr_backend` select it; Tesseract remains the default. Pinned model setup
+  and repeated scan comparisons report text quality, geometry, latency and memory.
+  **Breaking:** exhaustive Rust `MarkkitBuilder` literals also need
+  `pdf_ocr_backend`, `pdf_ocr_detection_model` and `pdf_ocr_recognition_model`.
+
+- PDF layout, reading order and table extraction: glyph-positioned words,
+  column reconstruction, ruled tables with merged cells, conservative borderless
+  tables and wrapped cells; bold/italic, numbered lists, tagged heading roles and
+  `ActualText`; optional repeated header/footer removal. Layout JSON includes
+  source runs/words and semantic blocks/lines/cells linked to IR provenance.
+- Opt-in native PDF OCR (`pdf-ocr`, CLI `--ocr`) with Rust Hayro rendering and installed Tesseract,
+  bounded raster size/output/deadline and configurable languages. WASM now supports
+  PDF text/layout/tables; Node and Python expose layout and native OCR options.
+  Python gains structured `extract_document_sync`.
+- `just eval-pdf`: 20 authored PDF scenes across default/layout modes, including
+  column, table, wrapped-cell, tagging and list expectations.
+  **Breaking:** exhaustive Rust `MarkkitBuilder` literals must include `pdf_layout`,
+  `pdf_remove_repeated_headers`, `pdf_ocr`, and `pdf_ocr_language`; builder methods
+  and `..Default::default()` remain valid.
 
 - Public WCXB and AgentDocBench evaluations through Mira (`just eval-public`), with
   pinned/verified corpora, a release-build baseline regression gate, per-type/format

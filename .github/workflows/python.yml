@@ -35,3 +35,5 @@ jobs:
         run: |
           pip install target/wheels/*.whl
           python -c 'from importlib.metadata import metadata; import markkit; assert metadata("markkit")["Name"] == "markkit"; assert markkit.extract_html_sync("<h1>Smoke</h1>").strip() == "# Smoke"; print("Distribution and import OK")'
+      - name: Test structured documents and PDF layout
+        run: python -m unittest discover -s crates/markkit-python/tests -p 'test_*.py'

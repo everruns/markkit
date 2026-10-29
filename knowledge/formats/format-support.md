@@ -37,7 +37,7 @@ tags:
 - **XLSB** (`spreadsheet`): Excel binary workbooks via markkit's own bounds-checked BIFF12
   reader (calamine's XLSB reader panics on malformed records)
 - **Markdown** (`markdown`): Re-parsed with pulldown-cmark into the IR and rendered back (`text/markdown`, `text/x-markdown`, `.md`, `.markdown`, `.mdown`, `.mkd`, `.mkdn`)
-- **PDF** (`pdf`): Text layer via hayro-syntax (pure Rust); no OCR, encrypted PDFs rejected
+- **PDF** (`pdf`): Text/layout, reading order and tables via hayro-syntax (pure Rust); encrypted PDFs rejected. Native OCR is opt-in with `pdf-ocr` and installed helpers
 
 ### Detected, not supported
 - **DOC** (Word 97-2003 binary), **PPT** (PowerPoint 97-2003 binary): explicit `UnsupportedFormat` errors
@@ -246,7 +246,7 @@ kept raw in the IR and escaped by the renderer (S17).
 
 ## PDF Mapping
 
-Text layer only (`crates/markkit/src/pdf/`). Layout is reconstructed from glyph positions:
+Text and spatial structure (`crates/markkit/src/pdf/`); optional native OCR. Base mappings:
 
 | PDF | Markdown |
 |---|---|
@@ -270,9 +270,89 @@ stripped); otherwise WinAnsi. Type0 fonts without `ToUnicode` are skipped with
 OCR layers (mode 3) are extracted. Encrypted documents (an `/Encrypt` key anywhere)
 return `UnsupportedFormat`; a page set with no text emits `pdf_no_text`.
 
-Known gaps (follow-ups): multi-column reading order relies on content-stream order,
-no table detection, no repeated header/footer removal, bold/italic not mapped, numbered
-lists stay paragraphs, rotated text is not re-oriented.
+Spatial extraction (`pdf/analyze.rs`) uses glyph-derived words normalized to the
+page's dominant orientation. Repeated gutters define XY cuts; spanning headings
+and tables divide bands, with columns read top-to-bottom, left-to-right. Single
+rows without column evidence remain lines. Lines form paragraphs, styled inline
+content and numbered/bullet lists. Heading sizes rank levels; tagged heading roles
+(including structure-tree MCIDs/RoleMap) take precedence. Marked-content ActualText
+replaces enclosed glyph text once; recursion, role lengths and retained bytes are
+bounded. Optional `pdf_remove_repeated_headers` removes text repeated in the outer
+8% margins of at least two pages and 60% of the extracted page set.
+
+Tables: axis-aligned vector rulings form connected grids. Missing internal borders
+infer rectangular merged cells (row/column spans); nonrectangular ambiguous merges
+fall back to text. Borderless candidates need >=3 aligned logical rows and numeric
+data or explicit bold/TH headers; wrapped first-column continuations stay in their
+cell. Ordinary prose columns remain prose. The first logical row becomes the
+header; bounds/row/column/span metadata are retained. IR uses the existing Table /
+TableCell representation. `stats.tables` counts detected tables.
+
+`pdf_layout(true)` returns a version-1 `layout::PdfLayout` sidecar on parse and
+extraction results; otherwise omitted. Pages contain source runs/words in drawing
+order and semantic blocks/lines/cells in reading order. Every block has a page-local
+ID, type, bounds, source span IDs and line geometry; table cells include row/column,
+rowspan/colspan and bounds. IR Source.page + Source.layout_block link back to blocks
+when layout is requested (independent of track_sources). Geometry remains source
+data if IR transforms rewrite nodes. Coordinates are display points from the
+intersected crop/media top-left, x right, y down after rotation/UserUnit. Font bounds
+use 0.8 em ascent / 0.2 em descent, not outlines; OCR uses recognized word bounds.
+Off-page text remains. Invalid/non-finite geometry fails explicitly. JSON remains
+optional; `--layout` requires `--json`. Node/WASM recursively expose camelCase keys;
+Python/Rust/CLI serialize snake_case keys.
+
+Native `pdf-ocr` adds opt-in `pdf_ocr(true)` (CLI --ocr, Node pdfOcr, Python
+pdf_ocr). Only pages without text are recognized, so text layers are never doubled.
+Hayro renders the displayed crop box in Rust at max 1800×1800 pixels onto white,
+then exports bounded grayscale PGM. Installed Tesseract emits TSV words using one
+OpenMP thread. Languages are validated installed codes, default eng; callers can
+set pdf_ocr_language / CLI --ocr-language. Tesseract uses private temporary files,
+direct argv, size/deadline polling and kill+reap on expiry. Hayro rendering is a
+non-interruptible third-party step: deadlines are checked before and after it.
+Hosts must provide CPU/memory isolation for hostile documents. OCR can need longer
+deadlines, e.g. --timeout 300. WASM has no native process OCR.
+
+Optional `pdf-ocr-ocrs` adds `PdfOcrBackend::Ocrs`, selected by
+pdf_ocr_backend / CLI --ocr-backend / Node pdfOcrBackend. Tesseract remains the
+default; missing compiled support fails explicitly. Rust, Node and Python accept
+pdf_ocr_detection_model / pdf_ocr_recognition_model (camelCase in Node): explicit
+local ONNX paths. Both are required only when a textless page needs recognition.
+Models load once per document; input file bytes together obey max_pdf_decoded_size.
+The core never fetches models or falls back to a different engine. The default
+Latin model currently requires language eng; alternate language codes fail.
+
+`prepare_ocr_models.py` verifies the pinned official example pair from
+`scripts/ocr_models.json`, including size/SHA256, and records CC-BY-SA 4.0 model
+attribution beside the files. These weights are not embedded in packages. RTen
+and ocrs execute in Rust and emit character-derived word rectangles, converted
+to the same OCR spans/IR/layout as Tesseract. Output storage/nodes obey the same
+limits. Deadline checks surround model loading, preprocessing, detection, line
+analysis and recognition batches (max 20 lines); individual inference operations
+are non-interruptible. Trusted models and host CPU/memory quotas remain required.
+RTEN_NUM_THREADS and RAYON_NUM_THREADS control process-level pools. Native bindings
+expose the knobs; their optional Cargo feature must be enabled when building.
+Markkit WASM still exposes text-layer PDF extraction rather than OCR.
+
+OCR rendering conservatively supports JPEG, header-bounded JPEG2000 and
+generic-filter images without DecodeParms. Inline images, JBIG2 and CCITT are refused explicitly until their
+internal allocations can be bounded. Per-image working storage is estimated at
+16 bytes per source pixel against the stream cap; cumulative RGBA storage is
+charged at four bytes per pixel against the decoded cap. Huge or indirect
+dimensions fail closed. PGM has no DPI metadata, so Tesseract receives the displayed
+page resolution explicitly. This is a working-storage estimate, not a hard
+heap quota on Hayro. See [Native Dependencies](../security/native-dependencies.md)
+for provenance and remaining C/C++ components.
+
+PDF source geometry/rules count against max_nodes; retained layout storage and
+pairwise analysis work are separately bounded by max_pdf_decoded_size. Grids obey
+max_sheet_rows/max_sheet_cols/max_spreadsheet_cells before expansion. Layout JSON is
+counted without allocating a second JSON copy against max_output_size, including
+parse-only callers. Markdown has its own cap at that same setting, excluding JSON
+wrapper/pretty-print overhead. OCR raster/TSV bytes use PDF stream/decoded caps.
+
+Heuristic limits: irregular/nonrectangular tables, nested tables, vertical scripts,
+rotated individual cells and incomplete tagging may fall back to text; OCR accuracy
+depends on source resolution and installed languages. Images are not exported.
 
 ## Plain Text and Markdown
 

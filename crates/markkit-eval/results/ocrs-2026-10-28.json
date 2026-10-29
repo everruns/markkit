@@ -1,0 +1,488 @@
+{
+  "scope": "Same three pinned public scans, shared Hayro rendering and Markkit layout/Markdown; OCR backend is the variable.",
+  "source_revision": "7a4e62f0497deee864f39600e5a36a3d348260bf",
+  "source_dirty": true,
+  "binary_sha256": "d77b9d69bc0de0964607f02ef4cdd126ab686d4af8442e7ad647b0806fa3961d",
+  "model_pins": {
+    "source": "https://github.com/robertknight/ocrs/blob/main/ocrs/examples/download-models.sh",
+    "revision": "Official example model pair, content pinned by SHA256",
+    "license": "CC-BY-SA-4.0",
+    "license_url": "https://huggingface.co/robertknight/ocrs/blob/df0edd170279ab971b53e094c627255a87e1a503/README.md",
+    "attribution": "Ocrs models by Robert Knight; trained on HierText (CC-BY-SA 4.0).",
+    "models": [
+      {
+        "name": "text-detection.onnx",
+        "url": "https://ocrs-models.s3-accelerate.amazonaws.com/text-detection.onnx",
+        "sha256": "a917b23dbd9524b465df7e922641b3ff2981623df4ded5a0234004ef2fee7cfe",
+        "size": 2499479,
+        "last_modified": "Sun, 13 Sep 2026 08:22:54 GMT"
+      },
+      {
+        "name": "text-recognition.onnx",
+        "url": "https://ocrs-models.s3-accelerate.amazonaws.com/text-recognition.onnx",
+        "sha256": "86c145c2edb96c8caed5b1ebb8f44d706408922211451c309c625157dd6061c5",
+        "size": 9713177,
+        "last_modified": "Sun, 13 Sep 2026 08:22:52 GMT"
+      }
+    ]
+  },
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+  "versions": {
+    "ocrs": "0.13.1",
+    "rten": "0.26.0",
+    "tesseract": [
+      "tesseract 5.5.0",
+      " leptonica-1.84.1"
+    ]
+  },
+  "method": {
+    "profile": "release",
+    "warmups": 1,
+    "runs": 3,
+    "thread_environment": {
+      "OMP_THREAD_LIMIT": "1",
+      "RTEN_NUM_THREADS": "1",
+      "RAYON_NUM_THREADS": "1"
+    },
+    "timing": "Fresh process end-to-end, including model loading and page rendering; scoring outside boundary.",
+    "memory": "Peak sum of process-tree resident bytes, sampled every 10ms on Linux. Shared pages may be counted multiple times; inference buffers are included.",
+    "timeout_seconds": 300,
+    "ocr_language": "eng",
+    "raster_max_dimension": 1800,
+    "ocrs_max_lines_per_batch": 20
+  },
+  "pure_rust_ocr_helper_check": "All ocrs executions used an empty PATH.",
+  "cases": [
+    {
+      "id": "scan-nasa-budget",
+      "input_sha256": "f0637cdd4026471afa0cf1ab199a4030844ee619f0a6dd727ceab5f29717e847",
+      "engines": {
+        "tesseract": {
+          "scores": {
+            "document_score": 0.3253,
+            "sentences": 0.2,
+            "order": 0.6667,
+            "table_cells_f1": 0.1091
+          },
+          "geometry": {
+            "pages": 3,
+            "words": 839,
+            "valid": true,
+            "tables": 1
+          },
+          "median_seconds": 4.277916884999286,
+          "median_peak_process_tree_rss_bytes": 37949440,
+          "measurements": [
+            {
+              "seconds": 3.9396111330006534,
+              "peak_process_tree_rss_bytes": 37814272
+            },
+            {
+              "seconds": 4.277916884999286,
+              "peak_process_tree_rss_bytes": 37949440
+            },
+            {
+              "seconds": 4.448720090998904,
+              "peak_process_tree_rss_bytes": 37949440
+            }
+          ]
+        },
+        "ocrs": {
+          "scores": {
+            "document_score": 0.3167,
+            "sentences": 0.2,
+            "order": 0.75,
+            "table_cells_f1": 0.0
+          },
+          "geometry": {
+            "pages": 3,
+            "words": 840,
+            "valid": true,
+            "tables": 0
+          },
+          "median_seconds": 12.777047276998928,
+          "median_peak_process_tree_rss_bytes": 238678016,
+          "measurements": [
+            {
+              "seconds": 12.566175017000205,
+              "peak_process_tree_rss_bytes": 229179392
+            },
+            {
+              "seconds": 12.777047276998928,
+              "peak_process_tree_rss_bytes": 238678016
+            },
+            {
+              "seconds": 13.25562496999919,
+              "peak_process_tree_rss_bytes": 238919680
+            }
+          ]
+        }
+      },
+      "geometry_agreement": {
+        "exact_text_matches": 712,
+        "mean_matched_word_bbox_iou": 0.7946531947851007,
+        "interpretation": "Cross-engine agreement only; these scans have no ground-truth word boxes."
+      }
+    },
+    {
+      "id": "scan-nasa-notes",
+      "input_sha256": "0d0ae5bc4a51949159beea4455d198852087e7fd6b95e9d6730a6248700975bf",
+      "engines": {
+        "tesseract": {
+          "scores": {
+            "document_score": 0.4394,
+            "sentences": 0.5,
+            "order": 0.8182,
+            "table_cells_f1": 0.0
+          },
+          "geometry": {
+            "pages": 3,
+            "words": 785,
+            "valid": true,
+            "tables": 0
+          },
+          "median_seconds": 3.745943695999813,
+          "median_peak_process_tree_rss_bytes": 36679680,
+          "measurements": [
+            {
+              "seconds": 4.393917142000646,
+              "peak_process_tree_rss_bytes": 36679680
+            },
+            {
+              "seconds": 3.701504170001499,
+              "peak_process_tree_rss_bytes": 36880384
+            },
+            {
+              "seconds": 3.745943695999813,
+              "peak_process_tree_rss_bytes": 36614144
+            }
+          ]
+        },
+        "ocrs": {
+          "scores": {
+            "document_score": 0.4141,
+            "sentences": 0.3333333333333333,
+            "order": 0.9091,
+            "table_cells_f1": 0.0
+          },
+          "geometry": {
+            "pages": 3,
+            "words": 787,
+            "valid": true,
+            "tables": 0
+          },
+          "median_seconds": 12.50714061600047,
+          "median_peak_process_tree_rss_bytes": 228642816,
+          "measurements": [
+            {
+              "seconds": 13.82876325000143,
+              "peak_process_tree_rss_bytes": 228769792
+            },
+            {
+              "seconds": 12.50714061600047,
+              "peak_process_tree_rss_bytes": 228642816
+            },
+            {
+              "seconds": 12.194090405999304,
+              "peak_process_tree_rss_bytes": 228585472
+            }
+          ]
+        }
+      },
+      "geometry_agreement": {
+        "exact_text_matches": 589,
+        "mean_matched_word_bbox_iou": 0.812589517515257,
+        "interpretation": "Cross-engine agreement only; these scans have no ground-truth word boxes."
+      }
+    },
+    {
+      "id": "scan-oklahoma-address",
+      "input_sha256": "f9da22937bda1617e919bb4a3b902551187bb484a07af254ccff22647ae81848",
+      "engines": {
+        "tesseract": {
+          "scores": {
+            "document_score": 0.9167,
+            "sentences": 0.8333333333333334,
+            "order": 1.0
+          },
+          "geometry": {
+            "pages": 7,
+            "words": 3174,
+            "valid": true,
+            "tables": 0
+          },
+          "median_seconds": 13.509221518999766,
+          "median_peak_process_tree_rss_bytes": 58048512,
+          "measurements": [
+            {
+              "seconds": 13.509221518999766,
+              "peak_process_tree_rss_bytes": 58048512
+            },
+            {
+              "seconds": 14.530162234999807,
+              "peak_process_tree_rss_bytes": 58155008
+            },
+            {
+              "seconds": 13.428984150999895,
+              "peak_process_tree_rss_bytes": 57786368
+            }
+          ]
+        },
+        "ocrs": {
+          "scores": {
+            "document_score": 0.9167,
+            "sentences": 0.8333333333333334,
+            "order": 1.0
+          },
+          "geometry": {
+            "pages": 7,
+            "words": 3165,
+            "valid": true,
+            "tables": 0
+          },
+          "median_seconds": 54.33059063300061,
+          "median_peak_process_tree_rss_bytes": 255877120,
+          "measurements": [
+            {
+              "seconds": 55.482910818000164,
+              "peak_process_tree_rss_bytes": 255877120
+            },
+            {
+              "seconds": 54.33059063300061,
+              "peak_process_tree_rss_bytes": 256438272
+            },
+            {
+              "seconds": 52.57790281199959,
+              "peak_process_tree_rss_bytes": 255811584
+            }
+          ]
+        }
+      },
+      "geometry_agreement": {
+        "exact_text_matches": 2600,
+        "mean_matched_word_bbox_iou": 0.7583267686781607,
+        "interpretation": "Cross-engine agreement only; these scans have no ground-truth word boxes."
+      }
+    }
+  ],
+  "engines": {
+    "tesseract": {
+      "mean_document_score": 0.5604666666666667,
+      "median_document_seconds": 4.277916884999286,
+      "median_peak_process_tree_rss_bytes": 37949440
+    },
+    "ocrs": {
+      "mean_document_score": 0.5491666666666667,
+      "median_document_seconds": 12.777047276998928,
+      "median_peak_process_tree_rss_bytes": 238678016
+    }
+  },
+  "date": "2026-10-28",
+  "timezone": "America/Chicago",
+  "validation": {
+    "workspace_all_features": {
+      "passed": 824,
+      "failed": 0,
+      "ignored": 2
+    },
+    "ocr_models_and_tesseract_explicit": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    "tesseract_feature_without_ocrs": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 1
+    },
+    "node": {
+      "passed": 11,
+      "failed": 0
+    },
+    "wasm": {
+      "passed": 23,
+      "failed": 0
+    },
+    "python": {
+      "passed": 3,
+      "failed": 0
+    },
+    "clippy": "passed",
+    "ocrs-only-clippy": "passed",
+    "rustdoc": "passed",
+    "repo_scripts": {
+      "run": 38,
+      "skipped": 2,
+      "failed": 0
+    },
+    "pdf_authored_scenes": {
+      "passed": 40,
+      "failed": 0
+    },
+    "public_default": {
+      "cases": 178,
+      "regressions": []
+    },
+    "format": "passed",
+    "knowledge": "OKF v0.2 conformant"
+  },
+  "public_default_regression": {
+    "cases": 178,
+    "regressions": [],
+    "quality": {
+      "agentdocbench/category/cjk": 0.9335,
+      "agentdocbench/category/docx": 0.9988666666666667,
+      "agentdocbench/category/epub": 0.9891333333333333,
+      "agentdocbench/category/financial": 0.49095,
+      "agentdocbench/category/form": 0.8377666666666667,
+      "agentdocbench/category/html": 1.0,
+      "agentdocbench/category/paper": 0.8956333333333333,
+      "agentdocbench/category/report": 0.8705,
+      "agentdocbench/category/scanned": 0.0,
+      "agentdocbench/category/slides": 0.75135,
+      "agentdocbench/category/spreadsheet": 1.0,
+      "agentdocbench/category/two-column": 0.7586666666666667,
+      "agentdocbench/format/csv": 1.0,
+      "agentdocbench/format/docx": 0.9988666666666667,
+      "agentdocbench/format/epub": 0.9891333333333333,
+      "agentdocbench/format/html": 1.0,
+      "agentdocbench/format/pdf": 0.6553260869565217,
+      "agentdocbench/format/pptx": 0.9572,
+      "agentdocbench/format/xlsx": 1.0,
+      "agentdocbench/no_ocr": 0.8660333333333333,
+      "agentdocbench/overall": 0.7938638888888889,
+      "wcxb/default/overall": 0.6770940834789322,
+      "wcxb/default/type/article": 0.8593022688301003,
+      "wcxb/default/type/collection": 0.5618264586879532,
+      "wcxb/default/type/documentation": 0.849698642479727,
+      "wcxb/default/type/forum": 0.4559187546618804,
+      "wcxb/default/type/listing": 0.6660601098285603,
+      "wcxb/default/type/product": 0.5220558838570278,
+      "wcxb/default/type/service": 0.8247964660072756,
+      "wcxb/main_content/overall": 0.4999264653091694,
+      "wcxb/main_content/type/article": 0.9687139672138977,
+      "wcxb/main_content/type/collection": 0.484765233729096,
+      "wcxb/main_content/type/documentation": 0.7157843169028515,
+      "wcxb/main_content/type/forum": 0.10889386123735083,
+      "wcxb/main_content/type/listing": 0.33261257051933946,
+      "wcxb/main_content/type/product": 0.4767832465487646,
+      "wcxb/main_content/type/service": 0.41193206101288565
+    },
+    "provenance": {
+      "binary_sha256": "7df6b8dee165fbb3b57b69392a1ac2604441feb6f19f4aa85bf17dbbe47d7ec8",
+      "build_profile": "release",
+      "command": [
+        "/workspace/markkit/target/public-benchmarks/bin/mira",
+        "run",
+        "--study-python",
+        "scripts/public_benchmarks/study.py",
+        "--max-concurrent",
+        "1",
+        "--max-retries",
+        "0",
+        "--timeout",
+        "300",
+        "--group-by",
+        "category",
+        "--format",
+        "json",
+        "--out",
+        "/workspace/markkit/work/ocrs/public/mira.json"
+      ],
+      "core_diff_sha256": "03ee134984a9996a4fc4352921c640d5d821acb6099a5f188a907a3721351443",
+      "cpu_count": 5,
+      "machine": "x86_64",
+      "mira_version": "mira 0.5.0",
+      "pins": {
+        "agentdocbench": "e97ccc4a2be9c9a71289c4e000e60e953daccaa3",
+        "mira": "v0.5.0",
+        "mira_linux_archive_sha256": "b69d1a9af34d83aae87aad2453cf642739de9e0859e043b2b6571839ef7462fc",
+        "mira_sdk": "334506ef19a1d975dace0f2c51092548a10c7b3e",
+        "samples_per_type": 10,
+        "seed": "markkit-public-pilot-v1:",
+        "wcxb": "c039d5ee9f5a3a984a0e167e63aacd04e76e78a9"
+      },
+      "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+      "python": "3.12.14",
+      "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+      "source_dirty": true,
+      "source_revision": "7a4e62f0497deee864f39600e5a36a3d348260bf",
+      "timing_boundary": "median of 3 fresh CLI processes after 1 warm-up; sequential; includes startup"
+    },
+    "build_configuration": "Default CLI features; optional ocrs disabled. Backend comparison uses a separately built CLI with pdf-ocr-ocrs enabled."
+  },
+  "geometry_scope": "Authored model-backed fixture checks three known words in their independent expected source region. Public scans check geometry validity and cross-engine agreement; no ground-truth word boxes exist in this corpus.",
+  "dependency_provenance": {
+    "ocrs_owner": "robertknight",
+    "owner_public_name": "Robert Knight",
+    "owner_public_location": "London, United Kingdom",
+    "registry_owner_source": "https://crates.io/api/v1/crates/ocrs/owners",
+    "owner_source": "https://github.com/robertknight",
+    "finding": "No Russian organizational owner found in public records; does not establish every contributor's background or affiliations.",
+    "runtime": "Ocrs and RTen implement inference in Rust. Pure Rust OCR production dependency tree, with http_client disabled, adds no cc/cmake/native ML runtime dependency; Tesseract is not invoked on the ocrs path."
+  },
+  "interpretation": {
+    "default_backend": "Tesseract remains the default; ocrs is explicitly selected and optional at build time.",
+    "recommendation": "Use ocrs for a Rust-only OCR deployment when its language, accuracy, CPU and memory tradeoffs fit. Keep Tesseract as default for this scan corpus.",
+    "limits": [
+      "Only the configured default Latin model/eng selector is supported by this integration.",
+      "Combined local model file bytes are bounded; inference activation memory requires host quotas.",
+      "Deadlines are cooperative around non-interruptible RTen operations and between batches of 20 lines.",
+      "Model weights are separate CC-BY-SA 4.0 deployment assets and are not embedded in library/binding packages.",
+      "Same shared PDF rendering restrictions apply to both engines.",
+      "These three scanned documents are a small evaluation set, not a general OCR ranking."
+    ]
+  },
+  "regressed_cases": [
+    "scan-nasa-budget",
+    "scan-nasa-notes"
+  ],
+  "changed_source_sha256": {
+    ".github/workflows/ci.yml": "c406f40a0712ae1332fbe5673faa17337d38dc86cb31c630e02d1556cd1f29f2",
+    ".github/workflows/python.yml": "3eff41f9546a45d783194cf79a69506322ed00f7fa9d37de1ca63fb6cc725430",
+    "Cargo.lock": "f6a928ad608c83cf1de580b323a7eb9cbe5fc3f2d6a888e5cb754bd94803729e",
+    "Cargo.toml": "3dd578d6897285ad735650d56ab74afdede2b7cd96fb8f3ceb66ea6f1f592e1d",
+    "crates/markkit-cli/Cargo.toml": "2270315eda96b6b9858c775f8fa39d12dc09e28961e71923da523b9aa1bf3a16",
+    "crates/markkit-cli/src/main.rs": "eca24db09752599a5eb22c50866e5bcdb2f0f637e53a1d63bb91e6918e444f85",
+    "crates/markkit-cli/tests/cli_integration.rs": "6d654357450176589000bcd356720404307c59ca26faddfa47ca4f8310cef304",
+    "crates/markkit-eval/Cargo.toml": "903b131f5716708491924ea56af529e681a980c499223d909cab1b93e43fee7d",
+    "crates/markkit-eval/data/pdf-layout.json": "38f5ac20041441fad3f6efcbe5a2f8ca82d408339c953971ccf036ebf856d42b",
+    "crates/markkit-eval/src/lib.rs": "ee1e9ac8ec5113fbb2b0a2cea6948e07905d9cc0d021c49ee212fc3f51ddf843",
+    "crates/markkit-eval/src/main.rs": "feb406d2f02b3fc35efd7a0647780dc7c66656852da1219e24b17f848f70720e",
+    "crates/markkit-eval/src/pdf.rs": "43bc3ee3b2fbd358068361bdce611710859ada341a1c631d566f367ebe6d6319",
+    "crates/markkit-js/Cargo.toml": "91fe5bd89dff4161f5d4a0c4251f897c989e4040d532453d200837f212c611dc",
+    "crates/markkit-js/__test__/options.test.cjs": "2ed01b68f702eedb9f3ae1a11127d41e1ad5bbff60251f86ae1e34deb9907f9a",
+    "crates/markkit-js/src/lib.rs": "298880fbe8928703393fbd0f91c6e42985546aa42e6129aa250a21d500643dff",
+    "crates/markkit-python/Cargo.toml": "85c464e50e25902ec70d956cf883e877ab705637fc84c9214fd05d49989f7f82",
+    "crates/markkit-python/src/lib.rs": "a9a0f8e182986a6ac2fc9e8b5db2cbf4965c90fc7d353d0d4c19b9f05de8b248",
+    "crates/markkit-python/tests/test_documents.py": "55c8fa60dd6662f8fc21ddeef9e6097cf76e9c0c8599c604aa801fe378753571",
+    "crates/markkit-wasm/Cargo.toml": "6b59cdb571c528ce4f362e5d0713e2ef0aab29eb928cd44579855cef2c9095cc",
+    "crates/markkit-wasm/__test__/markkit-wasm.test.mjs": "6edd60dae6a6bc165b6c78e9ef1d5134b21a5ab10f4509fe5e0953468612209b",
+    "crates/markkit-wasm/js/index.d.ts": "3f6c9853e1dd753ef940fa667827bff52d34a2707526ac243e6360082528c404",
+    "crates/markkit-wasm/src/lib.rs": "85791162e8d7862019c1b7da621a28ee4b2bb7789fafa04ccac1004eb72ad1d3",
+    "crates/markkit/Cargo.toml": "a4781629501bfb9e8991c8ca5653e10945ebaa9a49d634f5cc2816dff3bae980",
+    "crates/markkit/src/config.rs": "3e90b014d24a086c45bbfcf237d23cf719f95648357dcd3091271a31d10bcb0a",
+    "crates/markkit/src/extract.rs": "87b796ff60a4f995e6c6c308e480d132281f53983b9a76a66da021b935e2ed5e",
+    "crates/markkit/src/ir.rs": "b7a121efe1e498697698176bf2b779631f76a5daf511aebd74b6fa97c0b368b2",
+    "crates/markkit/src/layout.rs": "1979d867083314b2d5550bfe80b2c1a85f7da3a3bc5056af13379080b40bb623",
+    "crates/markkit/src/lib.rs": "9340d6d23b82b95e179bc6a1d2c2d461793e91a2f0769a333ab948c988932b2b",
+    "crates/markkit/src/limits.rs": "a197331637943ef907791697f1cb1c3270e35a6b5f7aed8480464bd01b00e0cc",
+    "crates/markkit/src/pdf/analyze.rs": "f27c781852039c574b72a6cc71594ac04562d39134794311b97e8dfb6252aa4d",
+    "crates/markkit/src/pdf/font.rs": "32c2569858d14ffb1cc6caf6419d79c25dce9c57bb33e1741a8714a728fdf02e",
+    "crates/markkit/src/pdf/guard.rs": "489d3bf291c63656ecd0181318dd4fffd7ac300e89ad029428814f3f2660d07e",
+    "crates/markkit/src/pdf/layout.rs": "8c9be884482158a6832989dab75936381cea955419d122e710e5b195478e88c6",
+    "crates/markkit/src/pdf/mod.rs": "95c0f19f28f49569c7f554166b67b99aa335eadc88c129b140cc7a1a75a3ada2",
+    "crates/markkit/src/pdf/ocr.rs": "2a60a407cc0fedee60681c6844a32983c19ff36c24b6f6ec759322c066b58a67",
+    "crates/markkit/src/pdf/ocr/rust.rs": "9b0ac6113b8720a38efd20894197e3e1853ac26d191823e3f445774c0de2f442",
+    "crates/markkit/src/pdf/tags.rs": "9e925845654113cdc2fecdf5a96f55377c8a23bd8443f9b70494a7dbde71cced",
+    "crates/markkit/tests/pdf_layout.rs": "9db16686713b59ae187bd315c8c47416bd7f67925750f80011c88f6f6cd2964a",
+    "crates/markkit/tests/pdf_ocr.rs": "dfab4ee65512422496b87166b64b54a6f46d72c28ba65aa15256e9fbabb3807c",
+    "crates/markkit/tests/pdf_structure.rs": "fd941762bbee191421f3eb790906e25a9b7d6ce49e5f55f8641595a0a5c54ca8",
+    "schema/ir.schema.json": "3763054cb70c7ce75c86b0ec2a70948cbee17d2e60613256ec63d697e8fe1860",
+    "scripts/compare_pdf_ocr.py": "69bd7d19bda3389eeeea8cb66f5606c10f56ee117b8ed195eb7ab02bb46b30e6",
+    "scripts/ocr_models.json": "8f093a6cf9ffcfd9c175f004e51340f513208674fa15fe6762ec0c48b9701179",
+    "scripts/prepare_ocr_models.py": "0b9b6735696983d6934ad29aedd87003dfe025bf13406a93c9e067cff43996df",
+    "scripts/tests/test_compare_pdf_ocr.py": "ba19316f39f1a92edbe0c841979a77d04d43eb3da620e989a34cd4cfd31956c3",
+    "scripts/tests/test_prepare_ocr_models.py": "35706f5905e587b045241c7eed7e9a7246e102936543d7a1f02517fd0cbd8025"
+  }
+}
