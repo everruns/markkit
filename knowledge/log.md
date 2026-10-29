@@ -6,9 +6,7 @@
 
 * **Optional Rust OCR**: add ocrs/RTen behind pdf-ocr-ocrs, explicit local ONNX model paths in Rust/CLI/Node/Python, bounded model files/word storage and cooperative inference deadlines. Keep Tesseract default. Pin model sizes/hashes and model attribution separately; compare both engines on the same existing scans with quality, geometry, timings and sampled process-tree memory. See [Format Support](formats/format-support.md), [Evaluation Harness](operations/eval.md), [Native Dependencies](security/native-dependencies.md).
 
-
 * **PDF rendering**: replace Poppler with Rust Hayro for optional OCR; retain Tesseract, document cooperative render deadlines and conservative image preflight. Record public maintainer/ownership review and remaining native code in [Native Dependencies](security/native-dependencies.md).
-
 
 * **PDF extraction**: geometric reading order; ruled/borderless tables with merged/wrapped cells; source word positions, semantic blocks/lines/cells linked to IR; emphasis, numbered lists, tagged MCID/RoleMap headings and ActualText; optional repeated headers and native Hayro rendering and Tesseract OCR. Python gains structured documents; all bindings expose layout/tables. Twenty Mira scenes and the public corpus measure quality; parsing/analysis/grid/helper limits have positive/negative/security tests. See [Format Support](formats/format-support.md), [Evaluation Harness](operations/eval.md), [Threat Model](security/threat-model.md) T8b.
 
