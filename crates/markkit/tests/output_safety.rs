@@ -618,6 +618,73 @@ fn blockquote_heading_inline_blocks_cannot_expose_html() {
 }
 
 #[test]
+fn repeated_emphasis_wrappers_cannot_expose_inline_blocks() {
+    let md = render(vec![Node::Heading {
+        source: None,
+        level: 4,
+        children: vec![Node::Bold {
+            children: vec![
+                Node::Heading {
+                    source: None,
+                    level: 6,
+                    children: vec![
+                        text("  "),
+                        Node::FootnoteReference {
+                            label: "\u{1f}".into(),
+                        },
+                        text("(<<0<w"),
+                        Node::Bold {
+                            children: vec![Node::CodeBlock {
+                                language: None,
+                                code: ")<<!E<<<<".into(),
+                                source: None,
+                            }],
+                        },
+                    ],
+                },
+                Node::Image {
+                    src: String::new(),
+                    alt: String::new(),
+                },
+                Node::Heading {
+                    source: None,
+                    level: 1,
+                    children: vec![],
+                },
+            ],
+        }],
+    }]);
+    assert_safe(&md);
+    assert!(visible_text(&md).contains(")<<!E<<<<"), "{md}");
+}
+
+#[test]
+fn footnote_reference_cannot_become_inline_link() {
+    let md = render(vec![para(vec![
+        Node::FootnoteReference { label: "x".into() },
+        text("(<<0<w"),
+        Node::Bold {
+            children: vec![
+                Node::CodeBlock {
+                    language: None,
+                    code: ")\u{7f}\0\0\0\0\0\0\u{13}<!t".into(),
+                    source: None,
+                },
+                Node::FootnoteReference {
+                    label: String::new(),
+                },
+                Node::Image {
+                    src: String::new(),
+                    alt: String::new(),
+                },
+            ],
+        },
+    ])]);
+    assert_safe(&md);
+    assert!(visible_text(&md).contains("<!t"), "{md}");
+}
+
+#[test]
 fn empty_destination_cannot_swallow_title() {
     let md = render(vec![para(vec![Node::Link {
         url: String::new(),
