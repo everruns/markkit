@@ -156,6 +156,8 @@ At render time, the `normalize_output` function:
 
 - Block nodes separated by blank lines
 - Inline content concatenated directly
+- Hard breaks are preserved in paragraphs and flattened to spaces in headings,
+  link labels, tables, and block nodes rendered in inline context.
 - List item bodies (continuation lines, nested lists, sub-blocks) indented by the marker
   width (`- ` = 2, `1. ` = 3)
 - BlockQuote lines prefixed with `> `
@@ -166,7 +168,8 @@ At render time, the `normalize_output` function:
 - Task items render `- [x] ` / `- [ ] `
 - Footnotes: `[^label]` and `[^label]: body` (continuation indented 4);
   labels sanitized to `[A-Za-z0-9_.-]` (max 64 chars, `note` if empty)
-- Definition lists: term line, then `:   definition` per definition
+- Definition lists: term paragraph, then an unordered GFM list of definitions;
+  this preserves nested blocks in readers without a definition-list extension.
   (continuation indented 4), items separated by blank lines
 - Figures: children, then the caption as an italic paragraph
 - Text, code and URLs escaped by `render/escape.rs` so IR text renders verbatim and

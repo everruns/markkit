@@ -1,10 +1,10 @@
 //! IR → Markdown renderer.
 //!
 //! Decisions:
-//! - GFM is the target. Constructs GFM lacks use the de facto extensions most
-//!   Markdown tools read: footnotes `[^label]` / `[^label]: body`, definition
-//!   lists `Term` + `: definition` (PHP Markdown Extra / Pandoc), task items
-//!   `- [x]`. Figures render their content plus an italic caption paragraph.
+//! - GFM is the target. Definition lists use term paragraphs and ordinary list
+//!   items so their block bodies stay safe without a definition-list extension.
+//!   Footnotes use `[^label]` / `[^label]: body`; task bodies start below `- [x]`.
+//!   Figures render their content plus an italic caption paragraph.
 //! - Table spans are laid out on a grid (GFM has no spans): a spanned cell's
 //!   content goes in its top-left slot, covered slots stay empty. Layout is
 //!   bounded by `MAX_TABLE_GRID_CELLS`; a table whose spans would exceed it is
@@ -23,7 +23,7 @@
 use std::time::Instant;
 
 use super::escape::{self, Position, UrlKind};
-use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, TableCell};
+use crate::ir::{Alignment, DefinitionItem, Document, Node, TableCell};
 
 /// Grid budget for span layout (rows × columns).
 const MAX_TABLE_GRID_CELLS: usize = 1_000_000;
@@ -51,6 +51,8 @@ pub struct MarkdownRenderer {
     /// Rendering link text: nested links render as text (CommonMark drops the
     /// outer link otherwise).
     in_link: bool,
+    /// Rendering inline content that must stay on one Markdown line.
+    single_line: bool,
 }
 
 impl MarkdownRenderer {
@@ -63,6 +65,7 @@ impl MarkdownRenderer {
             line_start: false,
             in_table: false,
             in_link: false,
+            single_line: false,
         }
     }
 
@@ -72,6 +75,7 @@ impl MarkdownRenderer {
         self.line_start = false;
         self.in_table = false;
         self.in_link = false;
+        self.single_line = false;
         self.render_nodes(&doc.nodes, 0);
         normalize_output(&self.buf)
     }
@@ -166,7 +170,7 @@ impl MarkdownRenderer {
                 self.buf.push(' ');
                 let start = self.buf.len();
                 self.line_start = true;
-                self.render_inline(children);
+                self.render_inline_single_line(children);
                 trim_trailing_inline(&mut self.buf, start);
                 self.buf.push('\n');
             }
@@ -185,7 +189,13 @@ impl MarkdownRenderer {
                 items,
                 ..
             } => {
-                self.render_list(*ordered, *start, items);
+                self.render_list(
+                    *ordered,
+                    *start,
+                    items
+                        .iter()
+                        .map(|item| (item.checked, item.children.as_slice())),
+                );
             }
 
             Node::BlockQuote { children, .. } => {
@@ -234,7 +244,7 @@ impl MarkdownRenderer {
                 self.buf.push_str("---\n");
             }
 
-            Node::DefinitionList { items, .. } => self.render_definition_list(items, depth),
+            Node::DefinitionList { items, .. } => self.render_definition_list(items),
 
             Node::Figure {
                 children, caption, ..
@@ -297,8 +307,9 @@ impl MarkdownRenderer {
         }
     }
 
-    /// Render a definition list: `Term` line, then `: definition` per definition.
-    fn render_definition_list(&mut self, items: &[DefinitionItem], depth: usize) {
+    /// Use GFM lists for definitions so nested blocks stay structured in readers
+    /// without the definition-list extension (S17).
+    fn render_definition_list(&mut self, items: &[DefinitionItem]) {
         for (i, item) in items.iter().enumerate() {
             if self.over_limit() {
                 return;
@@ -310,20 +321,25 @@ impl MarkdownRenderer {
             self.line_start = true;
             self.render_inline(&item.term);
             trim_trailing_inline(&mut self.buf, start);
-            self.buf.push('\n');
-            for def in &item.definitions {
-                let inner = self.render_blocks(def, depth);
-                self.buf.push(':');
-                push_hanging(&mut self.buf, &inner, "   ", "    ");
-            }
+            self.buf.push_str("\n\n");
+            self.render_list(
+                false,
+                None,
+                item.definitions.iter().map(|def| (None, def.as_slice())),
+            );
         }
     }
 
     /// Render a list. Each item body is rendered on its own and indented by
     /// the marker width, so nested blocks stay inside the item for any marker.
-    fn render_list(&mut self, ordered: bool, start: Option<u64>, items: &[ListItem]) {
+    fn render_list<'a>(
+        &mut self,
+        ordered: bool,
+        start: Option<u64>,
+        items: impl IntoIterator<Item = (Option<bool>, &'a [Node])>,
+    ) {
         let start_num = start.unwrap_or(1);
-        for (i, item) in items.iter().enumerate() {
+        for (i, (checked, children)) in items.into_iter().enumerate() {
             if self.over_limit() {
                 return;
             }
@@ -335,16 +351,21 @@ impl MarkdownRenderer {
             let pad = " ".repeat(marker.len());
             let body = {
                 let mut sub = self.sub();
-                sub.render_item_children(&item.children);
+                sub.render_item_children(children);
                 self.absorb(&sub);
                 normalize_output(&sub.buf)
             };
             let mut lines = body.lines();
             self.buf.push_str(&marker);
-            match item.checked {
+            match checked {
                 Some(true) => self.buf.push_str("[x] "),
                 Some(false) => self.buf.push_str("[ ] "),
                 None => {}
+            }
+            if checked.is_some() {
+                // The checkbox is a paragraph; a following block needs its own line.
+                self.buf.push('\n');
+                self.buf.push_str(&pad);
             }
             self.buf.push_str(lines.next().unwrap_or(""));
             self.buf.push('\n');
@@ -358,39 +379,63 @@ impl MarkdownRenderer {
         }
     }
 
-    /// Like [`Self::render_nodes`], but keeps the common "text, then nested list"
-    /// item tight (no blank line) when the list can interrupt a paragraph.
+    /// Keep nested lists tight only when their rendered first item can interrupt
+    /// the preceding paragraph; empty items require a blank line (S17).
     fn render_item_children(&mut self, nodes: &[Node]) {
         for (i, node) in nodes.iter().enumerate() {
             if self.over_limit() {
                 return;
             }
             let block = node.is_block();
-            if i > 0 {
-                let prev = &nodes[i - 1];
-                let tight = matches!(prev, Node::Paragraph { .. } | Node::Heading { .. })
-                    || prev.is_inline();
-                let interrupts = match node {
-                    Node::List { ordered, start, .. } => {
-                        !ordered || matches!(start, None | Some(1))
+            let tight = i > 0
+                && (matches!(nodes[i - 1], Node::Paragraph { .. } | Node::Heading { .. })
+                    || nodes[i - 1].is_inline());
+            let candidate = matches!(
+                node,
+                Node::List { ordered: false, .. }
+                    | Node::List {
+                        ordered: true,
+                        start: None | Some(1),
+                        ..
                     }
-                    _ => false,
-                };
-                if tight && interrupts {
-                    if !self.buf.ends_with('\n') {
-                        self.buf.push('\n');
-                    }
-                } else if block || prev.is_block() {
-                    if !self.buf.ends_with('\n') {
-                        self.buf.push('\n');
-                    }
+            );
+            let list_body = if tight && candidate {
+                // Inspect actual output: empty paragraphs/inline nodes can leave
+                // the first marker empty. Render once to avoid recursive rework.
+                let mut sub = self.sub();
+                sub.max_output = self.max_output.saturating_sub(self.buf.len());
+                sub.render_node(node, 0);
+                sub.over_limit();
+                self.absorb(&sub);
+                if self.tripped.is_some() {
+                    return;
+                }
+                Some(normalize_output(&sub.buf))
+            } else {
+                None
+            };
+            let interrupts = list_body.as_ref().is_some_and(|body| {
+                body.lines()
+                    .next()
+                    .and_then(|line| line.split_once(' '))
+                    .is_some_and(|(_, content)| !content.is_empty())
+            });
+            if i > 0 && (block || nodes[i - 1].is_block()) {
+                if !self.buf.ends_with('\n') {
+                    self.buf.push('\n');
+                }
+                if !interrupts {
                     self.buf.push('\n');
                 }
             }
             if !block && (self.buf.is_empty() || self.buf.ends_with('\n')) {
                 self.line_start = true;
             }
-            self.render_node(node, 0);
+            if let Some(body) = list_body {
+                self.buf.push_str(&body);
+            } else {
+                self.render_node(node, 0);
+            }
         }
     }
 
@@ -399,6 +444,14 @@ impl MarkdownRenderer {
         for node in nodes {
             self.render_inline_node(node);
         }
+    }
+
+    /// Render inline content without allowing it to close its enclosing syntax.
+    fn render_inline_single_line(&mut self, nodes: &[Node]) {
+        let previous = self.single_line;
+        self.single_line = true;
+        self.render_inline(nodes);
+        self.single_line = previous;
     }
 
     /// Render a single inline node.
@@ -431,7 +484,7 @@ impl MarkdownRenderer {
                     self.buf.push('[');
                     self.line_start = false;
                     self.in_link = true;
-                    self.render_inline(children);
+                    self.render_inline_single_line(children);
                     self.in_link = false;
                     self.buf.push_str("](");
                     self.buf.push_str(&dest);
@@ -443,7 +496,7 @@ impl MarkdownRenderer {
                     self.buf.push(')');
                 }
                 // Disallowed scheme or nested link: keep the text, drop the link.
-                None => self.render_inline(children),
+                None => self.render_inline_single_line(children),
             },
             Node::Image { src, alt } => match escape::safe_destination(src, UrlKind::Image) {
                 Some(mut dest) => {
@@ -470,8 +523,9 @@ impl MarkdownRenderer {
             // paragraph (and any open link) early.
             Node::LineBreak if self.line_start => {}
             Node::LineBreak => {
-                if self.in_table {
+                if self.in_table || self.single_line {
                     self.buf.push(' ');
+                    self.line_start = false;
                 } else {
                     self.buf.push_str("  \n");
                     self.line_start = true;
@@ -508,6 +562,8 @@ impl MarkdownRenderer {
 
     /// Render a block node as single-line inline content.
     fn render_block_inline(&mut self, node: &Node) {
+        let previous_single_line = self.single_line;
+        self.single_line = true;
         let sep = |r: &mut Self| {
             // No space right after an opening delimiter (`**`, `~~`, `[`).
             if !r.buf.is_empty() && !r.buf.ends_with([' ', '\n', '*', '~', '[']) {
@@ -566,6 +622,7 @@ impl MarkdownRenderer {
             Node::ThematicBreak => sep(self),
             inline => self.render_inline_node(inline),
         }
+        self.single_line = previous_single_line;
     }
 
     /// Render a GFM table, laying spans out on a grid.

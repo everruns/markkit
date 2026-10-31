@@ -116,3 +116,10 @@ The default engine remains Tesseract. Extraction is offline; model weights are
 separate CC-BY-SA 4.0 assets and support Latin-alphabet text (`eng`).
 See the [PDF OCR guide](../README.md#pdf-source-layout) for Rust configuration,
 model attribution and resource-limit behavior.
+
+## Lists and code blocks
+
+Task-list bodies render below their checkbox marker. HTML definition lists render
+as a term paragraph followed by an unordered list of definitions. Both forms keep
+nested code blocks and their literal text safe when the output is rendered by a
+GFM reader; no definition-list extension is required.
