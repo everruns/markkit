@@ -55,10 +55,10 @@ cfb = "0.15"            # XLS (OLE2) container pre-scan
 hayro-syntax = { version = "0.8", default-features = false, features = ["std"] }  # PDF object/content parsing; OCR also enables image decoding
 hayro = { version = "0.8", default-features = false, features = ["embed-fonts", "embed-cmaps"] }
 ocrs = { version = "0.13.1", default-features = false, features = ["onnx"] }
-rten = { version = "0.26", default-features = false, features = ["onnx_format"] }
+rten = { version = "0.27", default-features = false, features = ["onnx_format"] }
 miniz_oxide = "0.9"     # Bounded FlateDecode for PDF streams
 pulldown-cmark = { version = "0.13", default-features = false }  # Markdown input; output-safety test oracle
-mail-parser = { version = "0.11", default-features = false }   # EML input (RFC 5322 / MIME)
+mail-parser = { version = "1.0", default-features = false }   # EML input (RFC 5322 / MIME)
 
 # Logging
 tracing = "0.1"
