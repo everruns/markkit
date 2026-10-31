@@ -158,6 +158,10 @@ At render time, the `normalize_output` function:
 - Inline content concatenated directly
 - Hard breaks are preserved in paragraphs and flattened to spaces in headings,
   link labels, tables, and block nodes rendered in inline context.
+- Redundant nested bold, italic, and strikethrough wrappers render once so their
+  delimiters cannot close an enclosing span.
+- Text beginning with `(` is escaped after a preceding `]` so separately rendered
+  nodes, including footnote references, cannot combine into an inline link.
 - List item bodies (continuation lines, nested lists, sub-blocks) indented by the marker
   width (`- ` = 2, `1. ` = 3)
 - BlockQuote lines prefixed with `> `

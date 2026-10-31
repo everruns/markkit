@@ -82,7 +82,10 @@ the Actions cache; crashes upload as `fuzz-crashes-<target>` artifacts.
   links, adjacent code spans merging, and code fences consumed as paragraph
   text after task-checkbox, nested definition markers, or a nested ordered list
   with an empty first item. A hard break inside a link label nested in a heading
-  also closed both containers before later inline code. Exact crash seeds for
+  also closed both containers before later inline code; repeating a bold wrapper
+  inside bold closed the outer span with the same result. A footnote reference
+  followed by text beginning with `(` could also combine into an inline link and
+  consume later delimiters. Exact crash seeds for
   these cases are retained in `fuzz/seeds/render_ir/` and `fuzz/seeds/markdown/`.
 - XLS (calamine 0.37): unchecked reads in FILEPASS, CODEPAGE, DATEMODE, BOF,
   BOUNDSHEET, LBL (incl. defined-name tokens), EXTERNSHEET, SST (cRun /

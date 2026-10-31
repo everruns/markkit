@@ -30,6 +30,9 @@ const MAX_TABLE_GRID_CELLS: usize = 1_000_000;
 /// Span clamps applied at layout time (HTML limits; IR may come from anywhere).
 const MAX_COLSPAN: usize = 1000;
 const MAX_ROWSPAN: usize = 65534;
+const WRAP_BOLD: u8 = 1;
+const WRAP_ITALIC: u8 = 2;
+const WRAP_STRIKETHROUGH: u8 = 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Trip {
@@ -53,6 +56,9 @@ pub struct MarkdownRenderer {
     in_link: bool,
     /// Rendering inline content that must stay on one Markdown line.
     single_line: bool,
+    /// Active emphasis delimiters. Repeating the same delimiter would close the
+    /// outer span, so redundant nested wrappers are omitted.
+    active_wrappers: u8,
 }
 
 impl MarkdownRenderer {
@@ -66,6 +72,7 @@ impl MarkdownRenderer {
             in_table: false,
             in_link: false,
             single_line: false,
+            active_wrappers: 0,
         }
     }
 
@@ -76,6 +83,7 @@ impl MarkdownRenderer {
         self.in_table = false;
         self.in_link = false;
         self.single_line = false;
+        self.active_wrappers = 0;
         self.render_nodes(&doc.nodes, 0);
         normalize_output(&self.buf)
     }
@@ -463,11 +471,18 @@ impl MarkdownRenderer {
                 } else {
                     Position::Inline
                 };
+                // A footnote reference followed by a new text node beginning
+                // with `(` would combine into an inline link (`[^x](...)`).
+                if self.buf.ends_with(']') && t.starts_with('(') {
+                    self.buf.push('\\');
+                }
                 self.line_start = escape::push_text(&mut self.buf, t, pos);
             }
-            Node::Bold { children } => self.render_wrapped("**", children),
-            Node::Italic { children } => self.render_wrapped("*", children),
-            Node::Strikethrough { children } => self.render_wrapped("~~", children),
+            Node::Bold { children } => self.render_wrapped("**", WRAP_BOLD, children),
+            Node::Italic { children } => self.render_wrapped("*", WRAP_ITALIC, children),
+            Node::Strikethrough { children } => {
+                self.render_wrapped("~~", WRAP_STRIKETHROUGH, children);
+            }
             Node::InlineCode(code) => {
                 escape::push_code_span(&mut self.buf, code, self.in_table);
                 self.line_start = false;
@@ -553,11 +568,17 @@ impl MarkdownRenderer {
         }
     }
 
-    fn render_wrapped(&mut self, delim: &str, children: &[Node]) {
+    fn render_wrapped(&mut self, delim: &str, wrapper: u8, children: &[Node]) {
+        if self.active_wrappers & wrapper != 0 {
+            self.render_inline(children);
+            return;
+        }
+        self.active_wrappers |= wrapper;
         self.buf.push_str(delim);
         self.line_start = false;
         self.render_inline(children);
         self.buf.push_str(delim);
+        self.active_wrappers &= !wrapper;
     }
 
     /// Render a block node as single-line inline content.
