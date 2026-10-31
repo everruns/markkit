@@ -71,6 +71,13 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           if [ "$DRY_RUN" != "false" ]; then
+            # npm checks registry version uniqueness even with --dry-run. Use a
+            # temporary package copy with a run-specific version so the default
+            # dry run remains repeatable after the real version is published.
+            DRY_RUN_DIR="$RUNNER_TEMP/markkit-npm-publish-dry-run"
+            cp -R . "$DRY_RUN_DIR"
+            cd "$DRY_RUN_DIR"
+            npm pkg set "version=0.0.0-dry-run.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}"
             npm publish --dry-run --ignore-scripts --access public
           else
             npm publish --ignore-scripts --access public
