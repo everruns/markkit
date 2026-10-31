@@ -166,7 +166,8 @@ At render time, the `normalize_output` function:
 - Task items render `- [x] ` / `- [ ] `
 - Footnotes: `[^label]` and `[^label]: body` (continuation indented 4);
   labels sanitized to `[A-Za-z0-9_.-]` (max 64 chars, `note` if empty)
-- Definition lists: term line, then `:   definition` per definition
+- Definition lists: term paragraph, then an unordered GFM list of definitions;
+  this preserves nested blocks in readers without a definition-list extension.
   (continuation indented 4), items separated by blank lines
 - Figures: children, then the caption as an italic paragraph
 - Text, code and URLs escaped by `render/escape.rs` so IR text renders verbatim and

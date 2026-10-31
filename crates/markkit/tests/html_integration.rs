@@ -765,13 +765,13 @@ fn task_list_github_markup() {
       <li class="task-list-item"><input type="checkbox" disabled> Todo</li>
       <li>Plain</li>
     </ul>"#;
-    assert_eq!(convert(html), "- [x] Done\n- [ ] Todo\n- Plain\n");
+    assert_eq!(convert(html), "- [x]\n  Done\n- [ ]\n  Todo\n- Plain\n");
 }
 
 #[test]
 fn task_list_checkbox_inside_paragraph() {
     let html = r#"<ol><li><p><input type="checkbox" checked> Ship it</p></li></ol>"#;
-    assert_eq!(convert(html), "1. [x] Ship it\n");
+    assert_eq!(convert(html), "1. [x]\n   Ship it\n");
 }
 
 #[test]
@@ -792,14 +792,14 @@ fn definition_list() {
                 <dt>Go</dt><dd><p>Another.</p><p>Second para.</p></dd></dl>";
     assert_eq!(
         convert(html),
-        "Rust\n:   A language.\n:   Also a fungus.\n\nGo\n:   Another.\n\n    Second para.\n"
+        "Rust\n\n- A language.\n- Also a fungus.\n\nGo\n\n- Another.\n\n  Second para.\n"
     );
 }
 
 #[test]
 fn definition_list_div_wrappers_and_shared_terms() {
     let html = "<dl><div><dt>A</dt><dt>B</dt><dd>Both</dd></div></dl>";
-    assert_eq!(convert(html), "A  \nB\n:   Both\n");
+    assert_eq!(convert(html), "A  \nB\n\n- Both\n");
 }
 
 #[test]

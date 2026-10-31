@@ -1,5 +1,9 @@
 # Markkit Knowledge Update Log
 
+## 2026-10-31
+
+* **Container fence safety**: task checkboxes render on their own line; definition bodies use ordinary GFM list items below their term. This prevents markers from consuming code fences and exposing raw HTML, including empty leading paragraphs and nested definitions. Exact nightly crash seeds and content/grouping regressions cover both paths. See [Threat Model](security/threat-model.md) T1 and [IR Specification](foundations/ir.md).
+
 ## 2026-10-28
 
 * **PDF ship review**: escaped dictionary keys/names and generic compression prefixes before image codecs cannot bypass stream/image preflight limits. Positive, negative and security regressions cover the name spelling and filter-chain boundaries. See [Threat Model](security/threat-model.md) T8a.

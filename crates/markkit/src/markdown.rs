@@ -582,7 +582,7 @@ mod tests {
     fn table_and_tasks() {
         assert_eq!(
             md("| a | b |\n|---|---|\n| 1 | 2 |\n\n- [x] done\n- [ ] todo\n"),
-            "| a | b |\n| --- | --- |\n| 1 | 2 |\n\n- [x] done\n- [ ] todo\n"
+            "| a | b |\n| --- | --- |\n| 1 | 2 |\n\n- [x]\n  done\n- [ ]\n  todo\n"
         );
     }
 
@@ -616,7 +616,8 @@ mod tests {
         );
         let out = crate::render::MarkdownRenderer::new().render(&p.doc);
         assert!(out.contains("| :--- | :---: | ---: |"), "{out}");
-        assert!(out.contains("- [x] done"), "{out}");
+        assert!(out.contains("- [x]\n  done"), "{out}");
+        assert!(out.contains("Term\n\n- Definition"), "{out}");
         assert!(out.contains("Note[^n]."), "{out}");
         assert!(out.contains("[^n]:\n\n    The note."), "{out}");
     }

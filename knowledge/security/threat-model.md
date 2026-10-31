@@ -59,6 +59,10 @@ that renders as headings, links, code fences or tables).
     on its own line after a blank line; hard breaks never produce a blank line;
     nested links render as text; empty destinations are written `<>`; link titles
     escape `"`, `\` and `<`.
+  - Task checkboxes occupy their own line before the item body so they cannot
+    turn a leading code fence into paragraph text. Definition lists render as
+    a term paragraph and ordinary GFM list items, keeping nested blocks safe
+    even in readers without the definition-list extension.
 - Form elements (`<form>`, `<input>`, `<button>`, `<select>`, `<textarea>`) stripped
 - Page metadata (`Extraction::metadata`): URL fields drop non-`http(s)` schemes
   (`javascript:`, `data:`); values single-line and capped at 2048 chars

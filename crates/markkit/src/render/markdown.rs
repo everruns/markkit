@@ -1,10 +1,10 @@
 //! IR → Markdown renderer.
 //!
 //! Decisions:
-//! - GFM is the target. Constructs GFM lacks use the de facto extensions most
-//!   Markdown tools read: footnotes `[^label]` / `[^label]: body`, definition
-//!   lists `Term` + `: definition` (PHP Markdown Extra / Pandoc), task items
-//!   `- [x]`. Figures render their content plus an italic caption paragraph.
+//! - GFM is the target. Definition lists use term paragraphs and ordinary list
+//!   items so their block bodies stay safe without a definition-list extension.
+//!   Footnotes use `[^label]` / `[^label]: body`; task bodies start below `- [x]`.
+//!   Figures render their content plus an italic caption paragraph.
 //! - Table spans are laid out on a grid (GFM has no spans): a spanned cell's
 //!   content goes in its top-left slot, covered slots stay empty. Layout is
 //!   bounded by `MAX_TABLE_GRID_CELLS`; a table whose spans would exceed it is
@@ -23,7 +23,7 @@
 use std::time::Instant;
 
 use super::escape::{self, Position, UrlKind};
-use crate::ir::{Alignment, DefinitionItem, Document, ListItem, Node, TableCell};
+use crate::ir::{Alignment, DefinitionItem, Document, Node, TableCell};
 
 /// Grid budget for span layout (rows × columns).
 const MAX_TABLE_GRID_CELLS: usize = 1_000_000;
@@ -185,7 +185,13 @@ impl MarkdownRenderer {
                 items,
                 ..
             } => {
-                self.render_list(*ordered, *start, items);
+                self.render_list(
+                    *ordered,
+                    *start,
+                    items
+                        .iter()
+                        .map(|item| (item.checked, item.children.as_slice())),
+                );
             }
 
             Node::BlockQuote { children, .. } => {
@@ -234,7 +240,7 @@ impl MarkdownRenderer {
                 self.buf.push_str("---\n");
             }
 
-            Node::DefinitionList { items, .. } => self.render_definition_list(items, depth),
+            Node::DefinitionList { items, .. } => self.render_definition_list(items),
 
             Node::Figure {
                 children, caption, ..
@@ -297,8 +303,9 @@ impl MarkdownRenderer {
         }
     }
 
-    /// Render a definition list: `Term` line, then `: definition` per definition.
-    fn render_definition_list(&mut self, items: &[DefinitionItem], depth: usize) {
+    /// Use GFM lists for definitions so nested blocks stay structured in readers
+    /// without the definition-list extension (S17).
+    fn render_definition_list(&mut self, items: &[DefinitionItem]) {
         for (i, item) in items.iter().enumerate() {
             if self.over_limit() {
                 return;
@@ -310,20 +317,25 @@ impl MarkdownRenderer {
             self.line_start = true;
             self.render_inline(&item.term);
             trim_trailing_inline(&mut self.buf, start);
-            self.buf.push('\n');
-            for def in &item.definitions {
-                let inner = self.render_blocks(def, depth);
-                self.buf.push(':');
-                push_hanging(&mut self.buf, &inner, "   ", "    ");
-            }
+            self.buf.push_str("\n\n");
+            self.render_list(
+                false,
+                None,
+                item.definitions.iter().map(|def| (None, def.as_slice())),
+            );
         }
     }
 
     /// Render a list. Each item body is rendered on its own and indented by
     /// the marker width, so nested blocks stay inside the item for any marker.
-    fn render_list(&mut self, ordered: bool, start: Option<u64>, items: &[ListItem]) {
+    fn render_list<'a>(
+        &mut self,
+        ordered: bool,
+        start: Option<u64>,
+        items: impl IntoIterator<Item = (Option<bool>, &'a [Node])>,
+    ) {
         let start_num = start.unwrap_or(1);
-        for (i, item) in items.iter().enumerate() {
+        for (i, (checked, children)) in items.into_iter().enumerate() {
             if self.over_limit() {
                 return;
             }
@@ -335,16 +347,21 @@ impl MarkdownRenderer {
             let pad = " ".repeat(marker.len());
             let body = {
                 let mut sub = self.sub();
-                sub.render_item_children(&item.children);
+                sub.render_item_children(children);
                 self.absorb(&sub);
                 normalize_output(&sub.buf)
             };
             let mut lines = body.lines();
             self.buf.push_str(&marker);
-            match item.checked {
+            match checked {
                 Some(true) => self.buf.push_str("[x] "),
                 Some(false) => self.buf.push_str("[ ] "),
                 None => {}
+            }
+            if checked.is_some() {
+                // The checkbox is a paragraph; a following block needs its own line.
+                self.buf.push('\n');
+                self.buf.push_str(&pad);
             }
             self.buf.push_str(lines.next().unwrap_or(""));
             self.buf.push('\n');

@@ -79,7 +79,9 @@ the Actions cache; crashes upload as `fuzz-crashes-<target>` artifacts.
 - Renderer (S17): code block in a table cell, blocks inside headings, empty
   destinations, 64-char scheme probe, inline runs next to blocks, list
   indentation narrower than the ordered marker, repeated hard breaks, nested
-  links, adjacent code spans merging.
+  links, adjacent code spans merging, and code fences consumed as paragraph
+  text after task-checkbox or nested definition markers. Exact crash seeds for
+  the latter are retained in `fuzz/seeds/render_ir/` and `fuzz/seeds/markdown/`.
 - XLS (calamine 0.37): unchecked reads in FILEPASS, CODEPAGE, DATEMODE, BOF,
   BOUNDSHEET, LBL (incl. defined-name tokens), EXTERNSHEET, SST (cRun /
   cbExtRst, empty CONTINUE), MERGECELLS; u16/u32 underflow in MULRK and

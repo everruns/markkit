@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Prevent raw HTML escaping code blocks inside task lists and nested definitions.
+  Task bodies now start below their checkbox; definitions render as GFM lists
+  below each term, preserving code blocks without requiring a definition-list extension.
+
 - PDF stream guards honor escaped dictionary keys and bound compressed prefixes
   before image filters, including when OCR is disabled.
 

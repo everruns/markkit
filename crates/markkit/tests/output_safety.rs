@@ -7,7 +7,7 @@
 //! inspects the resulting events.
 
 use markkit::MarkdownRenderer;
-use markkit::ir::{Document, ListItem, Node, TableCell};
+use markkit::ir::{DefinitionItem, Document, ListItem, Node, TableCell};
 use proptest::prelude::*;
 use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 
@@ -613,6 +613,166 @@ fn inline_run_next_to_block_at_top_level() {
         "{md}"
     );
     assert!(visible_text(&md).contains("# tail"), "{md}");
+}
+
+#[test]
+fn task_list_starting_with_code_preserves_block_and_checkbox() {
+    for checked in [true, false] {
+        for ordered in [true, false] {
+            let code = "<script>alert(1)</script>\n";
+            let md = render(vec![Node::List {
+                ordered,
+                start: Some(10),
+                items: vec![ListItem::task(
+                    vec![
+                        para(vec![]),
+                        Node::CodeBlock {
+                            language: Some("html".into()),
+                            code: code.into(),
+                            source: None,
+                        },
+                    ],
+                    checked,
+                )],
+                source: None,
+            }]);
+            assert_safe(&md);
+            assert!(
+                events(&md)
+                    .iter()
+                    .any(|e| matches!(e, Event::TaskListMarker(value) if *value == checked)),
+                "{md}"
+            );
+            assert!(
+                events(&md)
+                    .iter()
+                    .any(|e| matches!(e, Event::Start(Tag::CodeBlock(_)))),
+                "{md}"
+            );
+            assert_eq!(visible_text(&md), code, "{md} {:?}", events(&md));
+        }
+    }
+}
+
+#[test]
+fn task_list_leading_nested_blocks_keep_code_safe() {
+    let code = || Node::CodeBlock {
+        language: Some("<label>".into()),
+        code: "<script>bad</script>".into(),
+        source: None,
+    };
+    let blocks = vec![
+        Node::List {
+            ordered: true,
+            start: Some(10),
+            items: vec![ListItem::new(vec![code()])],
+            source: None,
+        },
+        Node::BlockQuote {
+            children: vec![code()],
+            source: None,
+        },
+        Node::DefinitionList {
+            items: vec![DefinitionItem::new(vec![text("term")], vec![vec![code()]])],
+            source: None,
+        },
+    ];
+    for block in blocks {
+        let md = render(vec![Node::List {
+            ordered: false,
+            start: None,
+            items: vec![ListItem::task(vec![block], true)],
+            source: None,
+        }]);
+        assert_safe(&md);
+    }
+}
+
+#[test]
+fn definition_starting_with_code_is_safe_with_or_without_extension() {
+    for term in ["term", ""] {
+        let code = "<script>alert(1)</script>\n";
+        let md = render(vec![Node::DefinitionList {
+            items: vec![DefinitionItem::new(
+                vec![text(term)],
+                vec![vec![Node::CodeBlock {
+                    language: Some("<label>".into()),
+                    code: code.into(),
+                    source: None,
+                }]],
+            )],
+            source: None,
+        }]);
+        assert_safe(&md);
+        for event in Parser::new_ext(&md, Options::ENABLE_DEFINITION_LIST) {
+            assert!(
+                !matches!(event, Event::Html(_) | Event::InlineHtml(_)),
+                "{md}"
+            );
+        }
+        let parsed: Vec<_> = Parser::new_ext(&md, Options::ENABLE_DEFINITION_LIST).collect();
+        assert!(
+            parsed
+                .iter()
+                .any(|e| matches!(e, Event::Start(Tag::CodeBlock(_)))),
+            "{md}"
+        );
+        assert!(visible_text(&md).ends_with(code), "{md}");
+    }
+}
+
+#[test]
+fn container_markers_preserve_plain_text_and_definition_grouping() {
+    let md = render(vec![Node::List {
+        ordered: false,
+        start: None,
+        items: vec![ListItem::task(vec![para(vec![text("done")])], true)],
+        source: None,
+    }]);
+    assert_eq!(visible_text(&md), "done");
+    assert!(
+        events(&md)
+            .iter()
+            .any(|e| matches!(e, Event::TaskListMarker(true)))
+    );
+    let md = render(vec![Node::DefinitionList {
+        items: vec![DefinitionItem::new(
+            vec![text("term")],
+            vec![
+                vec![para(vec![text("first")])],
+                vec![para(vec![text("second")])],
+            ],
+        )],
+        source: None,
+    }]);
+    let parsed: Vec<_> = Parser::new_ext(&md, Options::ENABLE_DEFINITION_LIST).collect();
+    assert_eq!(
+        parsed
+            .iter()
+            .filter(|e| matches!(e, Event::Start(Tag::Item)))
+            .count(),
+        2,
+        "{md} {parsed:?}"
+    );
+    let text: String = parsed
+        .iter()
+        .filter_map(|e| match e {
+            Event::Text(t) => Some(t.as_ref()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(text, "termfirstsecond");
+}
+
+#[cfg(feature = "markdown")]
+#[test]
+fn markdown_fuzz_definition_code_regression() {
+    let input = include_bytes!("../fuzz/seeds/markdown/nested-definition-code.md");
+    let result = markkit::Markkit::builder()
+        .build()
+        .extract_document_sync(input, markkit::DocumentHint::file_name("fuzz.md"))
+        .unwrap();
+    assert_safe(&result.markdown);
 }
 
 #[test]

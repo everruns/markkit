@@ -35,7 +35,7 @@ HTML from the web: malformed markup, complex layouts, embedded scripts, etc.
 | `<blockquote>` | `> text` |
 | `<pre><code>` | Fenced code block |
 | `<table>` | GFM table (alignment, spans laid out) |
-| `<dl>` | `Term` / `:   definition` |
+| `<dl>` | Term paragraph followed by an unordered list of definitions |
 | `<li><input type=checkbox>` | `- [x] item` |
 | `<figure>` + `<figcaption>` | content + `*caption*` |
 | footnote refs / sections | `[^1]` / `[^1]: body` |
