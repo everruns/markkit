@@ -51,6 +51,8 @@ pub struct MarkdownRenderer {
     /// Rendering link text: nested links render as text (CommonMark drops the
     /// outer link otherwise).
     in_link: bool,
+    /// Rendering inline content that must stay on one Markdown line.
+    single_line: bool,
 }
 
 impl MarkdownRenderer {
@@ -63,6 +65,7 @@ impl MarkdownRenderer {
             line_start: false,
             in_table: false,
             in_link: false,
+            single_line: false,
         }
     }
 
@@ -72,6 +75,7 @@ impl MarkdownRenderer {
         self.line_start = false;
         self.in_table = false;
         self.in_link = false;
+        self.single_line = false;
         self.render_nodes(&doc.nodes, 0);
         normalize_output(&self.buf)
     }
@@ -166,7 +170,7 @@ impl MarkdownRenderer {
                 self.buf.push(' ');
                 let start = self.buf.len();
                 self.line_start = true;
-                self.render_inline(children);
+                self.render_inline_single_line(children);
                 trim_trailing_inline(&mut self.buf, start);
                 self.buf.push('\n');
             }
@@ -442,6 +446,14 @@ impl MarkdownRenderer {
         }
     }
 
+    /// Render inline content without allowing it to close its enclosing syntax.
+    fn render_inline_single_line(&mut self, nodes: &[Node]) {
+        let previous = self.single_line;
+        self.single_line = true;
+        self.render_inline(nodes);
+        self.single_line = previous;
+    }
+
     /// Render a single inline node.
     fn render_inline_node(&mut self, node: &Node) {
         match node {
@@ -472,7 +484,7 @@ impl MarkdownRenderer {
                     self.buf.push('[');
                     self.line_start = false;
                     self.in_link = true;
-                    self.render_inline(children);
+                    self.render_inline_single_line(children);
                     self.in_link = false;
                     self.buf.push_str("](");
                     self.buf.push_str(&dest);
@@ -484,7 +496,7 @@ impl MarkdownRenderer {
                     self.buf.push(')');
                 }
                 // Disallowed scheme or nested link: keep the text, drop the link.
-                None => self.render_inline(children),
+                None => self.render_inline_single_line(children),
             },
             Node::Image { src, alt } => match escape::safe_destination(src, UrlKind::Image) {
                 Some(mut dest) => {
@@ -511,8 +523,9 @@ impl MarkdownRenderer {
             // paragraph (and any open link) early.
             Node::LineBreak if self.line_start => {}
             Node::LineBreak => {
-                if self.in_table {
+                if self.in_table || self.single_line {
                     self.buf.push(' ');
+                    self.line_start = false;
                 } else {
                     self.buf.push_str("  \n");
                     self.line_start = true;
@@ -549,6 +562,8 @@ impl MarkdownRenderer {
 
     /// Render a block node as single-line inline content.
     fn render_block_inline(&mut self, node: &Node) {
+        let previous_single_line = self.single_line;
+        self.single_line = true;
         let sep = |r: &mut Self| {
             // No space right after an opening delimiter (`**`, `~~`, `[`).
             if !r.buf.is_empty() && !r.buf.ends_with([' ', '\n', '*', '~', '[']) {
@@ -607,6 +622,7 @@ impl MarkdownRenderer {
             Node::ThematicBreak => sep(self),
             inline => self.render_inline_node(inline),
         }
+        self.single_line = previous_single_line;
     }
 
     /// Render a GFM table, laying spans out on a grid.

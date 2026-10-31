@@ -567,6 +567,57 @@ fn blocks_inside_heading_stay_on_one_line() {
 }
 
 #[test]
+fn blockquote_heading_inline_blocks_cannot_expose_html() {
+    let md = render(vec![Node::BlockQuote {
+        source: None,
+        children: vec![Node::Heading {
+            source: None,
+            level: 6,
+            children: vec![
+                Node::Link {
+                    url: "<!t&```".into(),
+                    title: Some("\u{1f}".into()),
+                    children: vec![
+                        Node::CodeBlock {
+                            language: None,
+                            code: String::new(),
+                            source: None,
+                        },
+                        Node::Image {
+                            src: String::new(),
+                            alt: String::new(),
+                        },
+                        Node::FootnoteReference {
+                            label: String::new(),
+                        },
+                        Node::LineBreak,
+                    ],
+                },
+                Node::FootnoteReference {
+                    label: String::new(),
+                },
+                Node::CodeBlock {
+                    language: None,
+                    code: "<<<!t``".into(),
+                    source: None,
+                },
+                Node::Link {
+                    url: String::new(),
+                    title: Some(String::new()),
+                    children: vec![Node::Heading {
+                        level: 1,
+                        children: vec![],
+                        source: None,
+                    }],
+                },
+            ],
+        }],
+    }]);
+    assert_safe(&md);
+    assert!(visible_text(&md).contains("<<<!t``"), "{md}");
+}
+
+#[test]
 fn empty_destination_cannot_swallow_title() {
     let md = render(vec![para(vec![Node::Link {
         url: String::new(),

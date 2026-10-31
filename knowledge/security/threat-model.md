@@ -54,7 +54,8 @@ that renders as headings, links, code fences or tables).
     info strings keep only the first word without backticks; a space separates a
     code span from a preceding backtick.
   - Structure cannot break out of its container: block nodes inside inline content
-    (table cells, headings, link text) are flattened to one line; list item bodies
+    (table cells, headings, link text) are flattened to one line, as are hard breaks
+    inside headings and link labels; list item bodies
     are indented by the marker width (`1. ` = 3, `10. ` = 4); a block always starts
     on its own line after a blank line; hard breaks never produce a blank line;
     nested links render as text; empty destinations are written `<>`; link titles

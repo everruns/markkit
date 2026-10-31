@@ -156,6 +156,8 @@ At render time, the `normalize_output` function:
 
 - Block nodes separated by blank lines
 - Inline content concatenated directly
+- Hard breaks are preserved in paragraphs and flattened to spaces in headings,
+  link labels, tables, and block nodes rendered in inline context.
 - List item bodies (continuation lines, nested lists, sub-blocks) indented by the marker
   width (`- ` = 2, `1. ` = 3)
 - BlockQuote lines prefixed with `> `
