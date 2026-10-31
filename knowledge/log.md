@@ -2,7 +2,7 @@
 
 ## 2026-10-31
 
-* **Container fence safety**: task checkboxes render on their own line; definition bodies use ordinary GFM list items below their term. This prevents markers from consuming code fences and exposing raw HTML, including empty leading paragraphs and nested definitions. Exact nightly crash seeds and content/grouping regressions cover both paths. See [Threat Model](security/threat-model.md) T1 and [IR Specification](foundations/ir.md).
+* **Container fence safety**: task checkboxes render on their own line; definition bodies use ordinary GFM list items below their term. This prevents markers from consuming code fences and exposing raw HTML, including empty leading paragraphs and nested definitions. A nested list with an empty first item also requires a blank line before it; the renderer checks actual output once, within the remaining output budget. Exact nightly crash seeds and content/grouping regressions cover these paths. See [Threat Model](security/threat-model.md) T1 and [IR Specification](foundations/ir.md).
 
 ## 2026-10-28
 

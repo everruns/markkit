@@ -91,6 +91,22 @@ mod html {
     }
 
     #[test]
+    fn nested_list_rendering_respects_remaining_output_budget() {
+        let html = format!(
+            "<ul><li>{}<ol><li></li><li><pre>&lt;tag&gt;{}</pre></li></ol></li></ul>",
+            "parent".repeat(8),
+            "code".repeat(64),
+        );
+        let bounded = Markkit::builder().max_output_size(100).build();
+        assert_eq!(
+            limit(bounded.extract_html_sync(&html)),
+            LimitKind::MaxOutputSize
+        );
+        let roomy = Markkit::builder().max_output_size(1000).build();
+        assert!(roomy.extract_html_sync(&html).unwrap().contains("<tag>"));
+    }
+
+    #[test]
     fn output_cap_stops_table_amplification() {
         // One wide row pads every other row: output ~ rows x cols.
         let wide = format!("<tr>{}</tr>", "<td>x</td>".repeat(2000));

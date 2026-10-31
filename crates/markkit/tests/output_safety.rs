@@ -815,6 +815,48 @@ fn code_block_in_nested_ordered_list_stays_fenced() {
 }
 
 #[test]
+fn nested_list_with_empty_first_item_cannot_swallow_code_fence() {
+    for ordered in [false, true] {
+        for empty in [vec![], vec![para(vec![])], vec![para(vec![text(" ")])]] {
+            let md = render(vec![Node::List {
+                ordered: false,
+                start: None,
+                source: None,
+                items: vec![ListItem::new(vec![
+                    para(vec![text("parent")]),
+                    Node::List {
+                        ordered,
+                        start: Some(1),
+                        source: None,
+                        items: vec![
+                            ListItem::new(empty),
+                            ListItem::new(vec![Node::CodeBlock {
+                                language: Some("<label>".into()),
+                                code: "<script>bad</script>\n".into(),
+                                source: None,
+                            }]),
+                        ],
+                    },
+                ])],
+            }]);
+            assert_safe(&md);
+            assert_eq!(
+                events(&md)
+                    .iter()
+                    .filter(|e| matches!(e, Event::Start(Tag::List(_))))
+                    .count(),
+                2,
+                "{md}"
+            );
+            assert!(
+                visible_text(&md).ends_with("<script>bad</script>\n"),
+                "{md}"
+            );
+        }
+    }
+}
+
+#[test]
 fn nested_list_under_ordered_item_is_nested() {
     let md = render(vec![Node::List {
         source: None,

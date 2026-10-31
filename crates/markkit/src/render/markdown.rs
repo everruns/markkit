@@ -375,39 +375,63 @@ impl MarkdownRenderer {
         }
     }
 
-    /// Like [`Self::render_nodes`], but keeps the common "text, then nested list"
-    /// item tight (no blank line) when the list can interrupt a paragraph.
+    /// Keep nested lists tight only when their rendered first item can interrupt
+    /// the preceding paragraph; empty items require a blank line (S17).
     fn render_item_children(&mut self, nodes: &[Node]) {
         for (i, node) in nodes.iter().enumerate() {
             if self.over_limit() {
                 return;
             }
             let block = node.is_block();
-            if i > 0 {
-                let prev = &nodes[i - 1];
-                let tight = matches!(prev, Node::Paragraph { .. } | Node::Heading { .. })
-                    || prev.is_inline();
-                let interrupts = match node {
-                    Node::List { ordered, start, .. } => {
-                        !ordered || matches!(start, None | Some(1))
+            let tight = i > 0
+                && (matches!(nodes[i - 1], Node::Paragraph { .. } | Node::Heading { .. })
+                    || nodes[i - 1].is_inline());
+            let candidate = matches!(
+                node,
+                Node::List { ordered: false, .. }
+                    | Node::List {
+                        ordered: true,
+                        start: None | Some(1),
+                        ..
                     }
-                    _ => false,
-                };
-                if tight && interrupts {
-                    if !self.buf.ends_with('\n') {
-                        self.buf.push('\n');
-                    }
-                } else if block || prev.is_block() {
-                    if !self.buf.ends_with('\n') {
-                        self.buf.push('\n');
-                    }
+            );
+            let list_body = if tight && candidate {
+                // Inspect actual output: empty paragraphs/inline nodes can leave
+                // the first marker empty. Render once to avoid recursive rework.
+                let mut sub = self.sub();
+                sub.max_output = self.max_output.saturating_sub(self.buf.len());
+                sub.render_node(node, 0);
+                sub.over_limit();
+                self.absorb(&sub);
+                if self.tripped.is_some() {
+                    return;
+                }
+                Some(normalize_output(&sub.buf))
+            } else {
+                None
+            };
+            let interrupts = list_body.as_ref().is_some_and(|body| {
+                body.lines()
+                    .next()
+                    .and_then(|line| line.split_once(' '))
+                    .is_some_and(|(_, content)| !content.is_empty())
+            });
+            if i > 0 && (block || nodes[i - 1].is_block()) {
+                if !self.buf.ends_with('\n') {
+                    self.buf.push('\n');
+                }
+                if !interrupts {
                     self.buf.push('\n');
                 }
             }
             if !block && (self.buf.is_empty() || self.buf.ends_with('\n')) {
                 self.line_start = true;
             }
-            self.render_node(node, 0);
+            if let Some(body) = list_body {
+                self.buf.push_str(&body);
+            } else {
+                self.render_node(node, 0);
+            }
         }
     }
 
