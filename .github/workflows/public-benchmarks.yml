@@ -31,16 +31,16 @@ jobs:
       # Input is data, never shell code; prepare/run additionally validate choices.
       BENCHMARK_SCOPE: ${{ github.event_name == 'schedule' && 'dev' || inputs.scope || 'pr' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Cache verified corpora
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             target/public-benchmarks/wcxb

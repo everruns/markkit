@@ -14,7 +14,7 @@ jobs:
     name: Code Coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
@@ -26,7 +26,7 @@ jobs:
         # tokio socket tests (tests/url_security.rs)
         run: cargo tarpaulin --workspace --engine llvm --out xml
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           file: cobertura.xml
           fail_ci_if_error: false

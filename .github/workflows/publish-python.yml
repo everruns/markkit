@@ -22,7 +22,7 @@ jobs:
     outputs:
       version: ${{ steps.metadata.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source_ref || github.ref }}
           persist-credentials: false
@@ -53,13 +53,13 @@ jobs:
               exit 1
             fi
           fi
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install verification tools
         run: python -m pip install twine==7.0.0
       - name: Build portable distributions
-        uses: PyO3/maturin-action@423a6347767a8b16e65c2a7a7042e4a921528da8 # v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
         with:
           target: x86_64
           manylinux: "2014"
@@ -123,7 +123,7 @@ jobs:
     env:
       MARKKIT_VERSION: ${{ needs.build.outputs.version }}
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
