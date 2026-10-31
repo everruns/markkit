@@ -78,7 +78,7 @@ jobs:
             cp -R . "$DRY_RUN_DIR"
             cd "$DRY_RUN_DIR"
             npm pkg set "version=0.0.0-dry-run.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}"
-            npm publish --dry-run --ignore-scripts --access public
+            npm publish --dry-run --ignore-scripts --access public --tag dry-run
           else
             npm publish --ignore-scripts --access public
           fi
