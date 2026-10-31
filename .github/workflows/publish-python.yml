@@ -64,6 +64,7 @@ jobs:
           target: x86_64
           manylinux: "2014"
           maturin-version: "1.15.0"
+          before-script-linux: git config --global --add safe.directory "$GITHUB_WORKSPACE"
           args: --release --locked --sdist --out target/wheels -i python3.12
       - name: Verify build preserved the patched lockfile
         run: git diff --exit-code -- Cargo.lock
