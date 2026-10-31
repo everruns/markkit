@@ -69,7 +69,8 @@ runner and requires npm >= 11.5.1 (Node >= 22.14.0). It rejects source commits o
 input `dry_run=false` uploads; every other value runs `npm publish --dry-run`.
 The dry run uses a temporary run-specific prerelease version because npm still
 rejects an already-published version during `--dry-run`; the source package version
-is unchanged. A successful dry run verifies packaging, not the OIDC exchange. Verify
+is unchanged. Its required `dry-run` tag is also simulated and never written to the
+registry. A successful dry run verifies packaging, not the OIDC exchange. Verify
 the first real release's publish log and npm provenance separately. A new npm trusted
 publisher must complete its first successful publish within two days or it expires; create
 it close to the next authorized release. See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
