@@ -3,6 +3,7 @@
 ## 2026-10-31
 
 * **Container fence safety**: task checkboxes render on their own line; definition bodies use ordinary GFM list items below their term. This prevents markers from consuming code fences and exposing raw HTML, including empty leading paragraphs and nested definitions. A nested list with an empty first item also requires a blank line before it; the renderer checks actual output once, within the remaining output budget. Headings, link labels and block nodes flattened into inline content collapse hard breaks to spaces, preventing a break from closing the container before later inline code. Redundant nested bold, italic and strikethrough wrappers render once so an inner delimiter cannot close its outer span. A bracketed node followed by text beginning with `(` is separated so it cannot form an unintended inline link. Exact nightly crash seeds and content/grouping regressions cover these paths. See [Threat Model](security/threat-model.md) T1 and [IR Specification](foundations/ir.md).
+* **Native npm OIDC**: `publish-js.yml` replaces the long-lived npm token with job-scoped OIDC, validates source ancestry and tag version, and runs a real npm dry run by default. Registry trust must be configured independently for `@everruns/markkit`; dry runs do not prove authentication. See [Release Process](operations/release-process.md).
 
 ## 2026-10-28
 
