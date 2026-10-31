@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   below each term, preserving code blocks without requiring a definition-list extension.
   Nested lists beginning with an empty item are separated from preceding text. Hard
   breaks inside headings and link labels are flattened so they cannot close the
-  container before later inline code.
+  container before later inline code. Redundant nested bold, italic and
+  strikethrough wrappers no longer emit delimiters that close their outer span,
+  and adjacent bracketed nodes cannot combine with following text into a link.
 
 - PDF stream guards honor escaped dictionary keys and bound compressed prefixes
   before image filters, including when OCR is disabled.
