@@ -67,7 +67,8 @@ napi build --release
 
 ## Distribution
 
-Published to npm by `publish-js.yml` from a verified release tag; see
+Published to npm by `publish-js.yml` using npm Trusted Publishing (OIDC), without
+`NPM_TOKEN`, from a verified release tag; see
 [Release Process](../operations/release-process.md). CI: `js.yml` on changes to
 `crates/markkit-js/` or `crates/markkit/`.
 

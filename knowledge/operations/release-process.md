@@ -44,7 +44,7 @@ version from `Cargo.toml`. Python and npm packages are published separately with
 |--------|------|----------|
 | Rust crate | `cargo publish` | crates.io |
 | Python wheel | `maturin build` | PyPI |
-| npm package | `napi build` | npm |
+| npm package | `napi build` | npm (`@everruns/markkit`, OIDC) |
 | npm WASM package | `wasm-bindgen` | npm (`@everruns/markkit-wasm`, OIDC) |
 
 ## Native package scope and verification
@@ -54,9 +54,23 @@ The initial npm artifact supports Linux x64/glibc only, and the current Python
 wheel publisher targets Linux x64/CPython 3.12 only. Other platforms and interpreters
 are not claimed as available; a future native release can expand coverage.
 
-Both publishers default to a credential-free dry run. npm publication requires the
-`NPM_TOKEN` secret and fails before building when it is missing, without printing
-values; Python publishes through PyPI Trusted Publishing (OIDC), with no stored token. Do not create credentials or alter permissions to complete a release.
+Both publishers default to a credential-free dry run. Native npm and Python publish
+through their registries' Trusted Publishing (OIDC), with no stored token.
+Do not create credentials or alter permissions to complete a release.
+
+For `@everruns/markkit`, configure npm's GitHub Actions trusted publisher as
+organization `everruns`, repository `markkit`, workflow `publish-js.yml`, no
+environment, with direct `npm publish` allowed. This is a separate package-level
+configuration from `@everruns/markkit-wasm` / `publish-wasm.yml`; changing YAML alone
+does not configure npm access. Publisher access changes require maintainer approval.
+The native workflow grants `id-token: write` only to its publish job on a GitHub-hosted
+runner and requires npm >= 11.5.1 (Node >= 22.14.0). It rejects source commits outside
+`main` history and `v*` tags that disagree with the package version. Only the explicit
+input `dry_run=false` uploads; every other value runs `npm publish --dry-run`.
+A successful dry run verifies packaging, not the OIDC exchange. Verify the first
+real release's publish log and npm provenance separately. A new npm trusted publisher
+must complete its first successful publish within two days or it expires; create
+it close to the next authorized release. See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
 Before upload, npm installs and loads its packed tarball (loader plus native binary),
 and Python checks metadata and imports the built wheel in a clean virtual environment.
 Both builds must preserve the patched Cargo.lock.
