@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Build PyPI wheels in a manylinux2014 container so registry uploads remain
+  portable when GitHub's `ubuntu-latest` image changes. Publication recovery can
+  check out an exact release tag while keeping the trusted workflow on `main`.
+
 ## [0.2.0] - 2026-10-31
 
 ### Fixed

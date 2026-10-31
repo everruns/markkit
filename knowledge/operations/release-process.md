@@ -51,12 +51,20 @@ version from `Cargo.toml`. Python and npm packages are published separately with
 
 Run the Python and npm publishers from the same verified release tag as Rust.
 The initial npm artifact supports Linux x64/glibc only, and the current Python
-wheel publisher targets Linux x64/CPython 3.12 only. Other platforms and interpreters
-are not claimed as available; a future native release can expand coverage.
+wheel publisher targets manylinux2014 x86_64/CPython 3.12 only. Other platforms
+and interpreters are not claimed as available; a future native release can expand
+coverage.
 
 Both publishers default to a credential-free dry run. Native npm and Python publish
 through their registries' Trusted Publishing (OIDC), with no stored token.
 Do not create credentials or alter permissions to complete a release.
+
+The Python workflow builds inside the pinned maturin-action manylinux2014 container;
+building directly on `ubuntu-latest` can produce a `linux_x86_64` wheel that PyPI
+rejects. For a publication retry after the workflow itself is repaired, dispatch
+the workflow from `main` with `source_ref` set to the existing `vX.Y.Z` tag. A real
+publish rejects branches, verifies the tag points at the checked-out commit, checks
+that the commit is in `main`, and requires the tag to match the package version.
 
 For `@everruns/markkit`, configure npm's GitHub Actions trusted publisher as
 organization `everruns`, repository `markkit`, workflow `publish-js.yml`, no
