@@ -62,8 +62,10 @@ The sdist uses `sdist-generator = "git"` and `locked = true` so the workspace
 
 ## Distribution
 
-Published to PyPI by `publish-python.yml` from a verified release tag; see
-[Release Process](../operations/release-process.md) for platform scope.
+Published to PyPI by `publish-python.yml` from a verified release tag. The Linux
+wheel is built in a manylinux2014 container rather than on the moving GitHub host
+image; see [Release Process](../operations/release-process.md) for platform scope
+and release-retry rules.
 CI: `python.yml` builds and imports the module on changes to `crates/markkit-python/`
 or `crates/markkit/`.
 
