@@ -61,10 +61,11 @@ pub trait CliHost: Send + Sync {
     fn write_stderr(&self, text: &str);
 
     /// Read all of standard input.
-    fn read_stdin(&self) -> io::Result<Vec<u8>>;
+    fn read_stdin(&self) -> impl Future<Output = io::Result<Vec<u8>>> + Send;
 
-    /// Read a whole file (`--file` sources and `--rules`).
-    fn read_file(&self, path: &Path) -> io::Result<Vec<u8>>;
+    /// Read a whole file (`--file` sources and `--rules`). Async so hosts
+    /// with an async virtual filesystem need not block.
+    fn read_file(&self, path: &Path) -> impl Future<Output = io::Result<Vec<u8>>> + Send;
 
     /// Fetch `url` and extract it with `markkit`'s configuration. Relative
     /// links must resolve against the final URL after redirects.
@@ -108,15 +109,20 @@ impl CliHost for NativeHost {
         let _ = io::stderr().lock().write_all(text.as_bytes());
     }
 
-    fn read_stdin(&self) -> io::Result<Vec<u8>> {
-        use std::io::Read;
-        let mut buf = Vec::new();
-        io::stdin().read_to_end(&mut buf)?;
-        Ok(buf)
+    #[allow(clippy::manual_async_fn)]
+    fn read_stdin(&self) -> impl Future<Output = io::Result<Vec<u8>>> + Send {
+        async {
+            use std::io::Read;
+            let mut buf = Vec::new();
+            io::stdin().read_to_end(&mut buf)?;
+            Ok(buf)
+        }
     }
 
-    fn read_file(&self, path: &Path) -> io::Result<Vec<u8>> {
-        std::fs::read(path)
+    #[allow(clippy::manual_async_fn)]
+    fn read_file(&self, path: &Path) -> impl Future<Output = io::Result<Vec<u8>>> + Send {
+        let path = path.to_path_buf();
+        async move { std::fs::read(path) }
     }
 
     #[allow(clippy::manual_async_fn)]
@@ -471,7 +477,7 @@ async fn execute<H: CliHost>(cli: Cli, host: &H) -> Result<()> {
             }
 
             if let Some(path) = &rules {
-                let text = String::from_utf8(host.read_file(path)?).map_err(|_| {
+                let text = String::from_utf8(host.read_file(path).await?).map_err(|_| {
                     io::Error::new(
                         io::ErrorKind::InvalidData,
                         "stream did not contain valid UTF-8",
@@ -486,12 +492,12 @@ async fn execute<H: CliHost>(cli: Cli, host: &H) -> Result<()> {
             let source_label = source.clone().unwrap_or_else(|| "<stdin>".to_string());
 
             let extraction = if read_stdin {
-                let buf = host.read_stdin()?;
+                let buf = host.read_stdin().await?;
                 markkit
                     .extract_document_sync(&buf, markkit::DocumentHint::content_type("text/html"))?
             } else if file {
                 let src = source.as_deref().unwrap();
-                let bytes = host.read_file(Path::new(src))?;
+                let bytes = host.read_file(Path::new(src)).await?;
                 // Format detected from the extension, then magic bytes.
                 markkit.extract_document_sync(&bytes, markkit::DocumentHint::file_name(src))?
             } else {

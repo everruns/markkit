@@ -47,14 +47,13 @@ impl CliHost for TestHost {
     fn write_stderr(&self, text: &str) {
         self.stderr.lock().unwrap().push_str(text);
     }
-    fn read_stdin(&self) -> io::Result<Vec<u8>> {
-        Ok(self.stdin.clone())
+    fn read_stdin(&self) -> impl Future<Output = io::Result<Vec<u8>>> + Send {
+        let stdin = self.stdin.clone();
+        async move { Ok(stdin) }
     }
-    fn read_file(&self, path: &Path) -> io::Result<Vec<u8>> {
-        self.files
-            .get(path)
-            .cloned()
-            .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
+    fn read_file(&self, path: &Path) -> impl Future<Output = io::Result<Vec<u8>>> + Send {
+        let file = self.files.get(path).cloned();
+        async move { file.ok_or_else(|| io::Error::from(io::ErrorKind::NotFound)) }
     }
     fn extract_url(
         &self,
@@ -270,4 +269,13 @@ async fn broken_pipe_on_stdout_exits_0() {
     };
     assert_eq!(run_with(&host, &["extract", "-"]).await, 0);
     assert!(host.err().is_empty());
+}
+
+#[test]
+fn run_future_is_send() {
+    // Embedders run the CLI inside `Send` async contexts (bashkit builtins).
+    fn assert_send<T: Send>(_: T) {}
+    let host = TestHost::default();
+    assert_send(run(["markkit", "--help"], &host));
+    assert_send(run(["markkit", "--help"], &markkit_cli::NativeHost));
 }
