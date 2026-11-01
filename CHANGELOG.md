@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-01
+
 ### Fixed
 
 - Build PyPI wheels in a manylinux2014 container so registry uploads remain
