@@ -75,6 +75,13 @@ pub trait CliHost: Send + Sync {
         url: &str,
     ) -> impl Future<Output = markkit::Result<Extraction>> + Send;
 
+    /// Final say on resource limits after `--max-*`/`--timeout` flags were
+    /// applied. A shared host clamps here so a flag cannot raise a cap past
+    /// its budget.
+    fn limits(&self, requested: Limits) -> Limits {
+        requested
+    }
+
     /// Return `Some(reason)` to refuse a feature requested by a flag.
     fn refuse(&self, feature: HostFeature) -> Option<String> {
         let _ = feature;
@@ -409,7 +416,7 @@ async fn execute<H: CliHost>(cli: Cli, host: &H) -> Result<()> {
             locale,
             limits,
         } => {
-            let limits = limits.apply(Limits::default());
+            let limits = host.limits(limits.apply(Limits::default()));
             let max_message = mcp::max_message_bytes(limits.max_input_size);
             let tool = markkit::tool::MarkkitTool::builder()
                 .locale(&locale)
@@ -448,7 +455,7 @@ async fn execute<H: CliHost>(cli: Cli, host: &H) -> Result<()> {
             }
 
             let mut builder = Markkit::builder()
-                .limits(limits.apply(Limits::default()))
+                .limits(host.limits(limits.apply(Limits::default())))
                 .pdf_layout(layout)
                 .pdf_ocr(ocr)
                 .pdf_ocr_language(ocr_language.unwrap_or_else(|| "eng".into()))

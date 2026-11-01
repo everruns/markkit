@@ -73,6 +73,8 @@ codes are one implementation.
   policy). Sandboxes fetch through their own egress, set `base_url` to the final
   URL and call `extract_document`; built without `native-http` the CLI links no
   reqwest/TLS.
+- `CliHost::limits` gets the final say on `Limits` after `--max-*`/`--timeout`
+  flags, so a shared host can stop a flag from raising a cap past its budget.
 - Hosts may refuse `--ocr` (`HostFeature::Ocr`: host Tesseract binary, host
   model files). Refused flags still parse and show in help; exit 1.
 - Exit codes: 0 success / help / version / closed stdout pipe; 1 runtime error;

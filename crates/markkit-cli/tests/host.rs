@@ -25,6 +25,7 @@ struct TestHost {
     fetched: Mutex<Vec<String>>,
     refused: Vec<HostFeature>,
     broken_pipe: bool,
+    max_input: Option<usize>,
 }
 
 impl TestHost {
@@ -76,6 +77,12 @@ impl CliHost for TestHost {
                 },
             )
         }
+    }
+    fn limits(&self, mut requested: markkit::Limits) -> markkit::Limits {
+        if let Some(cap) = self.max_input {
+            requested.max_input_size = requested.max_input_size.min(cap);
+        }
+        requested
     }
     fn refuse(&self, feature: HostFeature) -> Option<String> {
         self.refused
@@ -278,4 +285,17 @@ fn run_future_is_send() {
     let host = TestHost::default();
     assert_send(run(["markkit", "--help"], &host));
     assert_send(run(["markkit", "--help"], &markkit_cli::NativeHost));
+}
+
+#[tokio::test]
+async fn host_clamps_limits_raised_by_flags() {
+    let host = TestHost {
+        stdin: PAGE.to_vec(),
+        max_input: Some(16),
+        ..Default::default()
+    };
+    let code = run_with(&host, &["extract", "-", "--max-input-size", "1000000000"]).await;
+    assert_eq!(code, 1);
+    assert!(host.err().contains("input"), "{}", host.err());
+    assert!(host.out().is_empty());
 }
