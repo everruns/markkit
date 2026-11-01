@@ -52,11 +52,36 @@ are trusted embedder code; the first error aborts and is returned as is
 | Crate | Purpose |
 |-------|---------|
 | `markkit` | Core library – parsing, conversion, API |
-| `markkit-cli` | Command-line tool |
+| `markkit-cli` | Command-line tool; also the `markkit_cli` library (see below) |
 | `markkit-bench` | Benchmark harness, results committed in `results/` |
 | `markkit-eval` | Extraction-quality eval study (mira) |
 | `markkit-python` | Python bindings (PyO3) |
 | `markkit-js` | Node.js bindings (NAPI-RS) |
+
+### Embeddable CLI
+
+The CLI is a library: `markkit_cli::run(args, &impl CliHost) -> i32`. The
+`markkit` binary is a thin wrapper with `NativeHost`; bashkit's `markkit`
+builtin calls the same `run`, so flags, help, version, errors, output and exit
+codes are one implementation.
+
+- `CliHost` owns stdout/stderr, stdin, file reads (`--file`, `--rules`), URL
+  extraction and MCP stdio (`serve_mcp`, refused by default). `run` never exits
+  the process or touches the host filesystem.
+- URL extraction receives the configured `Markkit`. `NativeHost` uses
+  `extract_url_document` (feature `native-http`, default; markkit's SSRF
+  policy). Sandboxes fetch through their own egress, set `base_url` to the final
+  URL and call `extract_document`; built without `native-http` the CLI links no
+  reqwest/TLS.
+- `CliHost::limits` gets the final say on `Limits` after `--max-*`/`--timeout`
+  flags, so a shared host can stop a flag from raising a cap past its budget.
+- Hosts may refuse `--ocr` (`HostFeature::Ocr`: host Tesseract binary, host
+  model files). Refused flags still parse and show in help; exit 1.
+- Exit codes: 0 success / help / version / closed stdout pipe; 1 runtime error;
+  2 usage error. Errors use anyhow's `Error: {:?}` layout without the
+  `RUST_BACKTRACE`-dependent backtrace.
+- clap is built with default features off (no color, no suggestions), matching
+  bashkit's set so feature unification does not change either side's output.
 
 ## Configuration
 

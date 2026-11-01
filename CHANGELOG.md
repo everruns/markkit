@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `markkit_cli` library: `run(args, &impl CliHost)` runs the exact `markkit` CLI
+  inside another program (used by bashkit's `markkit` builtin), with stdio, file
+  reads, URL fetching and MCP supplied by the host.
+
+### Changed
+
+- **Breaking:** `markkit-cli` URL sources sit behind the new default
+  `native-http` feature; builds with `default-features = false` must enable it.
+- CLI help and errors are plain text (clap color and suggestions off), and error
+  output no longer appends a backtrace when `RUST_BACKTRACE` is set.
+- A closed stdout pipe now ends `markkit extract` with exit 0 instead of a panic.
+
 ## [0.2.1] - 2026-11-01
 
 ### Fixed

@@ -35,7 +35,10 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # CLI
-clap = { version = "4", features = ["derive"] }
+# Default features off (no color, no did-you-mean suggestions) to match
+# bashkit's clap set: bashkit embeds this CLI as a builtin and clap features
+# unify, so color/suggestions here would change output on both sides.
+clap = { version = "4", default-features = false, features = ["derive", "std", "help", "usage", "error-context"] }
 
 # HTTP
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
