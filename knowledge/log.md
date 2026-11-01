@@ -1,5 +1,9 @@
 # Markkit Knowledge Update Log
 
+## 2026-11-01
+
+* **Release 0.2.1**: patch release carrying the portable manylinux2014 PyPI wheel build. No library or CLI behavior changes; crates.io, PyPI and native npm publish from the same verified tag. See [Release Process](operations/release-process.md) and `CHANGELOG.md`.
+
 ## 2026-10-31
 
 * **Portable PyPI release**: build the CPython 3.12 x86_64 wheel in a pinned manylinux2014 container so GitHub runner-image changes cannot emit PyPI-rejected `linux_x86_64` artifacts. A guarded `source_ref` lets a repaired workflow on `main` publish the exact existing release tag after a failed upload. See [Release Process](operations/release-process.md) and [Python Package](runtimes/python-package.md).
