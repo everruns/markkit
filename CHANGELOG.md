@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-01
+
 ### Added
 
 - `markkit_cli` library: `run(args, &impl CliHost)` runs the exact `markkit` CLI
