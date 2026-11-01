@@ -13,13 +13,20 @@ categories.workspace = true
 description = "Command line interface for Markkit markdown extraction"
 readme = "../../README.md"
 
+[lib]
+name = "markkit_cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "markkit"
 path = "src/main.rs"
 doc = false
 
 [features]
-default = ["all_formats", "pdf-ocr"]
+default = ["all_formats", "pdf-ocr", "native-http"]
+# URL sources in `NativeHost` via markkit's own reqwest client. Embedders that
+# fetch through their own egress (bashkit) leave this off: no reqwest, no TLS.
+native-http = ["markkit/http_client"]
 all_formats = ["markkit/all_formats"]
 pdf = ["markkit/pdf"]
 pdf-ocr = ["pdf", "markkit/pdf-ocr"]
@@ -33,8 +40,8 @@ odt = ["markkit/odt"]
 epub = ["markkit/epub"]
 
 [dependencies]
-markkit = { path = "../markkit", version = "0.2.1", features = ["http_client", "tool"] }
-tokio = { workspace = true, features = ["macros", "net", "rt", "rt-multi-thread", "time", "fs", "io-std", "io-util"] }
+markkit = { path = "../markkit", version = "0.2.1", features = ["tool"] }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "io-std", "io-util"] }
 clap.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true

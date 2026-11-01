@@ -2,6 +2,7 @@
 
 ## 2026-11-01
 
+* **Embeddable CLI**: the CLI moved into the `markkit_cli` library (`run(args, &impl CliHost)`) so bashkit can ship a `markkit` builtin with the identical interface. Hosts own stdio, files, URL fetching and MCP, and may refuse `--ocr`. URL support in the native host is the default `native-http` feature; clap default features off; error output no longer includes `RUST_BACKTRACE` backtraces. See [Architecture](foundations/architecture.md).
 * **Release 0.2.1**: patch release carrying the portable manylinux2014 PyPI wheel build. No library or CLI behavior changes; crates.io, PyPI and native npm publish from the same verified tag. See [Release Process](operations/release-process.md) and `CHANGELOG.md`.
 
 ## 2026-10-31
