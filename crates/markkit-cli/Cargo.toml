@@ -40,7 +40,7 @@ odt = ["markkit/odt"]
 epub = ["markkit/epub"]
 
 [dependencies]
-markkit = { path = "../markkit", version = "0.2.1", features = ["tool"] }
+markkit = { path = "../markkit", version = "0.3.0", features = ["tool"] }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "io-std", "io-util"] }
 clap.workspace = true
 anyhow.workspace = true
