@@ -379,6 +379,7 @@ Markkit is part of the [Everruns](https://everruns.com) ecosystem, alongside
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Optional OCR model
-weights fetched by `scripts/prepare_ocr_models.py` are separate CC-BY-SA 4.0
-assets, never bundled.
+MIT License. See [LICENSE](LICENSE). Third-party attributions, including data
+embedded by PDF rendering, are in [NOTICE](NOTICE). Optional OCR model weights
+fetched by `scripts/prepare_ocr_models.py` are separate CC-BY-SA 4.0 assets,
+never bundled. Report vulnerabilities privately per [SECURITY.md](SECURITY.md).

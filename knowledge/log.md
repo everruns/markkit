@@ -7,6 +7,8 @@
 * **calamine 0.38**: RUSTSEC-2026-0436 (calamine CFB/OLE2 panic + OOM, fixed in 0.38) broke downstream `cargo audit`. Bumped calamine, cfb 0.16 and the lockfile; XLS pre-scan + own XLSB reader unchanged. Deferred majors: hayro 0.9 (published 2026-11-02, makes SIMD mandatory against the [Native Dependencies](security/native-dependencies.md) review) and mail-parser 1.0 (full rewrite, MSRV 1.98, new unsafe SIMD code); each needs its own review. See [Threat Model](security/threat-model.md).
 * **Docs and examples**: README, PyPI/npm/WASM READMEs and guides rewritten; Rust snippets in README and `docs/` compiled as doctests; docs.rs builds all features with `doc_cfg`; Python wheel ships `.pyi` stubs (checked against the module); Rust, Python, Node.js and WASM examples share `examples/data/` samples and run in CI. See [Documentation Architecture](operations/documentation.md) and [Examples](operations/examples.md).
 
+* **Licensing and security policy**: every published artifact (crates.io, PyPI, both npm packages) now ships `LICENSE` and `NOTICE`; Python metadata is PEP 639 `License-Expression: MIT`. `NOTICE` reproduces the BSD-3 notices for PDFium/Foxit fonts and Adobe CMaps that hayro embeds under `pdf-ocr`. `SECURITY.md` covers 0.3.x, GitHub private reporting and all packages. `scripts/tests/test_licensing.py` enforces it. See [Native Dependencies](security/native-dependencies.md) and [Release Process](operations/release-process.md).
+
 ## 2026-11-01
 
 * **Release 0.3.0**: ships the embeddable CLI library (`markkit_cli::run`) for bashkit's `markkit` builtin. Minor bump: `markkit-cli` URL sources moved behind the default `native-http` feature. See `CHANGELOG.md`.

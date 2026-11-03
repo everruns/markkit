@@ -168,5 +168,5 @@ with stats, limits and layout; pass your own files as arguments).
 
 ## License
 
-MIT. See [LICENSE](https://github.com/everruns/markkit/blob/main/LICENSE) and
+MIT. See [LICENSE](https://github.com/everruns/markkit/blob/main/LICENSE); third-party notices are in
 [NOTICE](https://github.com/everruns/markkit/blob/main/NOTICE).

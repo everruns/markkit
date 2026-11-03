@@ -21,7 +21,9 @@
     "markkit_wasm.d.ts",
     "markkit_wasm_bg.wasm",
     "markkit_wasm_bg.wasm.d.ts",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "NOTICE"
   ],
   "license": "MIT",
   "repository": {

@@ -4,14 +4,15 @@ build-backend = "maturin"
 
 [project]
 name = "markkit"
-dynamic = ["version", "description", "authors", "license"]
+dynamic = ["version", "description", "authors"]
+license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
 readme = "crates/markkit-python/README.md"
 requires-python = ">=3.9"
 keywords = ["markdown", "html", "pdf", "docx", "xlsx", "extraction", "llm", "rag", "agents"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Rust",

@@ -37,5 +37,6 @@ fi
 
 cp "$CRATE_DIR/js/index.js" "$CRATE_DIR/js/index.d.ts" "$OUT_DIR/"
 cp "$CRATE_DIR/package.json" "$CRATE_DIR/README.md" "$OUT_DIR/"
+cp "$CRATE_DIR/../../LICENSE" "$CRATE_DIR/../../NOTICE" "$OUT_DIR/"
 echo "==> built $OUT_DIR"
 ls -lh "$OUT_DIR"

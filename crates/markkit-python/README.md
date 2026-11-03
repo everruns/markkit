@@ -216,6 +216,6 @@ full Cargo workspace and lockfile.
 
 ## License
 
-MIT. See [LICENSE](https://github.com/everruns/markkit/blob/main/LICENSE) and
+MIT. See [LICENSE](https://github.com/everruns/markkit/blob/main/LICENSE); third-party notices are in
 [NOTICE](https://github.com/everruns/markkit/blob/main/NOTICE). Optional OCR
 model weights are separate CC-BY-SA 4.0 assets, never bundled.

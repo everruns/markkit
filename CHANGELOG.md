@@ -29,6 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   result field.
 - Releases now publish PyPI and npm (native + WASM) together with crates.io.
 
+### Fixed
+
+- Every published package (crates.io crates, PyPI wheel/sdist, `@everruns/markkit`,
+  `@everruns/markkit-wasm`) now ships `LICENSE` and `NOTICE`. Python metadata
+  declares `License-Expression: MIT`. `NOTICE` reproduces the BSD notices for the
+  PDFium/Foxit fonts and Adobe CMaps embedded by PDF rendering (`pdf-ocr`).
+- `SECURITY.md` lists 0.3.x as supported, adds GitHub private vulnerability
+  reporting, and covers the WASM package and agent tool.
+
 ## [0.3.1] - 2026-11-03
 
 ### Security
