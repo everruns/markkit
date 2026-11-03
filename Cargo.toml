@@ -51,10 +51,10 @@ schemars = "1"
 html5ever = "0.40"
 
 # Document formats
-calamine = "0.37"       # Excel/spreadsheet (XLSX/XLS/ODS)
+calamine = "0.38"       # Excel/spreadsheet (XLSX/XLS/ODS)
 zip = { version = "9", default-features = false, features = ["deflate"] }  # OOXML/ODF containers; matches calamine's zip
 quick-xml = "0.42"      # DOCX/ODS XML parsing
-cfb = "0.15"            # XLS (OLE2) container pre-scan
+cfb = "0.16"            # XLS (OLE2) container pre-scan
 hayro-syntax = { version = "0.8", default-features = false, features = ["std"] }  # PDF object/content parsing; OCR also enables image decoding
 hayro = { version = "0.8", default-features = false, features = ["embed-fonts", "embed-cmaps"] }
 ocrs = { version = "0.13.1", default-features = false, features = ["onnx"] }
