@@ -7,10 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Runnable examples for every surface, run in CI: Rust `documents`, `convert`
+  (DOCX/XLSX/PDF or your own files), `main_content` and `limits`; Python
+  `examples/python/`, Node.js `examples/node/` and WASM `examples/wasm/`,
+  sharing sample files in `examples/data/`. Index: `examples/README.md`.
+- Python type stubs: the wheel ships `markkit/__init__.pyi` and `py.typed`, with
+  typed `Limits` and `Extraction` results; PyPI metadata gains classifiers,
+  `requires-python` and project URLs.
+- `docs/pdf.md`: PDF text, tables, layout geometry, OCR and limits in one guide.
+
 ### Changed
 
-- Rewrote the PyPI README (formats, document dict, async, limits, links) and added
-  PyPI project links, keywords and classifiers.
+- Docs overhaul: rewritten root, PyPI, npm and WASM READMEs (API tables,
+  result fields, options, limits, errors); getting-started guide rewritten.
+  Rust snippets in the README and guides are now compiled as doctests.
+- docs.rs builds with every format, `http_client`, `tool` and `json-schema`
+  enabled and shows feature badges; crate docs cover configuration, limits,
+  the IR pipeline and features. Node.js `index.d.ts` documents every option and
+  result field.
 - Releases now publish PyPI and npm (native + WASM) together with crates.io.
 
 ### Fixed

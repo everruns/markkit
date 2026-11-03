@@ -1,58 +1,155 @@
 //! # Markkit
 //!
-//! Extract clean markdown from any format.
+//! Extract clean Markdown from any document format, safely.
 //!
-//! Markkit is a Rust library for converting HTML, PDF, DOCX, spreadsheets,
-//! and other document formats into clean, well-structured markdown.
+//! Markkit converts HTML, PDF, Word, PowerPoint, spreadsheets, e-books, email,
+//! notebooks and plain-text formats into well-structured Markdown for LLMs and
+//! agents. Every input is treated as untrusted: nothing is executed, every
+//! resource an input can drive is bounded ([`Limits`]), and the default build
+//! has no network stack.
 //!
-//! ## Quick Start
+//! The same engine ships as a CLI (`markkit-cli`), Python (`pip install
+//! markkit`), Node.js (`@everruns/markkit`) and WebAssembly
+//! (`@everruns/markkit-wasm`) packages.
 //!
-//! ```rust,no_run
-//! use markkit::{DocumentHint, Markkit};
+//! ## Quick start
 //!
-//! # async fn example() -> anyhow::Result<()> {
+//! ```rust
+//! # #[cfg(feature = "html")] {
+//! use markkit::Markkit;
+//!
 //! let markkit = Markkit::builder().build();
-//!
-//! // Extract markdown from HTML
-//! let md = markkit.extract_html("<h1>Hello</h1><p>World</p>").await?;
-//!
-//! // Convert any supported document from bytes (format detected from the
-//! // content type, then the file extension, then magic bytes).
-//! let bytes = std::fs::read("report.docx")?;
-//! let doc = markkit.extract_document_sync(&bytes, DocumentHint::file_name("report.docx"))?;
-//! println!("{} ({}): {}", doc.title.unwrap_or_default(), doc.format, doc.markdown);
-//!
-//! // Extract from a URL (requires the `http_client` feature)
-//! #[cfg(feature = "http_client")]
-//! let md = markkit.extract_url("https://example.com").await?;
-//! # Ok(())
+//! let md = markkit.extract_html_sync("<h1>Hello</h1><p>World</p>")?;
+//! assert_eq!(md, "# Hello\n\nWorld\n");
 //! # }
+//! # Ok::<(), markkit::Error>(())
 //! ```
 //!
-//! ## Features
+//! ## Any format from bytes
 //!
-//! - **HTML** (`html`, default): Convert HTML to markdown with configurable rules
-//! - **DOCX** (`docx`): Convert Word documents
-//! - **PPTX** (`pptx`): Convert PowerPoint presentations, one section per slide
-//! - **Spreadsheet** (`spreadsheet`): Convert XLSX/XLSM, XLSB, XLS and ODS workbooks to tables
-//! - **Plain text** (always on): `text/plain`, `.txt`
-//! - **EPUB** (`epub`, implies `html`): e-books, chapters in reading order
-//! - **ODT** (`odt`): OpenDocument text documents
-//! - **Email** (`email`): `.eml` / `message/rfc822`, headers, body and attachment list
-//! - **Jupyter notebooks** (always on): `.ipynb`, cells and text outputs
-//! - **CSV / TSV** (always on): `text/csv`, `text/tab-separated-values`, `.csv`, `.tsv`, one table
-//! - **Markdown** (`markdown`): `text/markdown`, `.md`, normalized through the IR
-//! - **PDF** (`pdf`): Text, layout and tables; optional native OCR (`pdf-ocr`)
-//!   uses Rust Hayro rendering and installed Tesseract. Encrypted PDFs are
-//!   rejected with [`Error::UnsupportedFormat`]
-//! - **URL fetching** (`http_client`, opt-in): Fetch and extract from URLs via reqwest
-//! - **Agent tool** (`tool`): `markkit::tool::MarkkitTool`, an LLM tool following the
-//!   Everruns toolkit-library contract (schemas, OpenAI definition, `tower::Service`)
-//! - **JSON Schema** (`json-schema`): `ir::json_schema()` for the serialized IR
+//! [`Markkit::extract_document_sync`] takes bytes plus an optional
+//! [`DocumentHint`]. The format is detected from the content type, then the
+//! file extension, then magic bytes. The [`Extraction`] carries Markdown,
+//! title, [`Format`], structured [`Warning`]s, [`ExtractionStats`] and HTML
+//! [`Metadata`].
 //!
-//! The default build has no network stack; enable `http_client` for
-//! `Markkit::extract_url`. Office formats only, no HTML:
-//! `markkit = { version = "0.1", default-features = false, features = ["docx", "spreadsheet"] }`.
+//! ```rust
+//! use markkit::{DocumentHint, Format, Markkit};
+//!
+//! let markkit = Markkit::builder().build();
+//! let csv = b"name,stars\nmarkkit,1200\n";
+//! let doc = markkit.extract_document_sync(csv, DocumentHint::file_name("repos.csv"))?;
+//! assert_eq!(doc.format, Format::Csv);
+//! assert!(doc.markdown.contains("| markkit | 1200 |"));
+//!
+//! // Office files work the same way once their feature is enabled:
+//! // let doc = markkit.extract_document_sync(&std::fs::read("report.docx")?,
+//! //                                         DocumentHint::file_name("report.docx"))?;
+//! # Ok::<(), markkit::Error>(())
+//! ```
+//!
+//! Extraction is CPU-bound. The `*_sync` methods are the primitive; the async
+//! methods ([`Markkit::extract_html`], [`Markkit::extract_document`]) run the
+//! same work inline. In async servers call the sync variant from
+//! `tokio::task::spawn_blocking`.
+//!
+//! ## Configuration
+//!
+//! [`Markkit::builder`] returns a [`MarkkitBuilder`]. A built [`Markkit`] is
+//! immutable, cheap to share across threads, and reusable for many calls.
+//!
+//! ```rust
+//! # #[cfg(feature = "html")] {
+//! use markkit::Markkit;
+//!
+//! let markkit = Markkit::builder()
+//!     .main_content(true)                        // keep the article, drop sidebars/comments
+//!     .base_url("https://example.com/blog/")     // resolve relative links and images
+//!     .include_selector("article")               // CSS selectors to keep...
+//!     .exclude_selector(".newsletter-signup")    // ...and to drop
+//!     .preserve_images(false)
+//!     .build();
+//! let md = markkit.extract_html_sync(
+//!     r#"<article><h1>Post</h1><p><a href="next">Next</a></p></article>"#,
+//! )?;
+//! assert_eq!(md, "# Post\n\n[Next](https://example.com/blog/next)\n");
+//! # }
+//! # Ok::<(), markkit::Error>(())
+//! ```
+//!
+//! ## Resource limits and errors
+//!
+//! Defaults are generous (50 MiB in, 128 MiB out, 60 s, 5 M nodes, ...).
+//! Breaches return [`Error::ResourceLimit`]; [`Error::limit_kind`] names the
+//! exceeded [`LimitKind`].
+//!
+//! ```rust
+//! use std::time::Duration;
+//! use markkit::{DocumentHint, LimitKind, Limits, Markkit};
+//!
+//! let markkit = Markkit::builder()
+//!     .limits(Limits::default().max_output_size(16).timeout(Duration::from_secs(5)))
+//!     .build();
+//! let csv = b"city,population\nKyiv,2952301\nLviv,717273\n";
+//! let err = markkit.extract_document_sync(csv, DocumentHint::file_name("cities.csv")).unwrap_err();
+//! assert_eq!(err.limit_kind(), Some(LimitKind::MaxOutputSize));
+//! ```
+//!
+//! ## Pipeline: parse, transform, render
+//!
+//! Every format parses into one intermediate representation ([`ir::Document`]),
+//! optional [`transform`] passes rewrite it, and [`MarkdownRenderer`] renders
+//! it. Use [`Markkit::parse_document_sync`] (or [`Markkit::parse_html`]) to
+//! inspect or chunk the IR yourself; with
+//! [`track_sources(true)`](MarkkitBuilder::track_sources) each block carries a
+//! [`ir::Source`] (HTML XPath, DOCX block index, sheet and cell range, PDF page).
+//! Custom formats plug in through [`registry::FormatParser`], site-specific HTML
+//! markup through [`rules`].
+//!
+//! ## Cargo features
+//!
+//! | Feature | Default | Adds |
+//! |---|---|---|
+//! | `html` | yes | HTML / XHTML |
+//! | `pdf` | | PDF text, reading order, columns and tables (pure Rust); encrypted PDFs are rejected |
+//! | `pdf-ocr` | | OCR of textless PDF pages: Hayro rendering + installed Tesseract |
+//! | `pdf-ocr-ocrs` | | Rust OCR backend with caller-supplied local ONNX models |
+//! | `docx` | | Word `.docx` |
+//! | `pptx` | | PowerPoint `.pptx`, one section per slide |
+//! | `spreadsheet` | | XLSX/XLSM, XLSB, XLS, ODS, one table per sheet |
+//! | `odt` | | OpenDocument text |
+//! | `epub` | | EPUB e-books (implies `html`) |
+//! | `email` | | `.eml` / `message/rfc822` |
+//! | `markdown` | | Markdown normalized through the IR |
+//! | `all_formats` | | All format features above except OCR |
+//! | `http_client` | | [`Markkit::extract_url`] with SSRF protection (reqwest) |
+//! | `tool` | | `tool::MarkkitTool`, an LLM agent tool (Everruns toolkit contract) |
+//! | `json-schema` | | `ir::json_schema()` for the serialized IR |
+//!
+//! Plain text, CSV/TSV and Jupyter notebooks are always available. Legacy
+//! `.doc` and `.ppt` are detected and rejected with [`Error::UnsupportedFormat`].
+//! Office formats only, no HTML, no network:
+//! `markkit = { version = "0.3", default-features = false, features = ["docx", "spreadsheet"] }`.
+//!
+//! ## Examples
+//!
+//! Runnable examples live in
+//! [`examples/`](https://github.com/everruns/markkit/tree/main/examples):
+//! `cargo run -p markkit --example basic`, `documents`, `main_content`,
+//! `limits`, `configuration`, `custom_selectors`, `ir_access`, `transforms`,
+//! `agent_tool` (`--features tool`) and `convert` (`--features all_formats`,
+//! converts DOCX, XLSX and PDF samples or your own files).
+//!
+//! ## Security
+//!
+//! Scripts, macros and formulas are never executed; XML entities are never
+//! expanded; archives and PDF streams are decompressed under measured byte
+//! limits; hidden content (a prompt-injection vector) is dropped by default;
+//! `extract_url` refuses private, loopback and metadata addresses on every
+//! redirect. See the
+//! [threat model](https://github.com/everruns/markkit/blob/main/knowledge/security/threat-model.md).
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(any(
     feature = "docx",
@@ -109,6 +206,19 @@ pub mod transform;
 ))]
 #[cfg_attr(not(feature = "docx"), allow(dead_code))] // DOCX uses every helper
 mod xml;
+
+// Compile and run the Rust snippets in the user docs as doctests, so the
+// README and guides cannot drift from the API. Never part of a normal build.
+// The README and guide examples use HTML, so they need the `html` feature.
+#[cfg(all(doctest, feature = "html"))]
+#[doc = include_str!("../../../README.md")]
+struct ReadmeDoctests;
+#[cfg(all(doctest, feature = "html"))]
+#[doc = include_str!("../../../docs/getting-started.md")]
+struct GettingStartedDoctests;
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/pdf.md")]
+struct PdfGuideDoctests;
 
 pub use config::{MarkkitBuilder, PdfOcrBackend};
 pub use error::Error;

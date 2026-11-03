@@ -8,19 +8,25 @@ dynamic = ["version", "description", "authors"]
 license = "MIT"
 license-files = ["LICENSE", "NOTICE"]
 readme = "crates/markkit-python/README.md"
-keywords = ["markdown", "extraction", "html", "pdf", "docx", "llm"]
+requires-python = ">=3.9"
+keywords = ["markdown", "html", "pdf", "docx", "xlsx", "extraction", "llm", "rag", "agents"]
 classifiers = [
-    "Programming Language :: Rust",
-    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
     "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Text Processing :: Markup :: HTML",
     "Topic :: Text Processing :: Markup :: Markdown",
+    "Typing :: Typed",
 ]
 
 [project.urls]
 Homepage = "https://github.com/everruns/markkit"
-Source = "https://github.com/everruns/markkit"
-Issues = "https://github.com/everruns/markkit/issues"
+Documentation = "https://github.com/everruns/markkit/blob/main/crates/markkit-python/README.md"
+Repository = "https://github.com/everruns/markkit"
 Changelog = "https://github.com/everruns/markkit/blob/main/CHANGELOG.md"
+Issues = "https://github.com/everruns/markkit/issues"
 
 [tool.maturin]
 manifest-path = "crates/markkit-python/Cargo.toml"

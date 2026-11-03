@@ -77,7 +77,9 @@ options and their validation, HTML, bytes, PDF text/layout/tables and limits, DO
 (fixtures built by `__test__/zip.mjs`), archive limits, malformed input, version
 parity with `package.json`, and the tool (definition, locale, execution,
 `userFacing` errors). CI job `wasm` in `ci.yml` also checks the core crate for
-wasm32 and the npm archive contents; it gates `Check`.
+wasm32, runs `examples/wasm/quickstart.mjs` against the built package, and checks
+the npm archive contents; it gates `Check`. `js/index.d.ts` is hand-written:
+keep it in sync with the Rust exports and option keys.
 
 ## Distribution
 

@@ -12,6 +12,15 @@ keywords.workspace = true
 categories.workspace = true
 description = "Extract clean markdown from any format – HTML, PDF, DOCX, and more"
 readme = "../../README.md"
+documentation = "https://docs.rs/markkit"
+homepage = "https://github.com/everruns/markkit"
+
+# docs.rs documents every public API, with "Available on crate feature ..."
+# badges (doc_cfg, nightly-only, so gated on the `docsrs` cfg docs.rs sets).
+# pdf-ocr-ocrs is left out: same public API as pdf-ocr, heavy native ML deps.
+[package.metadata.docs.rs]
+features = ["all_formats", "pdf-ocr", "http_client", "tool", "json-schema"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["html"]
@@ -131,6 +140,26 @@ required-features = ["html", "tool"]
 name = "transforms"
 path = "../../examples/transforms.rs"
 required-features = ["html"]
+
+[[example]]
+name = "documents"
+path = "../../examples/documents.rs"
+required-features = ["html"]
+
+[[example]]
+name = "main_content"
+path = "../../examples/main_content.rs"
+required-features = ["html"]
+
+[[example]]
+name = "limits"
+path = "../../examples/limits.rs"
+required-features = ["html"]
+
+[[example]]
+name = "convert"
+path = "../../examples/convert.rs"
+required-features = ["docx", "spreadsheet", "pdf"]
 
 [[bench]]
 name = "extraction"

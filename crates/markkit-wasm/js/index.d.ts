@@ -22,22 +22,35 @@ export interface MarkkitOptions {
   mainContent?: boolean;
   /** Include PDF source geometry in extractDocument results. */
   pdfLayout?: boolean;
+  /** Drop margin headers/footers repeated across PDF pages (default false). */
   pdfRemoveRepeatedHeaders?: boolean;
+  /** PDF pages rendered; later pages are truncated with a warning (default 10 000). */
   maxPdfPages?: number;
+  /** Decoded bytes per PDF stream (default 64 MiB). */
   maxPdfStreamSize?: number;
+  /** Decoded PDF bytes in total, also bounds layout geometry (default 256 MiB). */
   maxPdfDecodedSize?: number;
+  /** Keep link URLs as `[text](url)` (default true); false keeps the text only. */
   preserveLinks?: boolean;
+  /** Keep images as `![alt](src)` (default true); false drops them. */
   preserveImages?: boolean;
   /** CSS selectors to include (empty = whole document). */
   includeSelectors?: string[];
   /** CSS selectors to drop, added to nav/footer/header/script/style/noscript. */
   excludeSelectors?: string[];
+  /** Maximum ZIP entries in DOCX/XLSX containers (default 10 000). */
   maxArchiveEntries?: number;
+  /** Maximum decompressed bytes per ZIP entry (default 64 MiB). */
   maxArchiveEntrySize?: number;
+  /** Maximum decompressed bytes per ZIP container (default 256 MiB). */
   maxArchiveTotalSize?: number;
+  /** Rows rendered per sheet; extra rows are truncated with a warning (default 10 000). */
   maxSheetRows?: number;
+  /** Columns rendered per sheet; extra columns are truncated with a warning (default 256). */
   maxSheetCols?: number;
+  /** Maximum XLS/ODS grid cells before parsing (default 4 000 000). */
   maxSpreadsheetCells?: number;
+  /** Render hidden and very hidden sheets (default false: skipped with a warning). */
   includeHiddenSheets?: boolean;
 }
 
@@ -119,11 +132,25 @@ export interface PdfBlock {
   cells?:{row:number;column:number;rowspan:number;colspan:number;bbox:[number,number,number,number];spanIds:number[]}[];
 }
 
+/**
+ * Extractor with fixed options; create once and reuse. Methods are synchronous
+ * and throw an `Error` naming the cause (exceeded limit, unsupported format,
+ * parse failure). Unknown option keys throw in the constructor.
+ */
 export class Markkit {
   constructor(options?: MarkkitOptions);
+  /** Convert an HTML string to Markdown. */
   extractHtml(html: string): string;
+  /**
+   * Convert document bytes (HTML, PDF, DOCX, XLSX/XLSM/XLSB/XLS/ODS, CSV/TSV,
+   * ipynb, Markdown, text) to Markdown plus title, format, warnings, stats and
+   * metadata. Format detection: `hint.contentType`, then `hint.fileName`'s
+   * extension, then magic bytes.
+   */
   extractDocument(bytes: Uint8Array, hint?: DocumentHint): Extraction;
+  /** Convert bytes to Markdown only, detected from `contentType` and the bytes. */
   extractBytes(bytes: Uint8Array, contentType?: string): string;
+  /** Release the wasm memory now instead of on garbage collection. */
   free(): void;
 }
 

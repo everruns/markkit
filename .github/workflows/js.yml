@@ -6,11 +6,15 @@ on:
     paths:
       - "crates/markkit-js/**"
       - "crates/markkit/**"
+      - "examples/node/**"
+      - "examples/data/**"
   pull_request:
     branches: [main]
     paths:
       - "crates/markkit-js/**"
       - "crates/markkit/**"
+      - "examples/node/**"
+      - "examples/data/**"
 
 permissions:
   contents: read
@@ -35,6 +39,8 @@ jobs:
         run: git diff --exit-code -- Cargo.lock
       - name: Binding tests
         run: cd crates/markkit-js && node --test __test__/*.test.cjs
+      - name: Run Node.js examples
+        run: for ex in examples/node/*.cjs; do echo "── $ex"; MARKKIT_MODULE="$PWD/crates/markkit-js" node "$ex"; done
       - name: Verify installed npm package
         run: |
           cd crates/markkit-js
