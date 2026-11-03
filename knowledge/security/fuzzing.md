@@ -87,7 +87,7 @@ the Actions cache; crashes upload as `fuzz-crashes-<target>` artifacts.
   followed by text beginning with `(` could also combine into an inline link and
   consume later delimiters. Exact crash seeds for
   these cases are retained in `fuzz/seeds/render_ir/` and `fuzz/seeds/markdown/`.
-- XLS (calamine 0.37): unchecked reads in FILEPASS, CODEPAGE, DATEMODE, BOF,
+- XLS (found on calamine 0.37; pre-scan kept on 0.38): unchecked reads in FILEPASS, CODEPAGE, DATEMODE, BOF,
   BOUNDSHEET, LBL (incl. defined-name tokens), EXTERNSHEET, SST (cRun /
   cbExtRst, empty CONTINUE), MERGECELLS; u16/u32 underflow in MULRK and
   DIMENSIONS; dozens of unchecked reads in the formula decompiler (formula

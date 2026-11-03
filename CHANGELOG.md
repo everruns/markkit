@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- Bump calamine to 0.38 for RUSTSEC-2026-0436 (panic / unbounded allocation in
+  its CFB/OLE2 parser on malformed XLS/XLSB). Downstream `cargo audit` no longer
+  flags markkit. markkit's own XLS pre-scan and XLSB reader stay in place.
+
+### Changed
+
+- Dependency refresh: cfb 0.16 plus semver-compatible lockfile updates (zip 9.3,
+  napi 3.16, wasm-bindgen 0.2.130, aws-lc-rs 1.19 and others).
+
 ## [0.3.0] - 2026-11-01
 
 ### Added
