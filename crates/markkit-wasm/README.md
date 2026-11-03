@@ -66,7 +66,8 @@ try {
 
 ## License
 
-MIT
+MIT. See [LICENSE](https://github.com/everruns/markkit/blob/main/LICENSE); third-party notices in
+[NOTICE](https://github.com/everruns/markkit/blob/main/NOTICE).
 
 ## PDF layout and tables
 

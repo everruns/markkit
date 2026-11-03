@@ -23,7 +23,9 @@ Releases are agent-driven; CI creates the tag, GitHub Release and crates.io uplo
 1. Ask the agent: "Create release v0.X.Y".
 2. Agent bumps `version` in root `Cargo.toml`, `crates/markkit-js/package.json` and
    `crates/markkit-wasm/package.json`, moves `CHANGELOG.md` Unreleased entries
-   under `## [0.X.Y] - YYYY-MM-DD`, runs `just pre-pr`, and opens a PR titled
+   under `## [0.X.Y] - YYYY-MM-DD`, on a minor bump updates the `SECURITY.md`
+   supported-versions table (`test_licensing.py` checks it), runs `just pre-pr`,
+   and opens a PR titled
    `chore(release): prepare v0.X.Y`.
 3. Merging that PR to `main` (squash keeps the title as the commit subject) runs
    `release.yml`, which:

@@ -4,7 +4,9 @@ build-backend = "maturin"
 
 [project]
 name = "markkit"
-dynamic = ["version", "description", "authors", "license"]
+dynamic = ["version", "description", "authors"]
+license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
 readme = "crates/markkit-python/README.md"
 
 [tool.maturin]

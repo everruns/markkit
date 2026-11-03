@@ -24,16 +24,100 @@ by, or derived from any of the above projects.
 
 === Key Dependencies ===
 
-Markkit relies on several permissively licensed crates:
+Markkit relies on permissively licensed crates, including:
 
-* scraper (MIT) – HTML parsing and CSS selector matching
-* html5ever (MIT/Apache-2.0) – HTML5 parsing
+* scraper (ISC), html5ever (MIT/Apache-2.0) – HTML parsing
 * zip (MIT), quick-xml (MIT), calamine (MIT), cfb (MIT) – Office document containers and XML
-* reqwest (MIT/Apache-2.0) – HTTP client
-* tokio (MIT) – Async runtime
-* serde / serde_json (MIT/Apache-2.0) – Serialization
+* hayro-syntax / hayro (MIT/Apache-2.0) – PDF parsing and page rendering
+* ocrs, rten (MIT/Apache-2.0) – optional Rust OCR backend
+* reqwest (MIT/Apache-2.0), rustls (Apache-2.0/ISC/MIT) – optional HTTP client
+* tokio (MIT) – async runtime
+* serde / serde_json (MIT/Apache-2.0) – serialization
+* pyo3 (MIT/Apache-2.0), napi (MIT), wasm-bindgen (MIT/Apache-2.0) – bindings
 
-Full dependency license details are available via `cargo deny check licenses`.
+The allowed license set is enforced by `cargo deny check licenses` (deny.toml).
+Binary packages (CLI, Python wheels, Node native addon, WebAssembly) statically
+link these crates; their license texts and copyright notices are in each
+crate's source on crates.io, pinned by Cargo.lock. cssparser and selectors
+(via scraper) are MPL-2.0; their unmodified source is available from crates.io.
+
+=== Bundled Third-Party Data ===
+
+The `pdf-ocr` feature renders PDF pages with hayro, which compiles the
+following data into the binary. It is enabled in the CLI, the Python package
+and the native Node package (not in the default crate build or WebAssembly).
+
+--- Standard PDF fonts (hayro-interpret, assets/*.pfb) ---
+
+Extracted from PDFium.
+
+Copyright 2014 PDFium Authors. All rights reserved.
+Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+  * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+  * Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+  * Neither the name of Google Inc. nor the names of its contributors may be
+    used to endorse or promote products derived from this software
+    without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+--- Adobe CMap resources (hayro-cmap, assets) ---
+
+Copyright 1990-2023 Adobe. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+  * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+  * Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+  * Neither the name of Adobe nor the names of its contributors may be
+    used to endorse or promote products derived from this software
+    without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+--- ICC color profiles (hayro-interpret, assets/*.icc) ---
+
+CGATS001Compat-v2-micro.icc from saucecontrol/Compact-ICC-Profiles, CC0-1.0.
+LAB.icc generated with LCMS2 by the hayro authors.
+
+=== Not Bundled ===
+
+OCR model weights (CC-BY-SA 4.0), Tesseract and its language data are not
+included in any markkit package. `just ocr-models` downloads the pinned models
+and writes their license and attribution to target/ocr-models/NOTICE.json.
 
 === Public Benchmark Tooling ===
 

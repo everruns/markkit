@@ -83,3 +83,8 @@ accepts `pdf_ocr_language="eng"` only. Model files are trusted deployment assets
 inference deadlines are cooperative and hard CPU/memory limits require host
 quotas. Invalid backend names raise ValueError; missing features/models and
 unsupported languages raise RuntimeError.
+
+## License
+
+MIT. See [LICENSE](https://github.com/everruns/markkit/blob/main/LICENSE); third-party notices in
+[NOTICE](https://github.com/everruns/markkit/blob/main/NOTICE).
