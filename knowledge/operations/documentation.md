@@ -40,6 +40,9 @@ use absolute GitHub links: they render on PyPI and npm, where relative links bre
   doctests (`#[cfg(doctest)]` `include_str!` structs in `crates/markkit/src/lib.rs`).
   Write them self-contained: wrap `?` and undefined inputs in a `fn`, use
   `rust,no_run` for file I/O, never hidden `# ` lines (GitHub renders them).
+  The README/getting-started structs need `feature = "html"`; HTML snippets in
+  `lib.rs` wrap in a hidden `#[cfg(feature = "html")]` block (CI also runs
+  `--no-default-features`)
   Fences without a language tag are compiled as Rust
 - Python stubs match the native module: `crates/markkit-python/tests/test_stubs.py`
   compares function names, parameter names and `Limits` fields; `python.yml`

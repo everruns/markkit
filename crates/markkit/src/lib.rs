@@ -15,11 +15,13 @@
 //! ## Quick start
 //!
 //! ```rust
+//! # #[cfg(feature = "html")] {
 //! use markkit::Markkit;
 //!
 //! let markkit = Markkit::builder().build();
 //! let md = markkit.extract_html_sync("<h1>Hello</h1><p>World</p>")?;
 //! assert_eq!(md, "# Hello\n\nWorld\n");
+//! # }
 //! # Ok::<(), markkit::Error>(())
 //! ```
 //!
@@ -57,6 +59,7 @@
 //! immutable, cheap to share across threads, and reusable for many calls.
 //!
 //! ```rust
+//! # #[cfg(feature = "html")] {
 //! use markkit::Markkit;
 //!
 //! let markkit = Markkit::builder()
@@ -70,6 +73,7 @@
 //!     r#"<article><h1>Post</h1><p><a href="next">Next</a></p></article>"#,
 //! )?;
 //! assert_eq!(md, "# Post\n\n[Next](https://example.com/blog/next)\n");
+//! # }
 //! # Ok::<(), markkit::Error>(())
 //! ```
 //!
@@ -81,12 +85,13 @@
 //!
 //! ```rust
 //! use std::time::Duration;
-//! use markkit::{LimitKind, Limits, Markkit};
+//! use markkit::{DocumentHint, LimitKind, Limits, Markkit};
 //!
 //! let markkit = Markkit::builder()
 //!     .limits(Limits::default().max_output_size(16).timeout(Duration::from_secs(5)))
 //!     .build();
-//! let err = markkit.extract_html_sync("<p>Far more than sixteen bytes of text.</p>").unwrap_err();
+//! let csv = b"city,population\nKyiv,2952301\nLviv,717273\n";
+//! let err = markkit.extract_document_sync(csv, DocumentHint::file_name("cities.csv")).unwrap_err();
 //! assert_eq!(err.limit_kind(), Some(LimitKind::MaxOutputSize));
 //! ```
 //!
@@ -204,10 +209,11 @@ mod xml;
 
 // Compile and run the Rust snippets in the user docs as doctests, so the
 // README and guides cannot drift from the API. Never part of a normal build.
-#[cfg(doctest)]
+// The README and guide examples use HTML, so they need the `html` feature.
+#[cfg(all(doctest, feature = "html"))]
 #[doc = include_str!("../../../README.md")]
 struct ReadmeDoctests;
-#[cfg(doctest)]
+#[cfg(all(doctest, feature = "html"))]
 #[doc = include_str!("../../../docs/getting-started.md")]
 struct GettingStartedDoctests;
 #[cfg(doctest)]
