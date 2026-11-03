@@ -2,6 +2,7 @@
 
 ## 2026-11-03
 
+* **Release 0.3.1**: patch release carrying calamine 0.38 (RUSTSEC-2026-0436) and the dependency refresh. No API changes. See `CHANGELOG.md`.
 * **calamine 0.38**: RUSTSEC-2026-0436 (calamine CFB/OLE2 panic + OOM, fixed in 0.38) broke downstream `cargo audit`. Bumped calamine, cfb 0.16 and the lockfile; XLS pre-scan + own XLSB reader unchanged. Deferred majors: hayro 0.9 (published 2026-11-02, makes SIMD mandatory against the [Native Dependencies](security/native-dependencies.md) review) and mail-parser 1.0 (full rewrite, MSRV 1.98, new unsafe SIMD code); each needs its own review. See [Threat Model](security/threat-model.md).
 
 ## 2026-11-01
