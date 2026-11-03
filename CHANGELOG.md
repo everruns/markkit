@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-03
+
 ### Security
 
 - Bump calamine to 0.38 for RUSTSEC-2026-0436 (panic / unbounded allocation in
