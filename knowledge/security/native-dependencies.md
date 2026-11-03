@@ -28,8 +28,11 @@ nationality, ancestry, residence or affiliations of every contributor, historica
 contributor or transitive dependency author. No such conclusions are inferred
 from names. This is a public ownership/location review, not a supply-chain audit.
 
-Use the registry release and committed lockfile, with embedded fonts/CMaps and
-optional architecture-specific SIMD disabled. The renderer and its codec/font/
+Use the registry release and committed lockfile, with optional
+architecture-specific SIMD disabled. `embed-fonts` and `embed-cmaps` are
+enabled: the binary carries PDFium/Foxit standard fonts and Adobe CMaps
+(BSD-3-Clause; binary redistribution must reproduce the notices) and CC0 ICC
+profiles. Root `NOTICE` reproduces them; see Licensing below. The renderer and its codec/font/
 color dependencies are implemented in Rust. It replaces the Poppler executable;
 Tesseract remains necessary for text recognition.
 
@@ -71,6 +74,24 @@ Reproduce with `cargo metadata --locked --all-features --format-version 1`,
 `cargo tree --workspace --all-features -i alloca`, and target-specific dependency
 trees. Inspect build scripts and active dependency edges, not just names ending
 in `-sys`. `ldd` on the installed Tesseract describes that host's libraries only.
+
+## Licensing and attribution
+
+Markkit is MIT. Root `LICENSE` and `NOTICE` are the single source; every
+published artifact ships both: crates.io crates via symlinks in
+`crates/markkit{,-cli}/` (cargo packages link targets), the native npm package
+via byte-identical copies in `crates/markkit-js/` (npm skips symlinks), WASM via
+`build.sh` copying into `pkg/`, and Python via PEP 639 `license`/`license-files`
+in `pyproject.toml` (wheel `dist-info/licenses/`, `License-Expression: MIT`).
+`scripts/tests/test_licensing.py` enforces all of this plus NOTICE coverage of
+hayro's embedded assets; CI pack checks assert LICENSE/NOTICE in npm archives.
+
+`NOTICE` is required, not decorative: the CLI, Python and native Node packages
+enable `pdf-ocr` and so embed BSD-3-Clause data. Dependency crates are
+permissive (`deny.toml` allowlist); MPL-2.0 crates (cssparser, selectors) are
+used unmodified, source on crates.io. OCR model weights (CC-BY-SA 4.0) and
+Tesseract are never bundled. When adding a dependency that embeds data or
+requires notice reproduction, update `NOTICE` and the test.
 
 ## See also
 

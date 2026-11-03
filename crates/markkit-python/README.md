@@ -145,4 +145,5 @@ platforms pip builds from the source distribution, which needs a Rust toolchain
   [CLI](https://crates.io/crates/markkit-cli) and an
   [npm package](https://www.npmjs.com/package/@everruns/markkit)
 
-MIT licensed.
+MIT licensed; see [LICENSE](https://github.com/everruns/markkit/blob/main/LICENSE). Third-party notices are in
+[NOTICE](https://github.com/everruns/markkit/blob/main/NOTICE).

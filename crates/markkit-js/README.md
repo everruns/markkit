@@ -86,3 +86,8 @@ and carry attribution in the setup script's NOTICE.json. The current Latin
 model accepts `pdfOcrLanguage: "eng"`. Missing build features/models and other
 languages fail explicitly. Model files and inference need trusted deployment
 configuration and host CPU/memory quotas; inference deadlines are cooperative.
+
+## License
+
+MIT. See [LICENSE](https://github.com/everruns/markkit/blob/main/LICENSE); third-party notices in
+[NOTICE](https://github.com/everruns/markkit/blob/main/NOTICE).

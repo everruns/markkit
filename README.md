@@ -426,4 +426,6 @@ Markkit is part of the [Everruns](https://everruns.com) ecosystem, alongside
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT License. See [LICENSE](LICENSE) for details. Third-party attributions,
+including data embedded by PDF rendering, are in [NOTICE](NOTICE). Report
+vulnerabilities privately per [SECURITY.md](SECURITY.md).
