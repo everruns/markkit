@@ -60,14 +60,7 @@ schema:
 
 # Run every example (CI runs this too)
 examples:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    for ex in basic custom_selectors configuration ir_access transforms; do
-        echo "── example: $ex"
-        cargo run -q -p markkit --example "$ex"
-    done
-    echo "── example: agent_tool"
-    cargo run -q -p markkit --features tool --example agent_tool
+    bash scripts/run-examples.sh
 
 # Build the WASM package and run its Node tests (needs wasm32 target + wasm-bindgen-cli)
 wasm:

@@ -6,11 +6,19 @@ on:
     paths:
       - "crates/markkit-python/**"
       - "crates/markkit/**"
+      - "examples/python/**"
+      - "examples/data/**"
+      - "markkit.pyi"
+      - "pyproject.toml"
   pull_request:
     branches: [main]
     paths:
       - "crates/markkit-python/**"
       - "crates/markkit/**"
+      - "examples/python/**"
+      - "examples/data/**"
+      - "markkit.pyi"
+      - "pyproject.toml"
 
 permissions:
   contents: read
@@ -37,3 +45,7 @@ jobs:
           python -c 'from importlib.metadata import metadata; import markkit; assert metadata("markkit")["Name"] == "markkit"; assert markkit.extract_html_sync("<h1>Smoke</h1>").strip() == "# Smoke"; print("Distribution and import OK")'
       - name: Test structured documents and PDF layout
         run: python -m unittest discover -s crates/markkit-python/tests -p 'test_*.py'
+      - name: Verify type stubs ship in the wheel
+        run: python -c 'import pathlib, markkit; d = pathlib.Path(markkit.__file__).parent; assert (d / "__init__.pyi").is_file() and (d / "py.typed").is_file(), "markkit.pyi/py.typed missing from wheel"'
+      - name: Run Python examples
+        run: for ex in examples/python/*.py; do echo "── $ex"; python "$ex"; done

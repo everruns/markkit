@@ -6,336 +6,283 @@
 [![docs.rs](https://img.shields.io/docsrs/markkit)](https://docs.rs/markkit)
 [![PyPI](https://img.shields.io/pypi/v/markkit.svg)](https://pypi.org/project/markkit/)
 [![npm](https://img.shields.io/npm/v/@everruns/markkit.svg)](https://www.npmjs.com/package/@everruns/markkit)
+[![npm wasm](https://img.shields.io/npm/v/@everruns/markkit-wasm.svg?label=npm%20wasm)](https://www.npmjs.com/package/@everruns/markkit-wasm)
 [![Repo: Agent Friendly](https://img.shields.io/badge/Repo-Agent%20Friendly-blue)](https://github.com/everruns/markkit/blob/main/AGENTS.md)
 
-Extract clean markdown from any format. Written in Rust.
+**Extract clean Markdown from any document, safely.** Written in Rust.
 
-Markkit converts HTML, Word documents and spreadsheets into well-structured
-markdown, built for feeding untrusted documents to LLMs and agents. It ships as
-a Rust library, a CLI, native bindings for Python and Node.js, and a WebAssembly
-package for browsers and edge runtimes.
+Markkit turns web pages, PDFs, Word and PowerPoint files, spreadsheets,
+e-books, email and notebooks into well-structured Markdown that LLMs and agents
+can read. It is built for **untrusted input**: nothing is executed, every
+resource a document can drive is bounded, and the default build has no network
+stack.
 
-## Features
+One engine, every runtime:
 
-- **HTML** – Web pages and HTML documents; nav, header, footer, scripts, styles and forms stripped by default
-- **DOCX** – Headings, lists, tables, links, emphasis
-- **PPTX** – One section per slide: titles, bullets, tables, links, speaker notes
-- **ODT** – OpenDocument text: headings, lists, tables, links, emphasis
-- **EPUB** – E-book chapters in reading order, title from the package metadata
-- **Spreadsheets** – XLSX/XLSM, XLSB, XLS and ODS workbooks to markdown tables, one section per sheet
-- **Email (EML)** – Subject, sender, recipients, date, body (plain preferred, HTML converted), attachment list
-- **Jupyter notebooks** – Markdown cells, code cells with language, text outputs and tracebacks
-- **CSV / TSV** – One markdown table; `;` and `|` delimiters detected, RFC 4180 quoting
-- **Plain text / Markdown** – Text to paragraphs; Markdown normalized through the same IR (raw HTML never passed through)
-- **Format detection** – Content type, then file extension, then magic bytes
-- **URL fetching** – Fetch and extract in one call (`http_client` feature)
-- **Configurable** – CSS include/exclude selectors, link/image preservation, resource limits
-- **Safe by default** – No code execution (scripts, macros, formulas), bounded decompression,
-  depth and size limits, [threat model](knowledge/security/threat-model.md) with a test per mitigation
-- **PDF** – Text/layout, columns and tables; optional native OCR (encrypted PDFs rejected)
-
-| Format | Status | Feature |
+| Surface | Install | Docs |
 |---|---|---|
-| HTML / XHTML | Supported | `html` (default) |
-| DOCX | Supported | `docx` |
-| PPTX, PPTM, PPSX | Supported | `pptx` |
-| ODT | Supported | `odt` |
-| EPUB | Supported | `epub` |
-| XLSX, XLSM, XLSB, XLS, ODS | Supported | `spreadsheet` |
-| Plain text | Supported | always on |
-| CSV, TSV | Supported | always on |
-| Jupyter notebooks (ipynb) | Supported | always on |
-| Email (EML) | Supported | `email` |
-| Markdown | Supported | `markdown` |
-| PDF (text, layout and tables) | Supported | `pdf` |
-| PDF OCR | Supported with Tesseract/language data | `pdf-ocr` |
-| DOC, PPT | Detected, rejected explicitly | – |
+| Rust library | `cargo add markkit` | [docs.rs/markkit](https://docs.rs/markkit) |
+| CLI + MCP server | `cargo install markkit-cli` | [CLI](#cli) |
+| Python | `pip install markkit` | [Python README](crates/markkit-python/README.md) |
+| Node.js (native) | `npm install @everruns/markkit` | [Node.js README](crates/markkit-js/README.md) |
+| Browser / edge (WebAssembly) | `npm install @everruns/markkit-wasm` | [WASM README](crates/markkit-wasm/README.md) |
 
-### PDF source layout
+## Why Markkit
 
-```rust
-let parsed = markkit::Markkit::builder().pdf_layout(true).build()
-    .parse_document_sync(pdf_bytes, markkit::DocumentHint::file_name("report.pdf"))?;
-let layout = parsed.layout.as_ref().unwrap(); // pages, dimensions, positioned text spans
+- **Many formats, one API.** Bytes in, Markdown out. The format is detected
+  from the content type, file extension or magic bytes.
+- **Safe by default.** No scripts, macros or formulas run. XML entities are
+  never expanded. Archives and PDF streams are decompressed under measured
+  limits. Hidden text (a prompt-injection vector) is dropped. URL fetching
+  refuses private and cloud-metadata addresses. Every mitigation in the
+  [threat model](knowledge/security/threat-model.md) has a test.
+- **Bounded.** Input and output size, time, nesting depth, node count, archive
+  and spreadsheet sizes and PDF streams all have limits. A breach is a typed
+  error, never a hang or an out-of-memory crash.
+- **Agent-ready.** Main-content detection strips sidebars and comment
+  threads. Results carry title, metadata, stats and structured warnings. A
+  built-in LLM tool and an MCP server are included.
+- **Fast.** HTML extracts at 14–22 MiB/s and format detection takes
+  microseconds. See [Performance](#performance).
+
+## Supported formats
+
+| Format | Rust feature | Notes |
+|---|---|---|
+| HTML / XHTML | `html` (default) | Nav, header, footer, scripts, styles, forms stripped; optional main-content detection |
+| PDF | `pdf` | Text layer, reading order, columns, ruled and borderless tables, optional [layout geometry](docs/pdf.md) |
+| PDF OCR | `pdf-ocr` | Textless pages via installed Tesseract; optional Rust `ocrs` backend |
+| DOCX | `docx` | Headings, lists, tables, links, emphasis, footnotes |
+| PPTX, PPTM, PPSX | `pptx` | One section per slide: titles, bullets, tables, links, speaker notes |
+| XLSX, XLSM, XLSB, XLS, ODS | `spreadsheet` | One Markdown table per sheet; hidden sheets skipped |
+| ODT | `odt` | OpenDocument text |
+| EPUB | `epub` | Chapters in reading order, title from package metadata |
+| Email (EML) | `email` | Headers, body (plain preferred, HTML converted), attachment list |
+| Markdown | `markdown` | Normalized through the same IR; raw HTML never passed through |
+| Jupyter notebooks | always on | Markdown and code cells, text outputs, tracebacks |
+| CSV / TSV | always on | `,` `;` `\|` and tab delimiters, RFC 4180 quoting |
+| Plain text | always on | Paragraphs |
+| DOC, PPT (legacy binary) | – | Detected and rejected with a clear error |
+
+`all_formats` enables every format feature. The Python, Node.js and CLI
+packages ship with all formats, OCR and URL fetching. The WASM package covers
+HTML, PDF text and layout, DOCX, spreadsheets, Markdown, CSV/TSV, notebooks and
+text, without URL fetching or OCR.
+
+## Quick start
+
+### Rust
+
+```toml
+[dependencies]
+markkit = { version = "0.3", features = ["pdf", "docx", "spreadsheet"] }
 ```
 
-CLI: `markkit extract --file report.pdf --json --layout`.
-Node: `extractDocumentSync(bytes, { fileName: "report.pdf" }, { pdfLayout: true })`.
-WASM: `new Markkit({ pdfLayout: true }).extractDocument(bytes, { fileName: "report.pdf" })`.
-
-Layout v1 includes source runs and words, plus semantic blocks, lines and table
-cells in reading order. Coordinates are display points from the cropped/rotated
-page top-left (x right, y down). Source runs retain drawing order. Each block has
-an ID, type, bounds and source span IDs; table cells include row/column positions,
-rowspan/colspan and bounds. IR `Source.page` + `Source.layout_block` link blocks
-when layout is requested. Font bounds approximate an em box; OCR bounds come from
-the recognizer. Layout is omitted by default, and does not change Markdown.
-
-PDF extraction reconstructs columns, handles ruled and borderless tables, preserves
-bold/italic and numbered lists, and uses tagged-PDF heading roles and `ActualText`.
-Ambiguous alignments remain prose. Enable repeated margin-header/footer suppression
-with `.pdf_remove_repeated_headers(true)` or CLI `--remove-pdf-headers`.
-
-Native OCR uses Rust Hayro rendering for pages without text. Install **Tesseract**
-plus language data. Rust requires the `pdf-ocr` feature; the CLI,
-Node and Python packages compile support in. WASM extracts existing text layers;
-OCR helpers run in native hosts.
-
-```bash
-markkit extract --file scanned.pdf --ocr --ocr-language eng --timeout 300
-```
-
-Rust: `.pdf_ocr(true).pdf_ocr_language("eng+deu")`; Node: `{ pdfOcr: true,
-pdfOcrLanguage: "eng", timeout: 300 }`. Python: `extract_document_sync(data,
-file_name="report.pdf", pdf_layout=True, pdf_ocr=True, limits=Limits(timeout=300))`.
-The same structured Python API returns metadata and table counts for all formats.
-
-For Rust-only OCR, build with the optional `pdf-ocr-ocrs` feature and supply local
-ONNX models. Tesseract remains the default backend:
-
-```bash
-python3 scripts/prepare_ocr_models.py  # verifies pinned model sizes and SHA-256
-cargo build --release -p markkit-cli --features pdf-ocr-ocrs
-target/release/markkit extract --file scanned.pdf --ocr --ocr-backend ocrs \
-  --ocr-detection-model target/ocr-models/text-detection.onnx \
-  --ocr-recognition-model target/ocr-models/text-recognition.onnx --timeout 300
-```
-
-Rust: `.pdf_ocr_backend(markkit::PdfOcrBackend::Ocrs)` plus
-`.pdf_ocr_detection_model(path)` and `.pdf_ocr_recognition_model(path)`.
-Extraction never downloads models. The pinned weights are CC-BY-SA 4.0, separate
-from the MIT/Apache library code; the setup script writes their attribution and
-license to `target/ocr-models/NOTICE.json`. The default model supports the Latin
-alphabet; `ocrs` currently accepts `eng` only. Models are trusted deployment
-assets. RTen inference checks deadlines between phases and batches; host quotas
-provide hard CPU/memory limits. `RTEN_NUM_THREADS` and `RAYON_NUM_THREADS` configure
-inference/postprocessing thread pools at process startup. Markkit's WASM binding
-does not yet expose this native OCR path.
-
-PDF geometry/rules count against `max_nodes`; retained geometry and analysis work
-are bounded by `max_pdf_decoded_size`. Table grids obey row/column/grid limits.
-Compact layout JSON and Markdown are independently bounded by `max_output_size`
-(excluding JSON wrapper/pretty-print overhead), including parse-only callers.
-Hayro checks image/raster budgets before rendering and the deadline before/after
-its non-interruptible render step. Tesseract uses private files, output caps and
-a killable deadline; no shell is used. OCR currently supports JPEG, JPEG2000 and
-generic-filter images without DecodeParms. Inline, JBIG2 and CCITT OCR is refused
-until bounded decoding is available. Host isolation provides hard CPU/memory quotas.
-
-## Quick Start
-
-### Rust Library
-
-```rust
-use markkit::Markkit;
-
-let markkit = Markkit::builder().build();
-let md = markkit.extract_html("<h1>Hello</h1><p>World</p>").await?;
-```
-
-### Documents from bytes
-
-```rust
+```rust,no_run
 use markkit::{DocumentHint, Markkit};
 
-let markkit = Markkit::builder().build();
-// Detection order: content type, then file extension, then magic bytes.
-let hint = DocumentHint { content_type: Some("application/octet-stream"), file_name: Some("report.docx") };
-// CPU-bound: call the sync variant from `tokio::task::spawn_blocking` in async code.
-let doc = markkit.extract_document_sync(&bytes, hint)?;
-println!("{:?} {:?} {:?}", doc.format, doc.title, doc.warnings);
-println!("{}", doc.markdown);
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let markkit = Markkit::builder().build();
+
+    // HTML string to Markdown
+    let md = markkit.extract_html_sync("<h1>Hello</h1><p>World</p>")?;
+    assert_eq!(md, "# Hello\n\nWorld\n");
+
+    // Any supported file: format, title, warnings and stats come back too
+    let bytes = std::fs::read("report.docx")?;
+    let doc = markkit.extract_document_sync(&bytes, DocumentHint::file_name("report.docx"))?;
+    println!("{} {:?} {:?}", doc.format, doc.title, doc.stats);
+    println!("{}", doc.markdown);
+    Ok(())
+}
 ```
 
-`Extraction` carries `markdown`, `title`, `format`, `warnings` (structured: `code` such as
-`WarningCode::TruncatedSheet` plus a human-readable `detail`),
-`stats` (sheets/rows/paragraphs/tables) and, for HTML, `metadata` (description, author,
-published date, language, canonical URL, site name, lead image from `<meta>`, Open Graph
-and JSON-LD). `extract_bytes` remains as a Markdown-only shortcut.
+Extraction is CPU-bound. In async code, call the `_sync` methods from
+`tokio::task::spawn_blocking`. Async `extract_html`, `extract_document` and
+`extract_url` (feature `http_client`) are also available.
 
 ### CLI
 
 ```bash
-# From a URL
-markkit extract https://example.com
+cargo install markkit-cli
 
-# From a file
-markkit extract --file document.html
-
-# With CSS selector filtering
-markkit extract https://example.com --include "article" --exclude "nav,footer"
-
-# JSON output with format, title and page metadata
-markkit extract https://example.com --json
-
-# Keep only the article body (drops sidebars, comments, share bars)
-markkit extract https://example.com/post --main-content
-
-# Resolve relative links in a saved page
+markkit extract https://example.com                    # URL
+markkit extract --file report.docx                     # any supported file
+markkit extract --file report.pdf --json               # JSON: markdown, format, title, warnings, stats, metadata
+markkit extract https://example.com/post --main-content  # article body only
+markkit extract https://example.com -i article -e .ads # CSS include / exclude
 markkit extract --file page.html --base-url https://example.com/blog/
-
-# From stdin
-cat page.html | markkit extract -
-
-# Map site-specific markup with element rules (JSON file)
-# [{"selector": ".note", "action": "block_quote", "title": "Note"}, {"selector": ".ad", "action": "skip"}]
-markkit extract --file page.html --rules rules.json
-
-# MCP server (stdio) exposing the `markkit` tool to agents
-markkit mcp            # add --no-url to keep it offline
+cat page.html | markkit extract -                      # stdin
+markkit extract --file scan.pdf --ocr --ocr-language eng --timeout 300
+markkit extract --file page.html --rules rules.json    # site-specific element rules
 ```
 
-MCP client config: `{"mcpServers": {"markkit": {"command": "markkit", "args": ["mcp"]}}}`.
+Every resource limit has a flag (`--max-input-size`, `--timeout`,
+`--max-nodes`, ...); see `markkit extract --help`.
+
+**MCP server.** `markkit mcp` serves the `markkit` tool over stdio
+(`--no-url` keeps it offline):
+
+```json
+{ "mcpServers": { "markkit": { "command": "markkit", "args": ["mcp"] } } }
+```
 
 ### Python
 
 ```python
 import markkit
 
-markdown = markkit.extract_html_sync("<h1>Hello</h1>")
-markdown = await markkit.extract_url("https://example.com")
+print(markkit.extract_html_sync("<h1>Hello</h1>"))  # "# Hello\n"
+
+with open("report.pdf", "rb") as f:
+    result = markkit.extract_document_sync(f.read(), file_name="report.pdf")
+print(result["format"], result["title"], result["stats"])
+print(result["markdown"])
+
+md = await markkit.extract_url("https://example.com")  # async
 ```
+
+Typed (ships `.pyi` stubs). Full API: [Python README](crates/markkit-python/README.md).
 
 ### Node.js
 
-```javascript
-const { extractHtml, extractUrl } = require('@everruns/markkit');
+```js
+const fs = require('node:fs');
+const { extractHtmlSync, extractDocument, extractUrl } = require('@everruns/markkit');
 
-const fromHtml = await extractHtml('<h1>Hello</h1>');
-const fromUrl = await extractUrl('https://example.com');
+console.log(extractHtmlSync('<h1>Hello</h1>')); // "# Hello\n"
+
+const doc = await extractDocument(fs.readFileSync('report.docx'), { fileName: 'report.docx' });
+console.log(doc.format, doc.title, doc.markdown);
+
+const md = await extractUrl('https://example.com', { mainContent: true });
 ```
 
-### Browser / edge (WebAssembly)
+TypeScript types included. Full API: [Node.js README](crates/markkit-js/README.md).
 
-```javascript
+### Browser and edge (WebAssembly)
+
+```js
 import { initMarkkit, Markkit } from '@everruns/markkit-wasm';
 
-await initMarkkit();
-const md = new Markkit().extractHtml('<h1>Hello</h1>');
+await initMarkkit(); // once
+const mk = new Markkit({ mainContent: true });
+console.log(mk.extractHtml('<h1>Hello</h1>'));
+
+const res = await fetch('/report.pdf');
+const doc = mk.extractDocument(new Uint8Array(await res.arrayBuffer()), { fileName: 'report.pdf' });
 ```
 
-## Installation
+Runs in browsers, Cloudflare Workers, Vercel Edge, Deno, Bun and Node with no
+special headers. Full API: [WASM README](crates/markkit-wasm/README.md).
 
-### Rust
+## Examples
 
-```toml
-[dependencies]
-markkit = "0.1"
-```
-
-### CLI
+Runnable examples for every surface live in [`examples/`](examples/), use the
+bundled sample DOCX, XLSX and PDF in [`examples/data/`](examples/data/), and run
+in CI on every change.
 
 ```bash
-cargo install markkit-cli
+cargo run -p markkit --example basic
+cargo run -p markkit --features all_formats --example convert -- path/to/file.pptx
+python examples/python/documents.py
+node examples/node/documents.cjs
+node examples/wasm/quickstart.mjs
 ```
 
-### Python
-
-```bash
-pip install markkit
-```
-
-Wheels: Linux x64, CPython 3.12. Other platforms build from the sdist (needs Rust).
-
-### Node.js
-
-```bash
-npm install @everruns/markkit
-```
-
-Native binary: Linux x64 (glibc).
-
-### Browser / edge (WebAssembly)
-
-```bash
-npm install @everruns/markkit-wasm
-```
-
-Any JS runtime (browsers, Cloudflare Workers, Deno, Bun, Node); no special headers.
-HTML, PDF text/layout, DOCX and spreadsheets; no URL fetching. See
-[`crates/markkit-wasm/README.md`](crates/markkit-wasm/README.md).
+See [examples/README.md](examples/README.md) for the full list.
 
 ## Configuration
 
 ```rust
+use std::time::Duration;
+use markkit::{Limits, Markkit};
+
 let markkit = Markkit::builder()
-    .max_input_size(10 * 1024 * 1024)  // 10MB limit
-    .max_processing_secs(30)
-    .preserve_links(true)
+    .main_content(true)                       // keep the article, drop sidebars and comments
+    .include_selector("article")              // CSS selectors to keep
+    .exclude_selector(".newsletter")          // and to drop (added to nav/footer/script/...)
+    .base_url("https://example.com/blog/")    // resolve relative links and images
     .preserve_images(false)
-    .include_selector("article")
-    .exclude_selector("nav")
-    .exclude_selector(".sidebar")
+    .track_sources(true)                      // per-block provenance in the IR
+    .limits(Limits::default().timeout(Duration::from_secs(10)).max_output_size(8 << 20))
     .build();
 ```
 
-## Feature Flags
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `html` | Yes | HTML parsing and conversion |
-| `http_client` | No | URL fetching via reqwest (`extract_url`) |
-| `docx` | No | DOCX conversion (zip + quick-xml) |
-| `pptx` | No | PPTX conversion (zip + quick-xml) |
-| `spreadsheet` | No | XLSX/XLSM, XLS, ODS conversion (calamine) |
-| `pdf` | No | PDF text/layout, reading order and tables (pure Rust) |
-| `pdf-ocr` | No | Native OCR: Rust Hayro rendering + installed Tesseract/language data |
-| `pdf-ocr-ocrs` | No | Optional Rust OCR via ocrs/RTen and caller-supplied local ONNX models |
-| `markdown` | No | Markdown normalization (pulldown-cmark) |
-| `email` | No | EML conversion (mail-parser) |
-| `odt` | No | ODT conversion (zip + quick-xml) |
-| `epub` | No | EPUB conversion (implies `html`) |
-| `all_formats` | No | `html`, `pdf`, `docx`, `pptx`, `spreadsheet`, `markdown`, `email`, `odt`, `epub` |
-| `tool` | No | `markkit::tool::MarkkitTool` LLM agent tool (Everruns toolkit contract) |
-| `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
-
-`http_client` is opt-in: the default build has no HTTP/TLS stack and no tokio in the dependency
-tree.
-Enable it to get `extract_url` (the CLI and the Python/Node bindings ship with it on):
-
-```toml
-[dependencies]
-markkit = { version = "0.1", features = ["http_client"] }
-# office formats only, no HTML, no network:
-# markkit = { version = "0.1", default-features = false, features = ["docx", "pptx", "spreadsheet"] }
-```
+A built `Markkit` is immutable and can be shared across threads. Bindings use
+the same options: snake_case keyword arguments in Python, flat camelCase keys
+in Node.js and WASM.
 
 ### Resource limits
 
 Every resource an input can drive is bounded by `markkit::Limits`. Defaults are
-generous; violations return `Error::ResourceLimit`, whose `LimitKind` (`err.limit_kind()`)
-names the field that was exceeded.
+generous. A breach returns `Error::ResourceLimit`, and `err.limit_kind()` names
+the limit (Python raises `RuntimeError`, JS throws `Error`, with the limit name
+in the message).
 
 | Limit | Default | Bounds |
 |-------|---------|--------|
 | `max_input_size` | 50 MiB | Input bytes, fetched URL body |
 | `max_output_size` | 128 MiB | Markdown output |
-| `timeout` | 60 s | Fetch + parse + render, per call |
+| `timeout` | 60 s | Fetch + parse + render, per call (not enforced in WASM: no clock) |
 | `max_nesting_depth` | 256 (hard max 512) | HTML flattens deeper content; deeper DOCX XML is rejected |
-| `max_nodes` | 5 000 000 | HTML DOM nodes, DOCX XML nodes; retained PDF layout pages/runs |
-| `max_archive_entries` | 10 000 | ZIP entries (DOCX/XLSX/ODS) |
+| `max_nodes` | 5 000 000 | HTML DOM nodes, XML nodes, retained PDF layout |
+| `max_archive_entries` | 10 000 | ZIP entries (DOCX/PPTX/XLSX/ODT/EPUB) |
 | `max_archive_entry_size` | 64 MiB | Decompressed bytes per ZIP entry |
 | `max_archive_total_size` | 256 MiB | Decompressed bytes per ZIP |
 | `max_spreadsheet_cells` | 4 000 000 | XLS/ODS grid before parsing |
 | `max_sheet_rows` / `max_sheet_cols` | 10 000 / 256 | Rendered per sheet (truncated with a warning) |
 | `max_pdf_pages` | 10 000 | PDF pages rendered (truncated with a warning) |
 | `max_pdf_stream_size` | 64 MiB | Decoded bytes per PDF stream |
-| `max_pdf_decoded_size` | 256 MiB | Decoded PDF stream bytes in total, and PDF content interpreted |
+| `max_pdf_decoded_size` | 256 MiB | Decoded PDF bytes in total |
 | `max_redirects` | 5 | `extract_url` redirects |
 
-```rust
-use markkit::{Limits, Markkit};
-use std::time::Duration;
+### Cargo features
 
-let markkit = Markkit::builder()
-    .limits(Limits::default().timeout(Duration::from_secs(10)).max_output_size(8 << 20))
-    .build();
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `html` | Yes | HTML parsing and conversion |
+| `pdf`, `docx`, `pptx`, `spreadsheet`, `odt`, `epub`, `email`, `markdown` | No | Format support, see [Supported formats](#supported-formats) |
+| `all_formats` | No | All of the above |
+| `pdf-ocr` | No | OCR for textless PDF pages: Hayro rendering + installed Tesseract |
+| `pdf-ocr-ocrs` | No | Rust OCR via ocrs/RTen with caller-supplied local ONNX models |
+| `http_client` | No | `extract_url` / `extract_url_document` via reqwest, with SSRF protection |
+| `tool` | No | `markkit::tool::MarkkitTool` LLM agent tool (Everruns toolkit contract) |
+| `json-schema` | No | `markkit::ir::json_schema()` for the serialized IR |
+| `logging` | No | Reserved: pulls in `tracing`, emits no events yet |
+
+`http_client` is opt-in: the default build has no HTTP/TLS stack and no tokio.
+Office formats only, no HTML, no network:
+
+```toml
+markkit = { version = "0.3", default-features = false, features = ["docx", "pptx", "spreadsheet"] }
 ```
 
-Each limit also has a builder setter (`.max_nodes(..)`, `.timeout(..)`, ...), a CLI
-flag (`--max-nodes`, `--timeout`, ...; see `markkit extract --help`), a
-`markkit.Limits(...)` argument in Python and flat option keys in Node.js and WASM.
-Other options: `include_hidden_sheets`, `allow_private_networks`, `allow_host`.
+## PDF
+
+PDF extraction reads the text layer, rebuilds reading order across columns,
+reconstructs ruled and borderless tables (with merged and wrapped cells), keeps
+bold, italic and numbered lists, and uses tagged-PDF headings and
+`ActualText`. Opt-in extras:
+
+- **Layout geometry**: `pdf_layout(true)` / `--layout` / `pdfLayout: true` adds
+  pages, positioned text spans and semantic blocks with bounding boxes.
+- **Repeated headers**: `pdf_remove_repeated_headers(true)` /
+  `--remove-pdf-headers` drops running headers and footers.
+- **OCR**: `pdf_ocr(true)` / `--ocr` recognizes pages without text using
+  installed Tesseract, or the Rust `ocrs` backend with local ONNX models.
+
+Encrypted PDFs are rejected. Details, coordinates, OCR setup and limits:
+[docs/pdf.md](docs/pdf.md).
+
+## Agent tool
+
+With the `tool` feature, `markkit::tool::MarkkitTool` is an LLM tool with
+input/output JSON schemas, an OpenAI-style definition, a system prompt and a
+validated `execute` (also a `tower::Service`). The same tool is available as
+`MarkkitTool` in the WASM package and over MCP via `markkit mcp`. See
+[`examples/agent_tool.rs`](examples/agent_tool.rs) and the
+[tool contract](knowledge/integrations/tool-contract.md).
 
 ## Performance
 
@@ -373,26 +320,31 @@ Takeaways:
 
 ## Security
 
-Markkit treats every input as untrusted. HTML scripts, styles, forms, iframes and
-SVG are stripped; office containers are decompressed under measured byte limits;
-spreadsheet grids are pre-scanned so sparse cells cannot force huge allocations;
-XML entities are never expanded; every PDF stream is decode-checked against size
-limits before parsing; macros and formulas are never executed; hidden
-sheets are skipped by default. `extract_url` accepts only http/https, refuses
-loopback, private, link-local and cloud-metadata addresses (also after DNS
-resolution and on every redirect), caps redirects, and bounds the body by
-`max_input_size` and the fetch by `timeout`. Opt in to internal
-hosts with `allow_private_networks(true)`; restrict hosts with `allow_host(..)`.
+Markkit treats every input as untrusted. HTML scripts, styles, forms, iframes
+and SVG are stripped. Office containers are decompressed under measured byte
+limits. Spreadsheet grids are pre-scanned so sparse cells cannot force huge
+allocations. XML entities are never expanded. Every PDF stream is checked
+against size limits before decoding. Macros and formulas are never executed.
+Hidden sheets and hidden text are skipped by default.
 
-See the [threat model](knowledge/security/threat-model.md) and the
-[security policy](SECURITY.md) for reporting vulnerabilities.
+`extract_url` accepts only http and https. It refuses loopback, private,
+link-local and cloud-metadata addresses (also after DNS resolution and on
+every redirect), caps redirects, and bounds the body by `max_input_size` and
+the fetch by `timeout`. Opt in to internal hosts with
+`allow_private_networks(true)`; restrict hosts with `allow_host(..)`.
+
+See the [threat model](knowledge/security/threat-model.md). To report a
+vulnerability, follow the [security policy](SECURITY.md).
 
 ## Documentation
 
-- [Getting started](docs/getting-started.md)
+- [Getting started](docs/getting-started.md): install, extract, configure, IR and provenance
+- [PDF guide](docs/pdf.md): layout geometry, tables, OCR
 - API reference: [docs.rs/markkit](https://docs.rs/markkit)
+- Bindings: [Python](crates/markkit-python/README.md), [Node.js](crates/markkit-js/README.md), [WASM](crates/markkit-wasm/README.md)
+- [Examples](examples/README.md)
 - Design knowledge (architecture, IR, formats, threat model, processes): [`knowledge/`](knowledge/index.md)
-- [Examples](examples/): `cargo run -p markkit --example basic`
+- [Changelog](CHANGELOG.md)
 
 ## Development
 
@@ -400,6 +352,7 @@ See the [threat model](knowledge/security/threat-model.md) and the
 just build      # Build workspace
 just test       # Run all tests
 just lint       # Run clippy
+just examples   # Run every Rust example
 just check      # fmt, clippy, tests, knowledge, examples
 just pre-pr     # Full pre-PR validation
 just bench      # Benchmarks, results saved to crates/markkit-bench/results
@@ -417,7 +370,7 @@ Coding agents: start with [AGENTS.md](AGENTS.md).
 
 Bug reports, feature requests and questions are welcome as
 [issues](https://github.com/everruns/markkit/issues). For code, see
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[CONTRIBUTING.md](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Ecosystem
 
@@ -426,4 +379,6 @@ Markkit is part of the [Everruns](https://everruns.com) ecosystem, alongside
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT License. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Optional OCR model
+weights fetched by `scripts/prepare_ocr_models.py` are separate CC-BY-SA 4.0
+assets, never bundled.

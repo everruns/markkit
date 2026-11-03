@@ -106,11 +106,7 @@ jobs:
             exit 1
           fi
       - name: Run examples
-        run: |
-          for ex in basic custom_selectors configuration ir_access transforms; do
-            cargo run -q -p markkit --example "$ex"
-          done
-          cargo run -q -p markkit --features tool --example agent_tool
+        run: bash scripts/run-examples.sh
 
   wasm:
     # Browser package @everruns/markkit-wasm: build the wasm32-unknown-unknown
@@ -137,6 +133,8 @@ jobs:
         run: bash crates/markkit-wasm/scripts/build.sh release
       - name: Integration tests (headless Node)
         run: node --test crates/markkit-wasm/__test__/*.test.mjs
+      - name: Run WASM example
+        run: node examples/wasm/quickstart.mjs
       - name: Verify npm archive contents
         run: |
           cd crates/markkit-wasm/pkg

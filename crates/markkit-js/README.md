@@ -1,88 +1,172 @@
 # @everruns/markkit
 
-Native Node.js bindings for Markkit: HTML, PDF, DOCX and spreadsheets to Markdown.
+[![npm](https://img.shields.io/npm/v/@everruns/markkit.svg)](https://www.npmjs.com/package/@everruns/markkit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/everruns/markkit/blob/main/LICENSE)
 
-This npm release supports **Linux x64 with glibc**. It does not include binaries for
-macOS, Windows, ARM64 or musl Linux. Other platforms require a separate future
-native release; Rust and Python package availability is independent.
+**Extract clean Markdown from any document, safely.** Native Node.js bindings
+for [Markkit](https://github.com/everruns/markkit), written in Rust.
 
-The package contains its JavaScript loader and native binary. CI verifies a clean
-installation and extraction smoke on Node.js 24.22.1 before publication. Use a
-currently supported Node.js release with its security patches installed.
+Convert HTML, PDF, Word, PowerPoint, Excel/ODS spreadsheets, ODT, EPUB, email
+(EML), Jupyter notebooks, CSV/TSV, Markdown and plain text into well-structured
+Markdown for LLMs, RAG pipelines and agents. Built for untrusted input: nothing
+is executed, and every resource a document can drive is bounded.
+
+- One call for every format, detected from file name, content type or bytes
+- Title, metadata, stats and structured warnings with every result
+- Main-content detection for web pages, CSS include/exclude selectors
+- PDF reading order, columns, tables, optional layout geometry and OCR
+- URL fetching with SSRF protection
+- TypeScript declarations included; async functions run off the event loop
+
+## Install
+
+```bash
+npm install @everruns/markkit
+```
+
+The package ships a prebuilt native addon for **Linux x64 (glibc)**. macOS,
+Windows, ARM64 and musl are not published yet; for those, or for browsers and
+edge runtimes, use [`@everruns/markkit-wasm`](https://www.npmjs.com/package/@everruns/markkit-wasm).
+CI verifies a clean install and extraction on Node.js 24.
+
+## Quick start
 
 ```js
-const { extractHtmlSync } = require('@everruns/markkit');
-console.log(extractHtmlSync('<h1>Hello</h1>'));
+const fs = require('node:fs');
+const { extractHtmlSync, extractDocument } = require('@everruns/markkit');
+
+console.log(extractHtmlSync('<h1>Hello</h1><p>World</p>'));
 // # Hello
+//
+// World
+
+const doc = await extractDocument(fs.readFileSync('report.docx'), { fileName: 'report.docx' });
+console.log(doc.format, doc.title, doc.stats); // docx "Q3 Report" { paragraphs: 7, tables: 1 }
+console.log(doc.markdown);
 ```
+
+ES modules work too: `import { extractHtml } from '@everruns/markkit';`.
+
+## API
+
+Every function takes an optional trailing `options` object.
+
+| Function | Returns | Use it for |
+|---|---|---|
+| `extractDocument(data: Buffer, hint?, options?)` | `Promise<Extraction>` | Any format, with metadata |
+| `extractDocumentSync(data, hint?, options?)` | `Extraction` | Same, synchronous |
+| `extractHtml(html: string, options?)` | `Promise<string>` | HTML string to Markdown |
+| `extractHtmlSync(html, options?)` | `string` | Same, synchronous |
+| `extractBytes(data: Buffer, contentType?, options?)` | `Promise<string>` | Bytes to Markdown only |
+| `extractUrl(url: string, options?)` | `Promise<string>` | Fetch and convert a URL |
+
+`hint` is `{ contentType?: string, fileName?: string }`. The format is detected
+from `contentType`, then the extension of `fileName`, then magic bytes. The
+sync variants are CPU-bound and block the event loop while they run.
+
+`Extraction`:
+
+| Field | Type | Contents |
+|---|---|---|
+| `markdown` | `string` | The Markdown |
+| `title` | `string \| undefined` | Title when the source declares one |
+| `format` | `string` | `html`, `pdf`, `docx`, `pptx`, `xlsx`, `xlsb`, `xls`, `ods`, `odt`, `epub`, `eml`, `ipynb`, `csv`, `tsv`, `markdown`, `text` |
+| `warnings` | `{ code, detail }[]` | e.g. `{ code: 'truncated_sheet', detail: '...' }`; match on `code` |
+| `stats` | `ExtractionStats` | `pages`, `sheets`, `rows`, `paragraphs`, `tables` |
+| `metadata` | `Metadata` | HTML `description`, `author`, `published`, `language`, `canonicalUrl`, `siteName`, `image` |
+| `layout` | `PdfLayout \| undefined` | PDF geometry, only with `pdfLayout: true` |
 
 ## Options
 
-Every function takes an optional trailing options object:
-
 ```js
-const { extractHtml, extractUrl, extractDocumentSync } = require('@everruns/markkit');
+const { extractHtml, extractUrl } = require('@everruns/markkit');
 
-await extractHtml(html, { includeSelectors: ['article'], excludeSelectors: ['.ad'], preserveImages: false });
-
-// URLs: non-public addresses are blocked by default.
-await extractUrl('https://docs.example.com/page', { allowedHosts: ['docs.example.com'], maxRedirects: 2 });
-
-// Documents with metadata (HTML, PDF, DOCX, PPTX, XLSX/XLSB/XLS/ODS). `warnings` are `{ code, detail }`.
-const doc = extractDocumentSync(fs.readFileSync('report.docx'), { fileName: 'report.docx' }, { maxSheetRows: 500 });
-console.log(doc.title, doc.format, doc.warnings, doc.markdown);
-```
-
-Fields: `maxInputSize`, `maxOutputSize`, `timeout` (seconds, covers fetch, parsing and
-rendering; `maxProcessingSecs` is the whole-second form), `maxNodes`, `maxNestingDepth`,
-`baseUrl`, `mainContent`, `pdfLayout`, `preserveLinks`, `preserveImages`,
-`includeSelectors`, `excludeSelectors` (added to the defaults), `maxArchiveEntries`,
-`maxArchiveEntrySize`, `maxArchiveTotalSize`, `maxSheetRows`, `maxSheetCols`,
-`maxSpreadsheetCells`, `includeHiddenSheets`, `allowPrivateNetworks` (trusted URLs only),
-`allowedHosts`, `maxRedirects`, `maxPdfPages`, `maxPdfStreamSize`, `maxPdfDecodedSize`.
-
-For browsers and edge runtimes use [`@everruns/markkit-wasm`](https://www.npmjs.com/package/@everruns/markkit-wasm).
-
-## PDF layout and tables
-
-PDF text extraction reconstructs columns, ruled and conservative borderless tables,
-including merged and wrapped cells. Tagged headings/ActualText, bold/italic and
-numbered lists are preserved. Set `pdfRemoveRepeatedHeaders: true` to suppress
-repeated margin headers/footers.
-
-`pdfLayout: true` adds `layout: { version: 1, pages }` to document results. Source
-`spans` retain drawing order and include glyph-positioned `words`. Semantic `blocks`
-are in reading order, with `id`, `kind`, `bbox`, `spanIds`, `lines` and table `cells`.
-Cells have row/column positions, rowspan/colspan and source references. Coordinates
-are display points from the cropped/rotated top-left, x right and y down. Font
-bounds approximate an em box. Layout is optional and does not change Markdown.
-
-Node and WASM use camelCase keys. `maxNodes` bounds primitives and geometry;
-`maxPdfDecodedSize` bounds retained geometry and analysis work; table row/column/
-grid limits apply. `maxOutputSize` independently bounds compact layout JSON and
-Markdown, excluding JSON wrapper/pretty-print overhead.
-
-Native OCR: install Tesseract plus language data. Use
-`{ pdfOcr: true, pdfOcrLanguage: "eng", timeout: 300 }` on `extractDocumentSync` /
-`extractDocument`. Only textless pages are recognized. OCR word bounds are returned
-in layout; helpers use private files, bounded dimensions/output and the deadline.
-
-## Optional Rust OCR backend
-
-Source builds can enable `markkit-js`'s Cargo feature `pdf-ocr-ocrs`. Default npm
-builds retain Tesseract. Prepare the pinned models from the repository with
-`python3 scripts/prepare_ocr_models.py`, then configure:
-
-```js
-extractDocumentSync(bytes, { fileName: "scan.pdf" }, {
-  pdfOcr: true, pdfOcrBackend: "ocrs", timeout: 300,
-  pdfOcrDetectionModel: "/models/text-detection.onnx",
-  pdfOcrRecognitionModel: "/models/text-recognition.onnx"
+await extractHtml(html, {
+  mainContent: true,              // keep the article, drop sidebars and comments
+  includeSelectors: ['main'],     // keep only matches
+  excludeSelectors: ['.ad'],      // drop matches (on top of nav/footer/script/...)
+  baseUrl: 'https://example.com/blog/', // resolve relative links and images
+  preserveImages: false,
 });
+
+// URLs: loopback, private, link-local and metadata addresses are refused,
+// also after DNS resolution and on every redirect.
+await extractUrl('https://docs.example.com/page', { allowedHosts: ['docs.example.com'], maxRedirects: 2 });
 ```
 
-Models load from explicit local paths only. The pinned weights use CC-BY-SA 4.0
-and carry attribution in the setup script's NOTICE.json. The current Latin
-model accepts `pdfOcrLanguage: "eng"`. Missing build features/models and other
-languages fail explicitly. Model files and inference need trusted deployment
-configuration and host CPU/memory quotas; inference deadlines are cooperative.
+| Option | Default | Meaning |
+|---|---|---|
+| `mainContent` | `false` | Keep only the detected article body |
+| `includeSelectors` / `excludeSelectors` | `[]` | CSS selectors to keep / drop |
+| `baseUrl` | none | Base for relative links and images |
+| `preserveLinks` / `preserveImages` | `true` | Keep `[text](url)` / `![alt](src)` |
+| `includeHiddenSheets` | `false` | Render hidden spreadsheet sheets |
+| `pdfLayout` | `false` | Add `layout` geometry for PDFs |
+| `pdfRemoveRepeatedHeaders` | `false` | Drop running PDF headers/footers |
+| `pdfOcr`, `pdfOcrLanguage` | `false`, `"eng"` | OCR textless PDF pages with Tesseract |
+| `pdfOcrBackend`, `pdfOcrDetectionModel`, `pdfOcrRecognitionModel` | `"tesseract"` | Rust `ocrs` backend (source builds) |
+| `allowPrivateNetworks` | `false` | Let `extractUrl` reach internal hosts (trusted URLs only) |
+| `allowedHosts` | `[]` | Host allowlist for `extractUrl`, checked on every redirect |
+
+### Limits and errors
+
+| Option | Default | Bounds |
+|---|---|---|
+| `maxInputSize` | 50 MiB | Input bytes, fetched body |
+| `maxOutputSize` | 128 MiB | Markdown output bytes |
+| `timeout` | 60 | Seconds per call, fractions allowed (`maxProcessingSecs` is the whole-second form) |
+| `maxNodes` | 5 000 000 | Parsed nodes, retained PDF geometry |
+| `maxNestingDepth` | 256 | Element nesting (hard max 512) |
+| `maxArchiveEntries` | 10 000 | ZIP entries |
+| `maxArchiveEntrySize` / `maxArchiveTotalSize` | 64 / 256 MiB | Decompressed ZIP bytes |
+| `maxSheetRows` / `maxSheetCols` | 10 000 / 256 | Rendered per sheet (truncated with a warning) |
+| `maxSpreadsheetCells` | 4 000 000 | XLS/ODS grid before parsing |
+| `maxRedirects` | 5 | `extractUrl` redirects |
+| `maxPdfPages` | 10 000 | PDF pages (truncated with a warning) |
+| `maxPdfStreamSize` / `maxPdfDecodedSize` | 64 / 256 MiB | Decoded PDF bytes |
+
+Failures throw an `Error` whose message names the cause:
+
+```js
+try {
+  extractDocumentSync(bytes, { fileName: 'big.xlsx' }, { maxOutputSize: 1 << 20, timeout: 10 });
+} catch (err) {
+  console.error(err.message); // "Resource limit exceeded: output exceeds max_output_size 1048576"
+}
+```
+
+## PDF layout and OCR
+
+```js
+const doc = extractDocumentSync(pdfBytes, { fileName: 'report.pdf' }, { pdfLayout: true });
+for (const block of doc.layout.pages[0].blocks) {
+  console.log(block.kind, block.bbox); // reading order; bbox is [left, top, right, bottom]
+}
+```
+
+PDF extraction rebuilds reading order and columns, ruled and borderless tables
+(with merged and wrapped cells), emphasis, numbered lists and tagged headings.
+`layout` is `{ version: 1, pages }`. Each page has source `spans` (text runs
+with `bbox`, `baseline`, `font`, `size`, `words`) and semantic `blocks`
+(`kind`, `bbox`, `spanIds`, `lines`, table `cells`). Coordinates are points
+from the page's top-left, x right and y down. Layout never changes the
+Markdown.
+
+Scanned pages: install Tesseract and language data, then pass
+`{ pdfOcr: true, pdfOcrLanguage: 'eng', timeout: 300 }`. Only pages without
+text are recognized. Source builds can enable the Rust `ocrs` backend (Cargo
+feature `pdf-ocr-ocrs`) with local ONNX model paths; extraction never
+downloads models. See the
+[PDF guide](https://github.com/everruns/markkit/blob/main/docs/pdf.md).
+
+## Examples
+
+Runnable scripts in
+[`examples/node/`](https://github.com/everruns/markkit/tree/main/examples/node):
+`quickstart.cjs` (HTML, options, bytes) and `documents.cjs` (DOCX, XLSX, PDF
+with stats, limits and layout; pass your own files as arguments).
+
+## License
+
+MIT. See [LICENSE](https://github.com/everruns/markkit/blob/main/LICENSE) and
+[NOTICE](https://github.com/everruns/markkit/blob/main/NOTICE).

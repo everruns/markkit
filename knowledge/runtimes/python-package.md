@@ -48,6 +48,17 @@ Invalid values raise `ValueError` / `OverflowError` at construction.
 
 Errors surface as `RuntimeError` carrying the Rust error's `Display` text.
 
+## Typing
+
+`markkit.pyi` at the repository root (next to `pyproject.toml`, where maturin
+looks for `<module-name>.pyi` in a pure-Rust project) ships in the wheel as
+`markkit/__init__.pyi` plus a generated `py.typed`. It types `Limits`, every
+function, and the `extract_document_sync` result as `TypedDict`s
+(`Extraction`, `ExtractionStats`, `Metadata`, `Warning`). Docstrings there are
+the Python API reference. `tests/test_stubs.py` fails when a function,
+parameter or `Limits` field is added to the module without the stub;
+`python.yml` asserts the installed wheel contains both files.
+
 ## Build
 
 `maturin` builds from the workspace root (`pyproject.toml` points at the crate manifest):
@@ -66,8 +77,10 @@ Published to PyPI by `publish-python.yml` from a verified release tag. The Linux
 wheel is built in a manylinux2014 container rather than on the moving GitHub host
 image; see [Release Process](../operations/release-process.md) for platform scope
 and release-retry rules.
-CI: `python.yml` builds and imports the module on changes to `crates/markkit-python/`
-or `crates/markkit/`.
+CI: `python.yml` builds and imports the module, runs `tests/`, checks the stubs
+ship, and runs `examples/python/*.py`, on changes to `crates/markkit-python/`,
+`crates/markkit/`, `examples/python/`, `examples/data/`, `markkit.pyi` or
+`pyproject.toml`.
 
 ## Structured documents
 

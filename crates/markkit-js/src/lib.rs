@@ -35,24 +35,40 @@ pub struct MarkkitOptions {
     pub main_content: Option<bool>,
     /// Retain PDF page dimensions and positioned text runs in `Extraction.layout`.
     pub pdf_layout: Option<bool>,
+    /// Drop margin headers/footers repeated across PDF pages (default false).
     pub pdf_remove_repeated_headers: Option<bool>,
+    /// OCR PDF pages that have no text layer (default false). Needs Tesseract
+    /// and language data installed, or the `ocrs` backend.
     pub pdf_ocr: Option<bool>,
+    /// Tesseract language codes, e.g. `"eng"` or `"eng+deu"` (default `"eng"`).
     pub pdf_ocr_language: Option<String>,
+    /// `"tesseract"` (default) or `"ocrs"` (source builds with `pdf-ocr-ocrs`).
     pub pdf_ocr_backend: Option<String>,
+    /// Local ONNX text-detection model path for the `ocrs` backend.
     pub pdf_ocr_detection_model: Option<String>,
+    /// Local ONNX text-recognition model path for the `ocrs` backend.
     pub pdf_ocr_recognition_model: Option<String>,
+    /// Keep link URLs as `[text](url)` (default true); false keeps the text only.
     pub preserve_links: Option<bool>,
+    /// Keep images as `![alt](src)` (default true); false drops them.
     pub preserve_images: Option<bool>,
     /// CSS selectors to include (empty = whole document).
     pub include_selectors: Option<Vec<String>>,
     /// CSS selectors to drop, added to nav/footer/header/script/style/noscript.
     pub exclude_selectors: Option<Vec<String>>,
+    /// Maximum ZIP entries in DOCX/PPTX/XLSX/ODT/EPUB containers (default 10 000).
     pub max_archive_entries: Option<u32>,
+    /// Maximum decompressed bytes per ZIP entry (default 64 MiB).
     pub max_archive_entry_size: Option<f64>,
+    /// Maximum decompressed bytes per ZIP container (default 256 MiB).
     pub max_archive_total_size: Option<f64>,
+    /// Rows rendered per sheet; extra rows are truncated with a warning (default 10 000).
     pub max_sheet_rows: Option<u32>,
+    /// Columns rendered per sheet; extra columns are truncated with a warning (default 256).
     pub max_sheet_cols: Option<u32>,
+    /// Maximum XLS/ODS grid cells before parsing (default 4 000 000).
     pub max_spreadsheet_cells: Option<f64>,
+    /// Render hidden and very hidden sheets (default false: skipped with a warning).
     pub include_hidden_sheets: Option<bool>,
     /// Let `extractUrl` reach loopback/private/link-local addresses. Trusted URLs only.
     pub allow_private_networks: Option<bool>,
@@ -60,8 +76,11 @@ pub struct MarkkitOptions {
     pub allowed_hosts: Option<Vec<String>>,
     /// Maximum redirects `extractUrl` follows (default 5).
     pub max_redirects: Option<u32>,
+    /// PDF pages rendered; later pages are truncated with a warning (default 10 000).
     pub max_pdf_pages: Option<u32>,
+    /// Decoded bytes per PDF stream (default 64 MiB).
     pub max_pdf_stream_size: Option<f64>,
+    /// Decoded PDF bytes in total, also bounds retained layout geometry (default 256 MiB).
     pub max_pdf_decoded_size: Option<f64>,
 }
 
@@ -75,24 +94,37 @@ pub struct DocumentHint {
     pub file_name: Option<String>,
 }
 
+/// Document counts; a field is absent when it does not apply to the format.
 #[napi(object)]
 pub struct ExtractionStats {
+    /// PDF pages.
     pub pages: Option<u32>,
+    /// Rendered spreadsheet sheets.
     pub sheets: Option<u32>,
+    /// Rendered spreadsheet / CSV data rows.
     pub rows: Option<u32>,
+    /// Paragraph blocks.
     pub paragraphs: Option<u32>,
+    /// Tables.
     pub tables: Option<u32>,
 }
 
 /// Document metadata (HTML meta, Open Graph, JSON-LD); fields absent when unknown.
 #[napi(object)]
 pub struct Metadata {
+    /// Page summary (`<meta name="description">`, `og:description`, JSON-LD).
     pub description: Option<String>,
+    /// Author name.
     pub author: Option<String>,
+    /// Publication date as written in the source (usually ISO 8601).
     pub published: Option<String>,
+    /// Document language, e.g. `en` (from `<html lang>`).
     pub language: Option<String>,
+    /// Canonical URL (`<link rel="canonical">`, `og:url`).
     pub canonical_url: Option<String>,
+    /// Site name (`og:site_name`).
     pub site_name: Option<String>,
+    /// Lead image URL (`og:image`).
     pub image: Option<String>,
 }
 
@@ -105,16 +137,22 @@ pub struct Warning {
     pub detail: String,
 }
 
-/// Markdown plus metadata.
+/// Markdown plus metadata, returned by `extractDocument` / `extractDocumentSync`.
 #[napi(object)]
 pub struct Extraction {
+    /// PDF source geometry; present only with `pdfLayout: true` on PDF input.
     pub layout: Option<PdfLayout>,
+    /// The extracted Markdown.
     pub markdown: String,
+    /// Document title when the source declares one (HTML `<title>`, document properties).
     pub title: Option<String>,
-    /// Detected format (`html`, `docx`, `pptx`, `xlsx`, `xlsb`, `xls`, `ods`, `text`, `markdown`, `csv`, `tsv`, `ipynb`, `eml`, `odt`, `epub`).
+    /// Detected format (`html`, `pdf`, `docx`, `pptx`, `xlsx`, `xlsb`, `xls`, `ods`, `text`, `markdown`, `csv`, `tsv`, `ipynb`, `eml`, `odt`, `epub`).
     pub format: String,
+    /// Non-fatal issues: truncation, skipped hidden content, encoding problems.
     pub warnings: Vec<Warning>,
+    /// Page, sheet, row, paragraph and table counts.
     pub stats: ExtractionStats,
+    /// HTML page metadata; empty for other formats.
     pub metadata: Metadata,
 }
 
@@ -463,7 +501,8 @@ pub async fn extract_url(url: String, options: Option<MarkkitOptions>) -> napi::
     markkit(options)?.extract_url(&url).await.map_err(err)
 }
 
-/// Extract markdown from a buffer with optional content type.
+/// Extract Markdown from a buffer; the format is detected from `contentType`
+/// and the bytes. Use `extractDocument` for title, warnings and stats.
 #[napi]
 pub async fn extract_bytes(
     data: Buffer,
@@ -476,7 +515,10 @@ pub async fn extract_bytes(
         .map_err(err)
 }
 
-/// Convert a document (HTML, DOCX, XLSX/XLS/ODS) with metadata (async).
+/// Convert document bytes (HTML, PDF, DOCX, PPTX, XLSX/XLSB/XLS/ODS, ODT, EPUB,
+/// EML, CSV/TSV, ipynb, Markdown, text) to Markdown plus title, format,
+/// warnings, stats and metadata (async). The format is detected from
+/// `hint.contentType`, then `hint.fileName`'s extension, then magic bytes.
 #[napi]
 pub async fn extract_document(
     data: Buffer,
@@ -486,7 +528,7 @@ pub async fn extract_document(
     document(&data, hint, options)
 }
 
-/// Convert a document (HTML, DOCX, XLSX/XLS/ODS) with metadata (synchronous).
+/// Synchronous `extractDocument`. CPU-bound: blocks the event loop while it runs.
 #[napi]
 pub fn extract_document_sync(
     data: Buffer,
