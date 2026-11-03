@@ -30,13 +30,19 @@ Releases are agent-driven; CI creates the tag, GitHub Release and crates.io uplo
    - verifies the version matches `Cargo.toml` and the commit is on `main`;
    - creates tag `v0.X.Y` (or verifies an existing one points at the same commit);
    - creates the GitHub Release from the CHANGELOG section;
-   - dispatches `publish.yml` on the tag.
+   - dispatches `publish.yml`, `publish-python.yml`, `publish-js.yml` and
+     `publish-wasm.yml` on the tag (the last three with `dry_run=false`).
 4. `publish.yml` runs from the tag, dry-runs then uploads `markkit` then `markkit-cli`,
    skipping any crate already published at that version.
+5. Confirm every registry shows the new version: crates.io (`markkit`,
+   `markkit-cli`), PyPI (`markkit`), npm (`@everruns/markkit`,
+   `@everruns/markkit-wasm`). Registries ship in sync; a release is not done
+   while one lags. Re-run a failed publisher from the same tag.
 
 Manual fallback: run the **Release** workflow from `main` (workflow_dispatch); it reads the
-version from `Cargo.toml`. Python and npm packages are published separately with
-`publish-python.yml` / `publish-js.yml` / `publish-wasm.yml`.
+version from `Cargo.toml`. A single publisher can be re-run by dispatching
+`publish-python.yml` / `publish-js.yml` / `publish-wasm.yml` on the `vX.Y.Z` tag with
+`dry_run=false`.
 
 ## Artifacts
 
