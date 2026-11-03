@@ -6,6 +6,8 @@ name: Release
 #   creates the tag in CI, so nobody has to push tags from a local clone.
 # - Releases created with GITHUB_TOKEN do not trigger other workflows, so the
 #   crates.io publish is dispatched explicitly against the verified tag.
+# - Every registry ships in sync: crates.io, PyPI, npm native and npm WASM are all
+#   dispatched from the same verified tag (real publish, not dry run).
 on:
   push:
     branches:
@@ -111,8 +113,12 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Trigger crates.io publish
+      - name: Trigger crates.io, PyPI and npm publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.version.outputs.tag }}
-        run: gh workflow run publish.yml --ref "$TAG"
+        run: |
+          gh workflow run publish.yml --ref "$TAG"
+          gh workflow run publish-python.yml --ref "$TAG" -f dry_run=false
+          gh workflow run publish-js.yml --ref "$TAG" -f dry_run=false
+          gh workflow run publish-wasm.yml --ref "$TAG" -f dry_run=false

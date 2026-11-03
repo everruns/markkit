@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Rewrote the PyPI README (formats, document dict, async, limits, links) and added
+  PyPI project links, keywords and classifiers.
+- Releases now publish PyPI and npm (native + WASM) together with crates.io.
+
 ### Fixed
 
 - Every published package (crates.io crates, PyPI wheel/sdist, `@everruns/markkit`,
