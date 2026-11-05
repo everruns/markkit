@@ -32,7 +32,7 @@ jobs:
       matrix:
         target: [html, document, docx_xml, xlsx_xml, xlsb_bin, ods_xml, xls_biff, pdf, markdown, csv, render_ir]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@nightly
@@ -42,7 +42,7 @@ jobs:
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
       - name: Cache corpus
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: crates/markkit/fuzz/corpus/${{ matrix.target }}
           key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
