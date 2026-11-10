@@ -374,8 +374,10 @@ Bug reports, feature requests and questions are welcome as
 
 ## Ecosystem
 
-Markkit is part of the [Everruns](https://everruns.com) ecosystem, alongside
-[Bashkit](https://github.com/everruns/bashkit).
+Markkit is part of [Everruns](https://everruns.com/projects/), a free, non-commercial
+community ecosystem of open-source AI projects by
+[Mykhailo Chalyi](https://chaliy.name) and contributors. Questions, ideas and
+research discussion are welcome on [Discord](https://everruns.com/discord).
 
 ## License
 
