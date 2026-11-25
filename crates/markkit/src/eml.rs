@@ -1,7 +1,7 @@
 //! Email (`.eml`, RFC 5322 / MIME) input via mail-parser.
 //!
 //! Decisions:
-//! - Behind the `email` feature (mail-parser 0.11, no default features: UTF-*,
+//! - Behind the `email` feature (mail-parser 1.0, no default features: UTF-*,
 //!   Latin and other single-byte charsets, QP/base64, RFC 2047 words).
 //!   Selected by `message/rfc822` or `.eml`, never sniffed.
 //! - Output: `# Subject`, a header paragraph (From, To, Cc, Date as RFC 3339),
@@ -17,7 +17,7 @@
 
 use std::borrow::Cow;
 
-use mail_parser::{Address, MessageParser, MimeHeaders, PartType};
+use mail_parser::{AddressList, Mailbox, MessageParser, PartKind};
 
 use crate::config::MarkkitBuilder;
 use crate::error::Error;
@@ -41,10 +41,10 @@ pub(crate) fn parse(
 ) -> Result<EmailOutput, Error> {
     let msg = MessageParser::default()
         .parse(bytes)
-        .filter(|m| !m.parts.is_empty())
+        .filter(|m| m.root().parts().next().is_some())
         .ok_or_else(|| Error::EmailExtract("not an RFC 5322 message".into()))?;
     budget.check_time()?;
-    budget.add_nodes(msg.parts.len())?;
+    budget.add_nodes(msg.root().parts().count())?;
     let mut nodes = Vec::new();
     let mut warnings = Vec::new();
 
@@ -75,20 +75,23 @@ pub(crate) fn parse(
         nodes.push(Node::paragraph(header));
     }
 
-    for (i, &id) in msg.text_body.iter().enumerate() {
-        let Some(part) = msg.part(id) else { continue };
-        if part.is_encoding_problem {
+    for (i, part) in msg.text_body().enumerate() {
+        if !part.decoded_checked().1.is_empty() {
             warnings.push(Warning::new(
                 WarningCode::EncodingProblem,
                 "a body part could not be fully decoded",
             ));
         }
-        match &part.body {
-            PartType::Text(text) => {
+        match part.kind() {
+            PartKind::Text => {
+                let text = part.text().unwrap_or(Cow::Borrowed(""));
                 let decoded = crate::text::decode(text.as_bytes());
                 nodes.extend(crate::text::plain_to_ir(&decoded.text, budget)?.0.nodes);
             }
-            PartType::Html(html) => nodes.extend(html_nodes(html, &msg, i, config, budget)?),
+            PartKind::Html => {
+                let html = part.text().unwrap_or(Cow::Borrowed(""));
+                nodes.extend(html_nodes(&html, &msg, i, config, budget)?);
+            }
             _ => {}
         }
     }
@@ -98,13 +101,13 @@ pub(crate) fn parse(
         if budget.expired() {
             return Err(budget.timeout_error());
         }
-        let name = match &part.body {
-            PartType::Message(m) => m.subject().map(|s| format!("{} (message)", header_text(s))),
-            _ => None,
-        }
-        .or_else(|| part.attachment_name().map(header_text))
-        .filter(|n| !n.is_empty())
-        .unwrap_or_else(|| "unnamed".to_string());
+        let name = part
+            .nested()
+            .and_then(|m| m.subject())
+            .map(|s| format!("{} (message)", header_text(s)))
+            .or_else(|| part.attachment_name().map(header_text))
+            .filter(|n| !n.is_empty())
+            .unwrap_or_else(|| "unnamed".to_string());
         let ctype = part
             .content_type()
             .map(|ct| match ct.subtype() {
@@ -115,7 +118,7 @@ pub(crate) fn parse(
             .unwrap_or_else(|| "application/octet-stream".into());
         items.push(ListItem::new(vec![Node::Text(format!(
             "{name} ({ctype}, {})",
-            human_size(part.len())
+            human_size(part.decoded_len())
         ))]));
     }
     let attachments = items.len();
@@ -172,10 +175,10 @@ fn header_text(s: &str) -> String {
     t.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-fn addresses(addr: &Address<'_>) -> String {
-    let one = |name: Option<&Cow<'_, str>>, address: Option<&Cow<'_, str>>| {
-        let name = name.map(|n| header_text(n)).filter(|n| !n.is_empty());
-        let address = address.map(|a| header_text(a)).filter(|a| !a.is_empty());
+fn addresses(addr: AddressList<'_>) -> String {
+    let one = |mailbox: Mailbox<'_>| {
+        let name = mailbox.name().map(header_text).filter(|n| !n.is_empty());
+        let address = mailbox.address().map(header_text).filter(|a| !a.is_empty());
         match (name, address) {
             (Some(n), Some(a)) if n != a => format!("{n} <{a}>"),
             (_, Some(a)) => a,
@@ -183,18 +186,8 @@ fn addresses(addr: &Address<'_>) -> String {
             (None, None) => String::new(),
         }
     };
-    let list: Vec<String> = match addr {
-        Address::List(list) => list
-            .iter()
-            .map(|a| one(a.name.as_ref(), a.address.as_ref()))
-            .collect(),
-        Address::Group(groups) => groups
-            .iter()
-            .flat_map(|g| g.addresses.iter())
-            .map(|a| one(a.name.as_ref(), a.address.as_ref()))
-            .collect(),
-    };
-    list.into_iter()
+    addr.mailboxes()
+        .map(one)
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .join(", ")

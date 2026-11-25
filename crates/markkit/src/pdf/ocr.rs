@@ -108,6 +108,7 @@ fn rasterize(
 ) -> Result<(Vec<u8>, u32, u32), Error> {
     use hayro::{
         PixmapSettings, RenderCache, RenderSettings, hayro_interpret::InterpreterSettings,
+        hayro_interpret::RenderContent,
     };
     clock.check_time()?;
     let (w, h) = page.render_dimensions();
@@ -126,11 +127,12 @@ fn rasterize(
         page,
         &RenderCache::new(),
         &InterpreterSettings {
-            render_annotations: false,
+            render_content: RenderContent::PAGE,
             ..Default::default()
         },
         &RenderSettings {
             force_image_interpolation: true,
+            ..Default::default()
         },
         &PixmapSettings {
             x_scale: (width as f32 + 0.001) / w,
