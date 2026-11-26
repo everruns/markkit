@@ -1,5 +1,11 @@
 # Markkit Knowledge Update Log
 
+## 2026-11-25
+
+- [Threat Model](security/threat-model.md): require `url` 2.5.9 for RUSTSEC-2026-0592; shipping audit rejects the prior locked version.
+
+- [Format Support](formats/format-support.md): bounded decoded email clean/full views with conservative omission spans; no model or network. [Threat Model](security/threat-model.md) records plain-text rendering responsibility and limit checks on forwarded/empty bodies; runnable example covers the new Rust API.
+
 ## 2026-11-03
 
 * **Registries in sync**: `release.yml` now dispatches the PyPI, npm and npm WASM publishers (real publish) alongside crates.io from the release tag. 0.2.1 and 0.3.0 had reached crates.io only. See [Release Process](operations/release-process.md).

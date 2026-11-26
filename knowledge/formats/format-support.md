@@ -465,3 +465,19 @@ decoded in the pre-scan, and separately the total content interpreted, form reus
 - [HTML Extraction](html-extraction.md), the Tier 1 path
 - [IR Specification](../foundations/ir.md), the shared output of every parser
 - [Threat Model](../security/threat-model.md), T6 malicious office documents, T7 text and Markdown, T8 malicious PDFs
+
+## Decoded email body views
+
+The Rust `email::extract_body` API accepts provider-decoded text and HTML without
+requiring callers to synthesize MIME. It prefers text, otherwise extracts HTML
+without remote image loading. It returns both a full normalized representation
+and a clean view with omission spans. Only conservative trailing quotes and exact
+mobile signatures are removed; forwarded and interleaved content is retained.
+Text stays plain text and must be displayed as text; HTML fallback requires `html`
+and returns Markdown. Omission offsets are UTF-8 byte boundaries in the full view.
+Combined input, output, node and time budgets apply, including forwarded and empty
+bodies. This is deterministic noise
+reduction, not authentication, a relevance judge or a prompt-injection defense.
+See [implementation](../../crates/markkit/src/email.rs). Provider/raw MIME storage
+and progressive disclosure belong to the caller; bindings retain their existing
+EML APIs.

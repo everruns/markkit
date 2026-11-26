@@ -15,4 +15,5 @@ for ex in basic custom_selectors configuration ir_access transforms documents ma
     run --example "$ex"
 done
 run --features tool --example agent_tool
+run --features email --example email_body
 run --features docx,spreadsheet,pdf --example convert

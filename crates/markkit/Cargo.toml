@@ -164,3 +164,8 @@ required-features = ["docx", "spreadsheet", "pdf"]
 [[bench]]
 name = "extraction"
 harness = false
+
+[[example]]
+name = "email_body"
+path = "../../examples/email_body.rs"
+required-features = ["email"]

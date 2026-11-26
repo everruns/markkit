@@ -164,6 +164,8 @@ mod csv;
 #[cfg(feature = "docx")]
 mod docx;
 #[cfg(feature = "email")]
+pub mod email;
+#[cfg(feature = "email")]
 mod eml;
 #[cfg(feature = "epub")]
 mod epub;
