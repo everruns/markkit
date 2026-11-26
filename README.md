@@ -69,6 +69,13 @@ packages ship with all formats, OCR and URL fetching. The WASM package covers
 HTML, PDF text and layout, DOCX, spreadsheets, Markdown, CSV/TSV, notebooks and
 text, without URL fetching or OCR.
 
+Rust callers with already-decoded email alternatives can use
+[`email::extract_body`](https://docs.rs/markkit/latest/markkit/email/fn.extract_body.html)
+with the `email` feature. It returns clean/full views and byte spans for omitted
+trailing quotes or mobile signatures, preserving forwarded and interleaved replies.
+Text stays plain text; HTML fallback requires `html` and becomes Markdown. Treat
+both views as untrusted content. See the runnable [email example](examples/email_body.rs).
+
 ## Quick start
 
 ### Rust

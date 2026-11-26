@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- Require `url` 2.5.9 or later to avoid nested `blob:` URL origin stack overflow
+  (RUSTSEC-2026-0592).
+
 ### Added
+
+- Rust decoded email body extraction with clean/full views, omission spans,
+  conservative quote/signature removal and shared extraction budgets.
 
 - Runnable examples for every surface, run in CI: Rust `documents`, `convert`
   (DOCX/XLSX/PDF or your own files), `main_content` and `limits`; Python

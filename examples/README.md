@@ -19,6 +19,7 @@ Run from the repository root:
 |---|---|---|
 | [`basic.rs`](basic.rs) | `cargo run -p markkit --example basic` | HTML to Markdown with defaults |
 | [`documents.rs`](documents.rs) | `cargo run -p markkit --example documents` | `extract_document_sync`: format detection, title, metadata, stats, warnings, unsupported formats |
+| [`email_body.rs`](email_body.rs) | `cargo run -p markkit --features email --example email_body` | Decoded email clean/full views and reversible omission spans |
 | [`convert.rs`](convert.rs) | `cargo run -p markkit --features all_formats --example convert [-- FILE...]` | Convert DOCX, XLSX, PDF (or your own files) |
 | [`main_content.rs`](main_content.rs) | `cargo run -p markkit --example main_content` | Article detection, `base_url`, selectors |
 | [`custom_selectors.rs`](custom_selectors.rs) | `cargo run -p markkit --example custom_selectors` | CSS include / exclude selectors |
