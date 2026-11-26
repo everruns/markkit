@@ -2,6 +2,8 @@
 
 ## 2026-11-25
 
+- [Native Dependencies](security/native-dependencies.md): review and accept Hayro 0.9 mandatory SIMD, mail-parser 1.0.2 lazy views/unsafe scanning (Rust 1.98), and ocrs 0.14/RTen 0.28 with unchanged model assets. Preserve annotation exclusion and email output; update parser API integration and encoding/boundary regressions. Supersedes the November 3 deferral.
+
 - [Threat Model](security/threat-model.md) T1/S17: separate footnote references from following colons, escape table-title pipes/backticks and encode destination backticks. Three nightly crash seeds and deterministic regressions cover unintended reference links and raw HTML; see [Fuzzing](security/fuzzing.md).
 
 - [Threat Model](security/threat-model.md): require `url` 2.5.9 for RUSTSEC-2026-0592; shipping audit rejects the prior locked version.

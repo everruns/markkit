@@ -221,3 +221,38 @@ fn security_limits_apply() {
         "{r:?}"
     );
 }
+
+#[test]
+fn security_transfer_decode_problem_is_reported() {
+    let e = extract(
+        "Subject: x\r\nContent-Type: text/plain\r\nContent-Transfer-Encoding: base64\r\n\r\nSGVsbG8=%%%\r\n",
+    );
+    assert!(
+        e.warnings
+            .iter()
+            .any(|w| w.code == markkit::WarningCode::EncodingProblem),
+        "{:?}",
+        e.warnings
+    );
+}
+
+#[test]
+fn security_short_and_vector_boundary_invalid_utf8() {
+    let m = Markkit::builder().build();
+    for size in 0..=130 {
+        let mut raw =
+            b"From: a@example.com\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n".to_vec();
+        raw.extend(std::iter::repeat_n(b'x', size));
+        raw.extend_from_slice(b"\xff\r\n--\0\x1b");
+        let e = m
+            .extract_document_sync(&raw, DocumentHint::file_name("boundary.eml"))
+            .unwrap();
+        assert!(
+            !e.markdown
+                .chars()
+                .any(|c| c.is_ascii_control() && !matches!(c, '\n' | '\t')),
+            "size={size}"
+        );
+        assert!(e.markdown.contains(&"x".repeat(size)));
+    }
+}
