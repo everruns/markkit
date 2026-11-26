@@ -2,6 +2,8 @@
 
 ## 2026-11-25
 
+- [Threat Model](security/threat-model.md) T1/S17: separate footnote references from following colons, escape table-title pipes/backticks and encode destination backticks. Three nightly crash seeds and deterministic regressions cover unintended reference links and raw HTML; see [Fuzzing](security/fuzzing.md).
+
 - [Threat Model](security/threat-model.md): require `url` 2.5.9 for RUSTSEC-2026-0592; shipping audit rejects the prior locked version.
 
 - [Format Support](formats/format-support.md): bounded decoded email clean/full views with conservative omission spans; no model or network. [Threat Model](security/threat-model.md) records plain-text rendering responsibility and limit checks on forwarded/empty bodies; runnable example covers the new Rust API.

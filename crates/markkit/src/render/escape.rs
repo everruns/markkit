@@ -12,7 +12,7 @@
 //!   `http`, `https`, relative and raster `data:image/*` for images. Anything else is
 //!   dropped and its text (link children, image alt) kept. Scheme detection ignores
 //!   ASCII whitespace and control characters anywhere, as browsers do.
-//! - Destinations are emitted bare with `( ) < > \ space` percent-encoded and entity-like
+//! - Destinations are emitted bare with `( ) < > \ backtick space` percent-encoded and entity-like
 //!   `&` backslash-escaped, so a destination can neither end early nor decode into
 //!   another scheme (`javascript&colon;`).
 //! - Fences are one backtick longer than the longest backtick run in the code.
@@ -254,6 +254,7 @@ pub(crate) fn safe_destination(url: &str, kind: UrlKind) -> Option<String> {
             '<' => out.push_str("%3C"),
             '>' => out.push_str("%3E"),
             '\\' => out.push_str("%5C"),
+            '`' => out.push_str("%60"),
             '&' if entity_like(&chars[i..]) => out.push_str("\\&"),
             c if c.is_whitespace() => {
                 let mut tmp = [0u8; 4];
@@ -320,8 +321,9 @@ pub(crate) fn link_title(t: &str) -> String {
     for c in t.chars() {
         match c {
             // `<` too: if the link ever fails to parse, the title must not
-            // become raw HTML.
-            '"' | '\\' | '<' => {
+            // become raw HTML. Pipes must not split table cells; backticks
+            // must not capture later code spans when a link fails to parse.
+            '"' | '\\' | '<' | '`' | '|' => {
                 out.push('\\');
                 out.push(c);
             }

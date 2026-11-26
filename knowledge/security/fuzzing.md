@@ -51,7 +51,9 @@ long nightly runs that find what generators miss. See
 | `render_ir` | Arbitrary IR tree (`arbitrary`) | Renderer on trees no parser emits yet |
 
 Seeds: `fuzz/seeds/<target>/` (committed, small) plus `tests/fixtures/html`
-for `html`. `fuzz/corpus/` and `fuzz/artifacts/` are git-ignored.
+for `html`. November 2026 regressions retain the HTML table-title, Markdown
+footnote-colon and direct-IR link/code crash seeds; `output_safety` also checks
+the minimized IR fixture deterministically. `fuzz/corpus/` and `fuzz/artifacts/` are git-ignored.
 
 ## Running
 
