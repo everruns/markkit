@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-25
+
 ### Security
 
 - Prevent footnote references from becoming unintended link definitions, and
