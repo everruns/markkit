@@ -180,6 +180,10 @@ without parsing the message.
 
 ### T3: Server-Side Request Forgery (SSRF)
 
+The URL parser requires `url` >= 2.5.9 (RUSTSEC-2026-0592), which prevents
+recursive origin evaluation of nested `blob:` URLs. This dependency floor also
+applies to downstream library consumers rather than only this workspace lockfile.
+
 **Description**: Attacker provides URL pointing to internal services or private networks.
 
 **Impact**: High -- access to internal infrastructure.
@@ -365,6 +369,12 @@ raw HTML (`<script>`, event handlers) or pathological nesting.
 - Email: mail-parser (fuzzed, iterative MIME walk); header values folded so encoded newlines
   cannot inject lines; attachments and nested messages listed, never parsed; HTML bodies go
   through the HTML parser
+- Decoded email body views: combined alternative bytes are checked before work;
+  normalized lines consume the node budget even when forwarded content is preserved.
+  Deadlines cover empty bodies, preservation shortcuts and cleanup. Text stays plain
+  text, not renderer output: callers must display it as text. HTML fallback uses the
+  existing extraction path. Omission spans refer to UTF-8 boundaries in the full view;
+  quote cleanup is neither authentication nor a prompt-injection defense.
 - Text, Markdown, CSV, notebooks and email are never sniffed; a content type or extension must select them
 - Decoding is total: invalid UTF-8/UTF-16 is replaced (U+FFFD) with an `invalid_utf8` warning
 - C0 controls (except tab/newline) and DEL are dropped before parsing
@@ -390,6 +400,9 @@ in a `.txt`) is emitted as `Node::Text` and escaped by the renderer (S17), like 
   raw HTML in cells/outputs, control characters, timeout and `max_nodes`
 - `email_integration::security_*`: garbage input, header injection via encoded words,
   5 000-deep multipart nesting, 20 000 attachments, size limit
+- `email::tests::security_*`: forwarded/empty deadline and node limits, controls,
+  plain-text markup preservation, Unicode omission boundaries; `alternatives_and_unicode_are_bounded`
+  checks combined input and output limits; `html_fallback_drops_active_content` checks script stripping
 
 ### T8: Malicious PDFs
 
