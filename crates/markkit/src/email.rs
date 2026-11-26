@@ -4,7 +4,7 @@
 //! trailing quoted block is hidden; inline replies and forwarded mail remain
 //! whole. Hosts retain MIME originals and enforce their own access policy.
 //!
-//! With the `email` feature enabled:
+//! With the `email-body` feature enabled (`email` also includes it):
 //! ```
 //! use markkit::{email::{extract_body, EmailBody}, Limits};
 //! let view = extract_body(EmailBody {

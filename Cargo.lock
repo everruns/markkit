@@ -1499,7 +1499,7 @@ dependencies = [
 
 [[package]]
 name = "markkit"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "base64",
@@ -1534,7 +1534,7 @@ dependencies = [
 
 [[package]]
 name = "markkit-bench"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -1547,7 +1547,7 @@ dependencies = [
 
 [[package]]
 name = "markkit-cli"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -1559,7 +1559,7 @@ dependencies = [
 
 [[package]]
 name = "markkit-eval"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "markkit",
  "mira-eval",
@@ -1571,7 +1571,7 @@ dependencies = [
 
 [[package]]
 name = "markkit-js"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "markkit",
  "napi",
@@ -1581,7 +1581,7 @@ dependencies = [
 
 [[package]]
 name = "markkit-python"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "markkit",
  "pyo3",
@@ -1591,7 +1591,7 @@ dependencies = [
 
 [[package]]
 name = "markkit-wasm"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "js-sys",
  "markkit",

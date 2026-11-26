@@ -108,6 +108,27 @@ jobs:
       - name: Run examples
         run: bash scripts/run-examples.sh
 
+  email-body:
+    name: Email body compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.96.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: email-body-rust-1.96
+      - name: Test decoded bodies without a MIME parser
+        run: |
+          cargo test --locked -p markkit --no-default-features --features email-body --lib email::
+          cargo test --locked -p markkit --no-default-features --features email-body,html --lib email::
+          cargo run --locked -p markkit --no-default-features --features email-body --example email_body
+          if cargo tree --locked -p markkit --no-default-features --features email-body,html -e normal | grep -E 'mail-parser|reqwest|hyper'; then
+            echo "MIME parser or HTTP client leaked into decoded email body views"
+            exit 1
+          fi
+
   wasm:
     # Browser package @everruns/markkit-wasm: build the wasm32-unknown-unknown
     # bundle and run its headless Node tests. See knowledge/runtimes/wasm-package.md.
@@ -143,7 +164,7 @@ jobs:
 
   check:
     name: Check
-    needs: [lint, audit, test, wasm]
+    needs: [lint, audit, test, wasm, email-body]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -152,7 +173,8 @@ jobs:
           if [[ "${{ needs.lint.result }}" != "success" ]] || \
              [[ "${{ needs.audit.result }}" != "success" ]] || \
              [[ "${{ needs.test.result }}" != "success" ]] || \
-             [[ "${{ needs.wasm.result }}" != "success" ]]; then
+             [[ "${{ needs.wasm.result }}" != "success" ]] || \
+             [[ "${{ needs['email-body'].result }}" != "success" ]]; then
             echo "One or more jobs failed"
             exit 1
           fi

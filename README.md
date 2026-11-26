@@ -71,7 +71,7 @@ text, without URL fetching or OCR.
 
 Rust callers with already-decoded email alternatives can use
 [`email::extract_body`](https://docs.rs/markkit/latest/markkit/email/fn.extract_body.html)
-with the `email` feature. It returns clean/full views and byte spans for omitted
+with the `email-body` feature (also included by `email`). It returns clean/full views and byte spans for omitted
 trailing quotes or mobile signatures, preserving forwarded and interleaved replies.
 Text stays plain text; HTML fallback requires `html` and becomes Markdown. Treat
 both views as untrusted content. See the runnable [email example](examples/email_body.rs).
@@ -249,6 +249,7 @@ in the message).
 | Feature | Default | Description |
 |---------|---------|-------------|
 | `html` | Yes | HTML parsing and conversion |
+| `email-body` | No | Clean/full views of decoded email bodies, without a MIME parser; add `html` for HTML alternatives |
 | `pdf`, `docx`, `pptx`, `spreadsheet`, `odt`, `epub`, `email`, `markdown` | No | Format support, see [Supported formats](#supported-formats) |
 | `all_formats` | No | All of the above |
 | `pdf-ocr` | No | OCR for textless PDF pages: Hayro rendering + installed Tesseract |
