@@ -472,8 +472,9 @@ impl MarkdownRenderer {
                     Position::Inline
                 };
                 // A footnote reference followed by a new text node beginning
-                // with `(` would combine into an inline link (`[^x](...)`).
-                if self.buf.ends_with(']') && t.starts_with('(') {
+                // with `(` or `:` could create an inline link or a reference
+                // definition in readers without footnote support.
+                if self.buf.ends_with(']') && t.starts_with(['(', ':']) {
                     self.buf.push('\\');
                 }
                 self.line_start = escape::push_text(&mut self.buf, t, pos);

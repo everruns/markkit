@@ -33,16 +33,40 @@ fn assert_safe(md: &str) {
     for ev in events(md) {
         match ev {
             Event::Html(h) | Event::InlineHtml(h) => panic!("raw HTML {h:?} in {md:?}"),
-            Event::Start(Tag::Link { dest_url, .. })
-            | Event::Start(Tag::Image { dest_url, .. }) => {
-                let lower = dest_url.to_ascii_lowercase();
-                for bad in ["javascript:", "vbscript:", "data:text", "file:"] {
-                    assert!(!lower.contains(bad), "unsafe url {dest_url:?} in {md:?}");
-                }
-            }
+            Event::Start(Tag::Link { dest_url, .. }) => assert_safe_url(&dest_url, false, md),
+            Event::Start(Tag::Image { dest_url, .. }) => assert_safe_url(&dest_url, true, md),
             _ => {}
         }
     }
+}
+
+fn assert_safe_url(url: &str, image: bool, md: &str) {
+    let probe: String = url
+        .trim_start_matches(|c: char| c <= ' ')
+        .chars()
+        .filter(|c| !c.is_ascii_control())
+        .collect::<String>()
+        .to_ascii_lowercase();
+    let Some(i) = probe.find([':', '/', '?', '#']) else {
+        return;
+    };
+    let scheme = &probe[..i];
+    let valid = scheme.starts_with(|c: char| c.is_ascii_alphabetic())
+        && scheme
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'));
+    if probe.as_bytes()[i] != b':' || !valid {
+        return;
+    }
+    let allowed = if image {
+        matches!(scheme, "http" | "https") || probe.starts_with("data:image/")
+    } else {
+        matches!(scheme, "http" | "https" | "mailto" | "tel" | "ftp")
+    };
+    assert!(
+        allowed && !probe.starts_with("data:image/svg"),
+        "unsafe url {url:?} in {md:?}"
+    );
 }
 
 /// Concatenated text events of the rendered Markdown, as a reader would see it.
@@ -1182,4 +1206,109 @@ fn display_math_in_inline_context_is_flattened() {
     }]);
     assert_safe(&md);
     assert!(md.starts_with("| $`x = 1`$ |"), "{md}");
+}
+
+#[test]
+fn footnote_reference_cannot_open_reference_definition() {
+    let md = render(vec![
+        para(vec![
+            Node::FootnoteReference {
+                label: "note".into(),
+            },
+            text(":javascript:alert(1)"),
+        ]),
+        para(vec![Node::FootnoteReference {
+            label: "note".into(),
+        }]),
+    ]);
+    assert_safe(&md);
+    assert!(
+        !events(&md)
+            .iter()
+            .any(|e| matches!(e, Event::Start(Tag::Link { .. })))
+    );
+}
+
+#[test]
+fn link_title_pipe_cannot_split_table_code() {
+    let md = render(vec![Node::Table {
+        source: None,
+        alignments: vec![],
+        headers: vec![TableCell::new(vec![
+            Node::Link {
+                url: "https://example.com".into(),
+                title: Some("a|b".into()),
+                children: vec![text("link")],
+            },
+            Node::InlineCode("<table>".into()),
+        ])],
+        rows: vec![],
+    }]);
+    assert_safe(&md);
+    assert!(
+        events(&md)
+            .iter()
+            .any(|e| matches!(e, Event::Code(c) if c.as_ref() == "<table>")),
+        "{md}"
+    );
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn html_fuzz_table_link_title_regression() {
+    let input = include_bytes!("../fuzz/seeds/html/table-link-title-pipe.html");
+    let out = markkit::Markkit::builder()
+        .build()
+        .extract_document_sync(input, markkit::DocumentHint::file_name("fuzz.html"))
+        .unwrap();
+    assert_safe(&out.markdown);
+}
+
+#[cfg(feature = "markdown")]
+#[test]
+fn markdown_fuzz_footnote_reference_regression() {
+    let input = include_bytes!("../fuzz/seeds/markdown/footnote-reference-colon.md");
+    let out = markkit::Markkit::builder()
+        .build()
+        .extract_document_sync(input, markkit::DocumentHint::file_name("fuzz.md"))
+        .unwrap();
+    assert_safe(&out.markdown);
+}
+
+#[test]
+fn destination_backtick_cannot_capture_following_code() {
+    let md = render(vec![para(vec![
+        Node::Link {
+            url: "`".into(),
+            title: Some("".into()),
+            children: vec![
+                Node::FootnoteReference {
+                    label: "note".into(),
+                },
+                Node::Image {
+                    src: "".into(),
+                    alt: "".into(),
+                },
+            ],
+        },
+        Node::InlineCode("<!".into()),
+        Node::InlineCode("<!t".into()),
+    ])]);
+    assert_safe(&md);
+    let codes: Vec<_> = events(&md)
+        .into_iter()
+        .filter_map(|e| match e {
+            Event::Code(c) => Some(c.into_string()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(codes, vec!["<!", "<!t"], "{md}");
+    assert!(md.contains("%60"), "{md}");
+}
+
+#[test]
+fn ir_fuzz_footnote_link_code_regression() {
+    let doc: Document =
+        serde_json::from_str(include_str!("fixtures/ir/footnote-link-code.json")).unwrap();
+    assert_safe(&MarkdownRenderer::new().render(&doc));
 }

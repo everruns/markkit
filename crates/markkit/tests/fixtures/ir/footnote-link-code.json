@@ -1,0 +1,123 @@
+{
+  "ir_version": 2,
+  "nodes": [
+    {
+      "List": {
+        "items": [
+          {
+            "checked": true,
+            "children": [
+              {
+                "FootnoteReference": {
+                  "label": ""
+                }
+              },
+              {
+                "Text": ":"
+              },
+              {
+                "FootnoteReference": {
+                  "label": ""
+                }
+              }
+            ]
+          }
+        ],
+        "ordered": true,
+        "start": 569201
+      }
+    },
+    {
+      "DefinitionList": {
+        "items": [
+          {
+            "definitions": [],
+            "term": [
+              {
+                "Heading": {
+                  "children": [
+                    {
+                      "Link": {
+                        "children": [
+                          {
+                            "FootnoteReference": {
+                              "label": ""
+                            }
+                          }
+                        ],
+                        "title": "",
+                        "url": "`"
+                      }
+                    },
+                    {
+                      "DefinitionList": {
+                        "items": [
+                          {
+                            "definitions": [],
+                            "term": [
+                              {
+                                "List": {
+                                  "items": [
+                                    {
+                                      "checked": true,
+                                      "children": [
+                                        {
+                                          "CodeBlock": {
+                                            "code": "<!t",
+                                            "language": null
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "checked": true,
+                                      "children": [
+                                        {
+                                          "FootnoteDefinition": {
+                                            "children": [
+                                              {
+                                                "List": {
+                                                  "items": [
+                                                    {
+                                                      "checked": true,
+                                                      "children": [
+                                                        {
+                                                          "Image": {
+                                                            "alt": "",
+                                                            "src": ""
+                                                          }
+                                                        }
+                                                      ]
+                                                    }
+                                                  ],
+                                                  "ordered": false,
+                                                  "start": null
+                                                }
+                                              }
+                                            ],
+                                            "label": ""
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "ordered": true,
+                                  "start": null
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "level": 5
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
