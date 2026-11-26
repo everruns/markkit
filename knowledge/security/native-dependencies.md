@@ -10,9 +10,9 @@ tags:
 
 # Native Dependencies
 
-## Hayro review (2026-10-29 UTC)
+## Hayro review (2026-11-25 Chicago)
 
-Hayro 0.8.0 is a Rust PDF renderer, licensed MIT OR Apache-2.0. Public evidence:
+Hayro 0.9.0 is a Rust PDF renderer, licensed MIT OR Apache-2.0. Public evidence:
 
 - [Repository](https://github.com/LaurenzV/hayro): individual account LaurenzV.
 - Repository creation: 2025-04-22. The [earliest surviving default-branch commit](https://github.com/LaurenzV/hayro/commit/38efa5f7d08e68ebca2d1a209d4921c1deffeaf3)
@@ -20,25 +20,64 @@ Hayro 0.8.0 is a Rust PDF renderer, licensed MIT OR Apache-2.0. Public evidence:
 - [Maintainer profile](https://github.com/LaurenzV): Laurenz Stampfl; public location
   Vienna, Austria; company Canva at review time.
 - [Crates.io ownership API](https://crates.io/api/v1/crates/hayro/owners): sole
-  owner LaurenzV. Version 0.8.0 was published by that account on 2026-10-04.
-- Crates.io checksum: `4675ff5acd7ca41c0c34ccd2a3a154f5c86d8b5ec92bef0a114bfb194969e2af`.
+  owner LaurenzV. Version 0.9.0 was published by that account on 2026-11-02.
+- Crates.io checksum: `34d3977ae664ab6eea015be3024379c83c6a3580f67d51be6884f1992bf683ba`.
 
 These records show no Russian organizational ownership. They cannot certify the
 nationality, ancestry, residence or affiliations of every contributor, historical
 contributor or transitive dependency author. No such conclusions are inferred
 from names. This is a public ownership/location review, not a supply-chain audit.
 
-Use the registry release and committed lockfile, with optional
-architecture-specific SIMD disabled. `embed-fonts` and `embed-cmaps` are
+Use the registry release and committed lockfile. The [0.9 release](https://github.com/LaurenzV/hayro/releases/tag/hayro-v0.9.0)
+removes the SIMD opt-out: this review accepts its mandatory Rust SIMD paths,
+including `fearless_simd`, `pic-scale` and `vello_cpu`. This supersedes the
+0.8 decision to disable optional SIMD. Rendering remains behind `pdf-ocr`,
+with existing page/pixel/stream budgets and cooperative deadlines; it is not
+a process isolation boundary. `RenderContent::PAGE` explicitly excludes
+annotations, preserving the prior behavior. New render settings use upstream
+defaults around the existing interpolation setting. MSRV is 1.92. `embed-fonts` and `embed-cmaps` are
 enabled: the binary carries PDFium/Foxit standard fonts and Adobe CMaps
 (BSD-3-Clause; binary redistribution must reproduce the notices) and CC0 ICC
 profiles. Root `NOTICE` reproduces them; see Licensing below. The renderer and its codec/font/
 color dependencies are implemented in Rust. It replaces the Poppler executable;
 Tesseract remains necessary for text recognition.
 
-## Optional Rust OCR review (2026-10-28 Chicago)
+## Email parser review (2026-11-25 Chicago)
 
-`ocrs` 0.13.1 and RTen 0.26 implement CPU inference in Rust. The sole registry
+`mail-parser` 1.0.2 is a Rust MIME parser under MIT OR Apache-2.0 from
+[Stalwart Labs](https://github.com/stalwartlabs/mail-parser). The
+[registry ownership API](https://crates.io/api/v1/crates/mail-parser/owners)
+lists sole owner [Maurus Decimus](https://github.com/mdecimus), whose profile
+lists Stalwart Labs and no location. That account published 1.0.2 on
+2026-11-23; checksum
+`2e57f7caaeb0071026b4be388c81e9c253853d9ed072a3061d425ef1c1b1b569`.
+These records do not establish every contributor's residence or affiliations.
+
+The registry source, manifest and changelog were inspected for the 0.11-to-1.0
+rewrite. It requires Rust 1.98 and retains no default features. Body decoding
+is lazy; Markkit reads `text_body()` views, warns on transfer-decode problems
+from `decoded_checked()` and lists nested-message attachments without
+extracting their content. Header/address views preserve the prior flattening.
+The parser has default caps of 64 nesting levels, 10,000 parts and three
+encoded-message nesting levels; reaching an upstream cap may truncate the
+parsed structure. Markkit still bounds input and charges parsed parts/body
+nodes to its shared budget after the non-interruptible parse.
+
+New unsafe Rust lives in SIMD scanning and UTF-8 span resolution. Reviewed
+`scan/mod.rs` CPU dispatch, `scan/simd.rs` full-vector load bounds/scalar tails
+and `store/str.rs` validated UTF-8/immutable source-span invariants. x86 AVX2
+and SSSE3 are runtime-detected; aarch64 NEON uses its baseline target feature;
+other targets retain portable scanning. `encodify` and `simdutf8` add decoding
+and validation paths. This accepts the dependency migration under the existing
+untrusted-input/host-isolation contract; it is a focused integration review,
+not a complete audit of all unsafe transitive code. Email regression tests
+cover malformed encodings, short/vector-boundary inputs, nested messages,
+header injection, limits and attachments. No native library or network
+dependency is added by this feature.
+
+## Optional Rust OCR review (2026-11-25 Chicago)
+
+`ocrs` 0.14.0 and RTen 0.28 implement CPU inference in Rust. The sole registry
 owner is [Robert Knight](https://github.com/robertknight), whose public profile
 lists London, United Kingdom, and Shortest Path Software. Public ownership
 records show no Russian organizational owner; this is not a statement about

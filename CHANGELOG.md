@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Refresh PDF/OCR, MIME, archive, CLI and native Node dependencies; the optional
+  `email` feature now requires Rust 1.98 or later (**Breaking:** MSRV increase
+  for email-enabled builds).
+
 - Docs overhaul: rewritten root, PyPI, npm and WASM READMEs (API tables,
   result fields, options, limits, errors); getting-started guide rewritten.
   Rust snippets in the README and guides are now compiled as doctests.

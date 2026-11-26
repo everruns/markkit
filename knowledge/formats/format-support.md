@@ -24,7 +24,7 @@ tags:
 ### Tier 1 (Core)
 - **HTML/XHTML**: Full support via html5ever + scraper (`html` feature, default)
 - **Plain text**: Always on, no dependencies (`text/plain`, `.txt`, `.text`)
-- **Email** (`email`): `.eml` / `message/rfc822` via mail-parser 0.11 (no default features)
+- **Email** (`email`): `.eml` / `message/rfc822` via mail-parser 1.0 (Rust 1.98+) (no default features)
 - **Jupyter notebooks**: Always on, serde_json (`application/x-ipynb+json`, `.ipynb`; nbformat 4)
 - **CSV / TSV**: Always on, no dependencies (`text/csv`, `application/csv`, `.csv`; `text/tab-separated-values`, `.tsv`, `.tab`)
 
