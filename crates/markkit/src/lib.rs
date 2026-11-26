@@ -163,7 +163,7 @@ pub mod config;
 mod csv;
 #[cfg(feature = "docx")]
 mod docx;
-#[cfg(feature = "email")]
+#[cfg(feature = "email-body")]
 pub mod email;
 #[cfg(feature = "email")]
 mod eml;

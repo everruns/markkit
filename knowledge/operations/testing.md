@@ -58,6 +58,10 @@ each security test states exactly which bytes it feeds the parser.
 - **Eval**: `just eval` scores extraction quality (mira study, not a gate); its
   unit tests run in `cargo test`. See [Evaluation Harness](eval.md)
 
+The independent Email body compatibility job builds and tests `email-body` on
+Rust 1.96, both with and without HTML, and rejects a MIME parser or HTTP client
+in its normal dependency graph. Full `email` still exercises the EML suite.
+
 ## Rules
 
 - Write the failing test first, then fix

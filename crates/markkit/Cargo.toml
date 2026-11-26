@@ -34,7 +34,9 @@ docx = ["dep:zip", "dep:quick-xml"]
 pptx = ["dep:zip", "dep:quick-xml"]
 spreadsheet = ["dep:calamine", "dep:zip", "dep:quick-xml", "dep:cfb"]
 markdown = ["dep:pulldown-cmark"]
-email = ["dep:mail-parser"]
+# Decoded provider bodies need neither MIME parsing nor its toolchain requirements.
+email-body = []
+email = ["email-body", "dep:mail-parser"]
 odt = ["dep:zip", "dep:quick-xml"]
 epub = ["html", "dep:zip", "dep:quick-xml"]
 # Opt-in: the default build has no network stack (no reqwest/hyper/TLS).
@@ -168,4 +170,4 @@ harness = false
 [[example]]
 name = "email_body"
 path = "../../examples/email_body.rs"
-required-features = ["email"]
+required-features = ["email-body"]

@@ -1,5 +1,9 @@
 # Markkit Knowledge Update Log
 
+## 2026-11-26
+
+- Split decoded email body views into `email-body`, preserving `email` as the full EML feature; add a Rust 1.96 compatibility and dependency-isolation gate.
+
 ## 2026-11-25
 
 - [Release Process](operations/release-process.md): prepare v0.3.2 across Rust, Python, native npm and WASM; includes reviewed dependency migrations, output-safety fixes, email body views, documentation and licensing updates. Publication remains verified separately on the release tag.

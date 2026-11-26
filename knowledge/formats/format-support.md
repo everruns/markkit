@@ -469,7 +469,9 @@ decoded in the pre-scan, and separately the total content interpreted, form reus
 ## Decoded email body views
 
 The Rust `email::extract_body` API accepts provider-decoded text and HTML without
-requiring callers to synthesize MIME. It prefers text, otherwise extracts HTML
+requiring callers to synthesize MIME. The `email-body` feature exposes this API
+without a MIME dependency; the existing `email` feature includes it alongside
+EML parsing. A Rust 1.96 consumer gate covers body-only and HTML alternatives. It prefers text, otherwise extracts HTML
 without remote image loading. It returns both a full normalized representation
 and a clean view with omission spans. Only conservative trailing quotes and exact
 mobile signatures are removed; forwarded and interleaved content is retained.

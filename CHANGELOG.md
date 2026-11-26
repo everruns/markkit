@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-11-25
+
+### Fixed
+
+- Expose decoded email cleanup through `email-body` without requiring the MIME parser or Rust 1.98. The existing `email` feature still includes both APIs.
+
 ## [0.3.2] - 2026-11-25
 
 ### Security
