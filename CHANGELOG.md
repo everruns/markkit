@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- Prevent footnote references from becoming unintended link definitions, and
+  keep link titles and destinations from exposing raw HTML through code spans.
+
 - Require `url` 2.5.9 or later to avoid nested `blob:` URL origin stack overflow
   (RUSTSEC-2026-0592).
 

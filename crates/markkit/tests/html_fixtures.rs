@@ -73,3 +73,8 @@ fn fixture_news_page_main_content() {
     let actual = m.extract_html_sync(&html).unwrap();
     assert_eq!(actual, expected, "\n--- Actual ---\n{actual}");
 }
+
+#[test]
+fn fixture_table_link_title() {
+    fixture_test("table_link_title");
+}
